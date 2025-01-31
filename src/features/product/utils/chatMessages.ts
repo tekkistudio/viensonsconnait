@@ -1,27 +1,22 @@
 // src/features/product/utils/chatMessages.ts
-import type { Product } from '../../../types/product';
+import { ReactNode } from 'react';
+import type { 
+  ProductId, 
+  MessagesType, 
+  MessageStructure, 
+  BaseMessageContent
+} from '../types/chat';
 
 interface GenericMessages {
+  howToPlay: ReactNode | BaseMessageContent;
+  testimonials: ReactNode | BaseMessageContent;
+  pricing(convertPrice: (price: number) => { value: number; formatted: string; }): import("react").ReactNode | import("../types/chat").BaseMessageContent;
   orderConfirmation: (firstName: string, city: string) => string;
   askCity: (firstName: string) => string;
   askAddress: (city: string) => string;
   askPhone: string;
   askPayment: string;
 }
-
-export type ProductId = 'couples' | 'maries' | 'famille' | 'amis' | 'collegues' | 'stvalentin';
-
-type GeneratedMessages = {
-  [K in ProductId]: {
-    welcome: string;
-    description: string;
-    features: string;
-    howToPlay: string;
-    testimonials: string;
-    pricing: (convertPrice: (price: number) => { value: number; formatted: string }) => string;
-    sampleQuestions: string;
-  }
-};
 
 interface PriceConverter {
   convertPrice: (price: number) => {
@@ -31,20 +26,87 @@ interface PriceConverter {
 }
 
 interface ProductMessagesGenerator {
-    welcome: string;
-    description: string;
-    features: string;
-    howToPlay: string;
-    testimonials: string;
-    pricing: (convertPrice: (price: number) => { value: number; formatted: string }) => string;
-    sampleQuestions: string;
-  }
+  welcome: string;
+  description: string;
+  features: string;
+  howToPlay: string;
+  testimonials: string;
+  pricing: (convertPrice: (price: number) => { value: number; formatted: string }) => string;
+  sampleQuestions: string;
+}
 
-type MessagesGenerator = {
-  [key: string]: ProductMessagesGenerator;
+// Choix génériques pour tous les produits
+const GENERIC_CHOICES = {
+  initial: [
+    "Je veux en savoir plus",
+    "Je veux l'acheter maintenant",
+    "Je veux voir les témoignages",
+    "Comment y jouer ?"
+  ] as const,
+  afterDescription: [
+    "Voir des exemples de questions",
+    "Voir les témoignages",
+    "Je veux l'acheter maintenant"
+  ] as const,
+  afterTestimonials: [
+    "Voir les packs disponibles",
+    "Je veux l'acheter maintenant",
+    "Voir des exemples de questions"
+  ] as const,
+  afterPricing: [
+    "Commander 1 jeu",
+    "Commander plusieurs jeux",
+    "Voir des exemples de questions"
+  ] as const,
+  multipleGames: [
+    "2 exemplaires",
+    "3 exemplaires",
+    "4 exemplaires ou plus"
+  ] as const,
+  paymentMethods: [
+    "Payer avec le téléphone",
+    "Payer par carte bancaire",
+    "Payer à la livraison"
+  ] as const
+} as const;
+
+// Types pour les choix
+type GenericChoicesKey = keyof typeof GENERIC_CHOICES;
+type GenericChoiceValues = typeof GENERIC_CHOICES[GenericChoicesKey][number];
+
+// Messages génériques
+const GENERIC_MESSAGES: GenericMessages = {
+  orderConfirmation: (firstName, city) => `
+    Merci ${firstName} ! Votre commande a bien été enregistrée.
+    ⏱️ Délais de livraison :
+    ${city.toLowerCase() === 'dakar' ? '• Dakar : 24h maximum' : '• Autres villes : 72h maximum'}
+    Notre livreur vous contactera dans les plus brefs délais.`,
+
+  askCity: (firstName) => `Merci ${firstName} 🙂 Dans quelle ville habitez-vous ?`,
+
+  askAddress: (city) => `Parfait ! Quelle est votre adresse exacte à ${city} ?`,
+
+  askPhone: "Super ! Quel est votre numéro de téléphone 📱 pour la livraison ?",
+
+  askPayment: "Par quel moyen souhaitez-vous payer ?",
+  howToPlay: undefined,
+  testimonials: undefined,
+  pricing: function (convertPrice: (price: number) => { value: number; formatted: string; }): import('react').ReactNode | import('../types/chat').BaseMessageContent {
+    throw new Error('Function not implemented.');
+  }
 };
 
-export const generateInitialMessages = (convertPrice: (price: number) => { value: number; formatted: string }) => ({
+export {
+  GENERIC_CHOICES,
+  GENERIC_MESSAGES,
+  type GenericChoicesKey,
+  type GenericChoiceValues, type ProductId
+};
+
+export function generateInitialMessages(
+  convertPrice: (price: number) => { value: number; formatted: string }
+): MessagesType {
+  return {
     couples: {
     welcome: "Bonjour 👋 Je suis Rose, votre Assistante d'Achat. Je vois que vous vous intéressez à notre jeu pour les couples non mariés. C'est un excellent choix ! Comment puis-je vous aider ?",
     description: `VIENS ON S'CONNAÎT - En Couple est un jeu de 150 questions qui vous permet de mieux connaître votre partenaire et de renforcer votre relation afin de pouvoir mieux vous projeter en tant que couple. Les questions sont réparties en 3 thèmes importants pour les couples non mariés :
@@ -371,34 +433,5 @@ La livraison est gratuite à Dakar. Pour les autres villes du Sénégal 🇸🇳
 👉🏼 "Quelle a été ta plus belle surprise dans notre relation ?"
 👉🏼 "Quel moment de notre histoire d'amour t'a fait le plus sourire ?"`
   }
-});
-
-// Messages génériques pour tous les produits
-export const GENERIC_MESSAGES: GenericMessages = {
-  orderConfirmation: (firstName, city) => `
-    Merci ${firstName} ! Votre commande a bien été enregistrée. 
-    ⏱️ Délais de livraison :
-    ${city.toLowerCase() === 'dakar' ? '• Dakar : 24h maximum' : '• Autres villes : 72h maximum'}
-    Notre livreur vous contactera dans les plus brefs délais.`,
-  
-  askCity: (firstName) => `Merci ${firstName} 🙂 Dans quelle ville habitez-vous ?`,
-  
-  askAddress: (city) => `Parfait ! Quelle est votre adresse exacte à ${city} ?`,
-  
-  askPhone: "Super ! Quel est votre numéro de téléphone 📱 pour la livraison ?",
-  
-  askPayment: "Par quel moyen souhaitez-vous payer ?",
-};
-
-// Choix génériques pour tous les produits
-export const GENERIC_CHOICES = {
-  initial: ["Je veux en savoir plus", "Je veux l'acheter maintenant", "Je veux voir les témoignages", "Comment y jouer ?"] as const,
-  afterDescription: ["Voir des exemples de questions", "Voir les packs disponibles", "Je veux l'acheter maintenant"] as const,
-  afterTestimonials: ["Voir les packs disponibles", "Je veux l'acheter maintenant", "Je veux en savoir plus"] as const,
-  afterPricing: ["Commander 1 jeu", "Commander plusieurs jeux", "Je veux en savoir plus"] as const,
-  multipleGames: ["2 exemplaires", "3 exemplaires", "4 exemplaires ou plus"] as const,
-  paymentMethods: ["Wave", "Orange Money", "Paiement à la livraison"] as const
-} as const;
-
-export type GenericChoicesKey = keyof typeof GENERIC_CHOICES;
-export type GenericChoiceValues = (typeof GENERIC_CHOICES)[GenericChoicesKey][number];
+} as MessagesType;
+}

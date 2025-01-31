@@ -1,102 +1,158 @@
-// app/admin/login/page.tsx
-'use client'
+// src/app/admin/login/page.tsx
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import Image from 'next/image'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/components/admin/AuthProvider';
+
+interface LoginError {
+  message: string;
+  remainingAttempts?: number;
+}
 
 export default function AdminLoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<LoginError | null>(null);
+  const supabase = createClientComponentClient();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/admin/dashboard');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setIsLoading(true)
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
     try {
-      // Tentative de connexion
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password,
-      })
-
-      if (signInError) throw signInError
-
-      // Vérification du rôle admin
-      const { data: { user } } = await supabase.auth.getUser()
+        password
+      });
       
-      if (!user?.user_metadata?.role || user.user_metadata.role !== 'admin') {
-        // Si l'utilisateur n'est pas admin, le déconnecter
-        await supabase.auth.signOut()
-        throw new Error('Vous n\'avez pas les droits d\'accès nécessaires')
-      }
+      if (signInError) throw signInError;
 
-      // Redirection vers le dashboard si tout est OK
-      router.push('/admin')
+      // Vérifier le rôle admin
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (userError || !userData || userData.role !== 'admin') {
+        await supabase.auth.signOut();
+        throw new Error('Accès non autorisé');
+      }
+      
+      // La redirection sera gérée par useEffect quand isAuthenticated changera
     } catch (err) {
-      console.error('Erreur de connexion:', err)
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la connexion')
-      setIsLoading(false)
+      console.error('Erreur de connexion:', err);
+      setError({
+        message: err instanceof Error ? 
+          err.message === 'Invalid login credentials' ? 
+            'Email ou mot de passe incorrect' : 
+            err.message : 
+          'Une erreur est survenue'
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Pendant le chargement de l'authentification, montrer un loader
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-blue" />
+      </div>
+    );
+  }
+
+  // Si déjà authentifié, ne rien afficher (la redirection sera gérée par useEffect)
+  if (isAuthenticated) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Image
-          src="/images/logos/logo-black.svg"
-          alt="VIENS ON S'CONNAÎT"
-          width={150}
-          height={150}
-          className="mx-auto w-150 h-150"
-        />
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Administration
-        </h2>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white">
+      {/* Section de gauche (visible uniquement sur desktop) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#2563EB] to-[#38B6FF] p-12">
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="max-w-xl">
+            <Image
+              src="/images/logos/logo_dukka_white.svg"
+              alt="Dukka"
+              width={150}
+              height={40}
+              className="mb-12"
+            />
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+              <blockquote className="text-xl leading-relaxed text-white mb-8">
+                "Dukka est née d'une observation simple : en Afrique, l'achat n'est pas qu'une simple transaction, c'est avant tout une conversation, un échange humain. C'est par cette conversation que se construit la confiance, que s'échangent les informations sur les produits, et que se conclut la vente. Notre mission est de permettre aux e-commerçants de vendre comme l'Afrique achète."
+              </blockquote>
+              <footer className="text-white/80">
+                - Ibuka Ndjoli, founder Dukka
+              </footer>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+      {/* Section de droite (formulaire) */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-md">
+          {/* Logo pour mobile */}
+          <div className="lg:hidden mb-12 flex justify-center">
+            <Image
+              src="/images/logos/logo_dukka.svg"
+              alt="Dukka"
+              width={120}
+              height={32}
+            />
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+            Connectez-vous 
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-pink focus:ring-brand-pink sm:text-sm"
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border text-gray-600 border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-colors"
+                disabled={isLoading}
+              />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Mot de passe
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="password"
-                  name="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-pink focus:ring-brand-pink sm:text-sm pr-10"
+                  className="w-full px-4 py-2 rounded-lg border text-gray-600 border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-colors"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -113,27 +169,33 @@ export default function AdminLoginPage() {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error.message}
+                  {error.remainingAttempts !== undefined && (
+                    <p className="mt-1 text-sm">
+                      {error.remainingAttempts} tentatives restantes
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-blue hover:bg-brand-pink focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  'Se connecter'
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2 px-4 bg-[#2563EB] text-white rounded-lg hover:bg-[#2563EB]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                'Se connecter'
+              )}
+            </button>
           </form>
         </div>
       </div>
     </div>
-  )
+  );
 }

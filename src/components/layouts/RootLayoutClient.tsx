@@ -3,7 +3,6 @@
 
 import { ThemeProvider } from '../../core/theme/ThemeProvider'
 import { LayoutProvider } from '../../core/context/LayoutContext'
-import { AppLayout } from './AppLayout'
 
 interface RootLayoutClientProps {
   children: React.ReactNode
@@ -11,12 +10,10 @@ interface RootLayoutClientProps {
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {
   return (
-    <LayoutProvider>
-      <ThemeProvider>
-        <AppLayout>
-          {children}
-        </AppLayout>
-      </ThemeProvider>
-    </LayoutProvider>
+    <ThemeProvider>
+      <LayoutProvider>
+        {children}
+      </LayoutProvider>
+    </ThemeProvider>
   )
 }

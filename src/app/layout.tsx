@@ -1,11 +1,19 @@
 // src/app/layout.tsx
 import './globals.css'
 import type { Metadata } from 'next'
-import { RootLayoutClient } from '../components/layouts/RootLayoutClient'
+import { Inter } from 'next/font/google'
+import { ScriptsLoader } from '../components/layouts/ScriptsLoader'
 import '@fontsource/montserrat/400.css'
 import '@fontsource/montserrat/500.css'
 import '@fontsource/montserrat/600.css'
 import '@fontsource/montserrat/700.css'
+
+// Configuration de la police Inter pour l'admin
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'VIENS ON S\'CONNAÎT - Des jeux de cartes pour tisser des liens plus forts',
@@ -18,11 +26,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr">
-      <body className="font-sans">
-        <RootLayoutClient>
-          {children}
-        </RootLayoutClient>
+    <html lang="fr" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <ScriptsLoader />
+        {/* Styles Mapbox */}
+        <link 
+          href='https://api.mapbox.gl/mapbox-gl-js/v2.15.0/mapbox-gl.css' 
+          rel='stylesheet' 
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body className="bg-white min-h-screen antialiased">
+        {children}
       </body>
     </html>
   )

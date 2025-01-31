@@ -1,62 +1,84 @@
-// middleware.ts
+// src/middleware.ts
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { Database } from './src/types/supabase'
+import type { Database } from '@/types/supabase'
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient<Database>({ req, res })
+  console.log('🔒 Middleware - URL:', req.nextUrl.pathname);
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient<Database>({ req, res });
 
-  // Vérifie si l'utilisateur essaie d'accéder au dashboard admin
-  if (req.nextUrl.pathname.startsWith('/admin')) {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    // Exclure la page de login de la vérification
+  try {
+    console.log('🔍 Vérification de la session...');
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('❌ Erreur session:', error);
+      throw error;
+    }
+
+    console.log('📋 Session:', session ? 'Présente' : 'Absente');
+
+    // Accès à /admin/login
     if (req.nextUrl.pathname === '/admin/login') {
-      // Si l'utilisateur est déjà connecté et est admin, rediriger vers le dashboard
       if (session) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.user_metadata?.role === 'admin') {
-          return NextResponse.redirect(new URL('/admin', req.url))
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userData?.role === 'admin') {
+          console.log('➡️ Redirection login -> dashboard (session admin active)');
+          return NextResponse.redirect(new URL('/admin/dashboard', req.url));
         }
       }
-      return res
+      console.log('✅ Accès login autorisé (pas de session admin)');
+      return res;
     }
 
-    // Si pas de session, redirection vers login
+    // Pour toutes les autres routes /admin/*
     if (!session) {
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+      console.log('➡️ Redirection vers login (pas de session)');
+      return NextResponse.redirect(new URL('/admin/login', req.url));
     }
 
-    try {
-      // Vérifier le rôle dans les métadonnées
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      
-      if (userError) throw userError
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
 
-      if (!user?.user_metadata?.role || user.user_metadata.role !== 'admin') {
-        // Log pour le débogage
-        console.log('Accès refusé :', {
-          userId: user?.id,
-          metadata: user?.user_metadata,
-          role: user?.user_metadata?.role
-        })
-        
-        // Déconnecter l'utilisateur non autorisé
-        await supabase.auth.signOut()
-        return NextResponse.redirect(new URL('/admin/login', req.url))
-      }
-    } catch (error) {
-      console.error('Erreur middleware:', error)
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+    const isAdmin = userData?.role === 'admin';
+    console.log('👤 Rôle admin:', isAdmin);
+
+    if (!isAdmin) {
+      console.log('❌ Rôle non admin, déconnexion...');
+      await supabase.auth.signOut();
+      return NextResponse.redirect(new URL('/admin/login', req.url));
     }
+
+    console.log('✅ Accès autorisé');
+    return res;
+
+  } catch (error) {
+    console.error('❌ Erreur middleware:', error);
+    return NextResponse.redirect(new URL('/admin/login', req.url));
   }
-
-  return res
 }
 
-// Configurer les routes qui doivent être protégées
 export const config = {
-  matcher: '/admin/:path*'
+  matcher: [
+    '/admin',
+    '/admin/login',
+    '/admin/dashboard/:path*',
+    '/admin/orders/:path*',
+    '/admin/products/:path*',
+    '/admin/customers/:path*',
+    '/admin/delivery/:path*',
+    '/admin/marketing/:path*',
+    '/admin/analytics/:path*',
+    '/admin/settings/:path*'
+  ]
 }

@@ -45,41 +45,14 @@ export const getDefaultCountry = async (): Promise<Country> => {
 
     // Pays de la zone FCFA (UEMOA et CEMAC)
     const fcfaCountries = [
-      "SN",
-      "CI",
-      "BJ",
-      "BF",
-      "ML",
-      "NE",
-      "TG",
-      "GW",
-      "CM",
-      "GA",
-      "CG",
-      "TD",
-      "CF",
-      "GQ",
+      "SN", "CI", "BJ", "BF", "ML", "NE", "TG", "GW",
+      "CM", "GA", "CG", "TD", "CF", "GQ"
     ];
     // Pays de la zone Euro
     const euroCountries = [
-      "FR",
-      "DE",
-      "IT",
-      "ES",
-      "PT",
-      "NL",
-      "BE",
-      "IE",
-      "FI",
-      "AT",
-      "GR",
-      "SK",
-      "SI",
-      "LU",
-      "LV",
-      "EE",
-      "CY",
-      "MT",
+      "FR", "DE", "IT", "ES", "PT", "NL", "BE", "IE",
+      "FI", "AT", "GR", "SK", "SI", "LU", "LV", "EE",
+      "CY", "MT"
     ];
 
     if (fcfaCountries.includes(data.country_code)) {
@@ -126,18 +99,19 @@ export const useCountryStore = create<CountryStore>()(
         if (isNaN(price)) {
           return { value: 0, formatted: "N/A" };
         }
+
         const country = get().currentCountry;
         if (!country || !country.currency) {
           return {
             value: price,
-            formatted: `${price.toLocaleString()} FCFA`,
+            formatted: `${price.toLocaleString()} FCFA`
           };
         }
 
         if (country.currency.code === "XOF") {
           return {
             value: price,
-            formatted: `${price.toLocaleString()} ${country.currency.symbol}`,
+            formatted: `${price.toLocaleString()} ${country.currency.symbol}`
           };
         }
 
@@ -147,7 +121,7 @@ export const useCountryStore = create<CountryStore>()(
           value: convertedValue,
           formatted: country.currency.code === "EUR" 
             ? `${convertedValue.toLocaleString()} ${country.currency.symbol}` 
-            : `${country.currency.symbol}${convertedValue.toLocaleString()}`,
+            : `${country.currency.symbol}${convertedValue.toLocaleString()}`
         };
       },
     }),

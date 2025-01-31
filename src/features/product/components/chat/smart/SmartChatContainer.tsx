@@ -1,7 +1,8 @@
+// src/features/product/components/chat/smart/SmartChatContainer.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Star } from 'lucide-react';
-import type { ChatMessage, ConversationStep } from '../../../types/chat';
+import type { ChatMessage, ConversationStep, ProductRecommendation } from '../../../types/chat';
 import { useChatContext } from '../../../context/ChatContext';
 
 interface MessageGroupProps {
@@ -9,9 +10,38 @@ interface MessageGroupProps {
   onChoice: (choice: string) => void;
 }
 
+const renderContent = (content: string): React.ReactNode => {
+  if (content.includes('<strong>')) {
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  }
+  return <>{content}</>;
+};
+
 const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
-  // Ne pas afficher les choix deux fois
   const shouldRenderChoices = message.type === 'assistant' && message.choices && message.choices.length > 0;
+  
+  const getMessageContent = (message: ChatMessage): React.ReactNode => {
+    if (!message.content) return null;
+  
+    if (typeof message.content === 'string') {
+      return renderContent(message.content);
+    }
+    if (React.isValidElement(message.content)) {
+      return message.content;
+    }
+    if (typeof message.content === 'object' && 'text' in message.content) {
+      return renderContent(message.content.text);
+    }
+    return String(message.content);
+  };
+  
+  const isAppRecommendation = (rec: string | ProductRecommendation): boolean => {
+    if (typeof rec === 'string') {
+      return rec === 'mobile-app';
+    }
+    // Vérifiez la propriété qui identifie une recommandation d'app mobile
+    return rec.recommendationType === 'mobile-app' || rec.category === 'mobile-app';
+  };
   
   return (
     <div className="space-y-2">
@@ -31,15 +61,11 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
           )}
           
           <div className="space-y-2 text-brand-blue">
-            {message.content.includes('<strong>') ? (
-              <div dangerouslySetInnerHTML={{ __html: message.content }} />
-            ) : (
-              message.content
-            )}
+            {getMessageContent(message)}
           </div>
           
           {/* Mobile App Recommendation */}
-          {message.metadata?.recommendations?.includes('mobile-app') && (
+          {message.metadata?.recommendations?.some(isAppRecommendation) && (
             <div className="mt-4 p-4 bg-brand-blue/5 rounded-lg border border-brand-blue/10">
               <h4 className="font-medium text-brand-blue mb-2">
                 💡 Découvrez notre application mobile !
@@ -72,19 +98,19 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
       
       {shouldRenderChoices && message.choices && (
         <div className="flex flex-wrap gap-2 mt-3">
-            {message.choices.map((choice, idx) => (
-                <button
-                    key={`${choice}-${idx}`}
-                    onClick={() => onChoice(choice)}
-                    className="bg-white border border-brand-pink text-brand-pink rounded-full px-4 py-2 
-                        text-sm hover:bg-brand-pink hover:text-white transition-colors
-                        active:scale-95 transform duration-100"
-                >
-                    {choice}
-                </button>
-      ))}
-  </div>
-)}
+          {message.choices.map((choice, idx) => (
+            <button
+              key={`${choice}-${idx}`}
+              onClick={() => onChoice(choice)}
+              className="bg-white border border-brand-pink text-brand-pink rounded-full px-4 py-2 
+                text-sm hover:bg-brand-pink hover:text-white transition-colors
+                active:scale-95 transform duration-100"
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

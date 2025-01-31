@@ -2,15 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --brand-blue: #132D5D;
-  --brand-pink: #FF7E93;
-  --announcement-height: 0px;
+/* Variables et thèmes de base */
+@layer base {
+  :root {
+    --background: theme('colors.white');
+    --foreground: theme('colors.gray.900');
+    --brand-blue: #132D5D;
+    --brand-pink: #FF7E93;
+    --announcement-height: 0px;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: theme('colors.gray.200');
+    --header-height: 64px;
+    --mobile-footer-height: 56px;
+  }
+
+  .dark {
+    --background: theme('colors.gray.900');
+    --foreground: theme('colors.gray.100');
+    --border: theme('colors.gray.800');
+  }
+
+  html, body {
+    @apply bg-background;
+  }
+
+  body {
+    @apply text-foreground transition-colors duration-300;
+    font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: var(--announcement-height);
+  }
 }
 
+/* Configuration des bordures */
+@layer base {
+  * {
+    @apply border-gray-200 dark:border-gray-800;
+  }
+}
+
+/* Utilitaires personnalisés */
 @layer utilities {
+  /* Masquer la barre de défilement tout en conservant la fonctionnalité */
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -19,19 +54,38 @@
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Classes responsives */
+  .mobile-container {
+    @apply px-4 md:px-6 lg:px-8;
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .mobile-full-height {
+    min-height: calc(100vh - var(--header-height) - var(--mobile-footer-height));
+  }
+
+  /* Flexbox responsifs */
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+
+  .responsive-flex {
+    @apply flex flex-col sm:flex-row items-start sm:items-center;
+  }
 }
 
-/* Ajustements pour l'annonce et le header */
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: 'Montserrat', Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  padding-top: var(--announcement-height);
+/* Transitions pour le changement de thème */
+.transition-theme {
+  transition: background-color 0.3s ease-in-out,
+              color 0.3s ease-in-out,
+              border-color 0.3s ease-in-out;
 }
 
-/* Ajustement du header pour la barre d'annonce */
+/* Layout et composants spécifiques */
 .header-wrapper {
   position: sticky;
   top: var(--announcement-height);
@@ -39,73 +93,166 @@ body {
   transition: top 0.3s ease-in-out;
 }
 
-/* Style de base pour les sections */
 .section-padding {
-  @apply py-12 md:py-16 lg:py-20;
+  @apply py-8 md:py-12 lg:py-16;
 }
 
-/* Animations pour le défilement */
-.scroll-hint {
-  position: relative;
+/* Optimisations tables responsives */
+.responsive-table-wrapper {
+  @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
 }
 
-.scroll-hint::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 40px;
-  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.9));
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity 0.3s ease;
+.responsive-table {
+  @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
 }
 
-.scroll-hint.at-end::after {
-  opacity: 0;
+.responsive-table-cell {
+  @apply whitespace-nowrap px-4 py-3 text-sm;
 }
 
 /* Optimisations mobiles */
 @media (max-width: 768px) {
-  .snap-x {
+  /* Défilement horizontal amélioré */
+  .scroll-x-container {
+    @apply -mx-4 px-4;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
   }
-  
-  .snap-center {
-    scroll-snap-align: center;
+
+  .scroll-x-item {
+    scroll-snap-align: start;
+    flex-shrink: 0;
   }
-  
+
+  /* Animation de défilement */
   @keyframes scrollHint {
     0% { transform: translateX(0); }
     75% { transform: translateX(10px); }
     100% { transform: translateX(0); }
   }
-  
+
   .scroll-hint-animation {
     animation: scrollHint 1.5s ease-in-out infinite;
   }
-  
-  /* Ajustements de navigation mobile */
+
+  /* Gestion du menu mobile */
   .mobile-menu {
     max-height: calc(100vh - var(--header-height) - var(--announcement-height));
     overflow-y: auto;
   }
-}
 
-/* Thèmes */
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #ffffff;
-    --foreground: #171717;
+  /* Adaptation des cartes pour mobile */
+  .mobile-card {
+    @apply rounded-lg border p-4 bg-white dark:bg-gray-800;
+  }
+
+  .mobile-card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .mobile-card-content {
+    @apply space-y-3;
+  }
+
+  /* Adaptation des filtres pour mobile */
+  .mobile-filters {
+    @apply flex overflow-x-auto gap-2 -mx-4 px-4 pb-2;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mobile-filter-item {
+    @apply flex-shrink-0;
+    scroll-snap-align: start;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Animations Dialog et Radix UI */
+@keyframes overlayShow {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes contentShow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
   }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.animate-overlayShow {
+  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-contentShow {
+  animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-content-enter {
+  animation: enter 200ms ease-out;
+}
+
+.dialog-content-exit {
+  animation: exit 200ms ease-in;
+}
+
+/* Styles Dialog */
+.dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.5);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.dialog-content {
+  background-color: var(--background);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  max-width: 600px;
+  max-height: 85vh;
+  padding: 1.5rem;
+  z-index: 51;
+}
+
+@media (max-width: 640px) {
+  .dialog-content {
+    width: 95vw;
+    padding: 1rem;
+    max-height: 90vh;
+  }
+}
+
+.dialog-content:focus {
+  outline: none;
 }

@@ -39,7 +39,7 @@ export default function HomePage() {
       <div className="w-full bg-brand-white py-16">
         <ProductsGridSection 
           className="py-12"
-          layout={layout}
+          initialLayout={layout}
         />
       </div>
 

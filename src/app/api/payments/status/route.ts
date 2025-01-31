@@ -1,22 +1,56 @@
 // src/app/api/payments/status/route.ts
-import { NextResponse } from 'next/server';
-import { paymentService } from '@/lib/services/payment.service';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const transactionId = searchParams.get('transactionId');
+    const transactionId = searchParams.get('id');
+    const sessionId = searchParams.get('sessionId');
 
-    if (!transactionId) {
+    if (!transactionId && !sessionId) {
       return NextResponse.json(
-        { error: 'Transaction ID is required' },
+        { error: 'Transaction ID or Session ID required' },
         { status: 400 }
       );
     }
 
-    const transaction = await paymentService.getTransactionStatus(transactionId);
+    const query = supabase
+      .from('payment_transactions')
+      .select(`
+        id,
+        status,
+        amount,
+        currency,
+        provider,
+        reference,
+        created_at,
+        updated_at,
+        metadata,
+        orders (
+          id,
+          status,
+          total_amount,
+          customer_name,
+          first_name,
+          last_name,
+          city,
+          address,
+          phone,
+          metadata
+        )
+      `);
 
-    if (!transaction) {
+    if (transactionId) {
+      query.eq('id', transactionId);
+    } else if (sessionId) {
+      query.eq('reference', sessionId);
+    }
+
+    const { data: transaction, error } = await query.single();
+
+    if (error) {
+      console.error('Database query failed:', error);
       return NextResponse.json(
         { error: 'Transaction not found' },
         { status: 404 }
@@ -25,15 +59,29 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: transaction
+      data: {
+        transaction: {
+          id: transaction.id,
+          status: transaction.status,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          provider: transaction.provider,
+          reference: transaction.reference,
+          created_at: transaction.created_at,
+          updated_at: transaction.updated_at
+        },
+        order: transaction.orders,
+        metadata: transaction.metadata
+      }
     });
-
   } catch (error) {
-    console.error('Error fetching payment status:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Status check failed:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Status check failed' 
+      },
+      { status: 500 }
+    );
   }
 }
-

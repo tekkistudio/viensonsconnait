@@ -1,0 +1,140 @@
+2025-01-15T03:53:28.524Z - 🎯 Webhook reçu 
+2025-01-15T03:53:28.526Z - 🔑 Secret Key reçue: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T03:53:28.530Z - Signature finale: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T03:53:28.531Z - 📦 Payload reçu: {
+  "id": "af0b311d-9d66-4a71-9d3f-20a8d93e3f86",
+  "status": "succeeded",
+  "amount": 14000,
+  "currency": "XOF",
+  "merchantReference": "21",
+  "paymentMeans": "wave_money",
+  "pspName": "wave"
+}
+2025-01-15T03:53:28.532Z - 🔄 Appel du service Bictorys... 
+2025-01-15T03:53:28.729Z - ❌ Erreur webhook: {
+  "code": "22P02",
+  "details": null,
+  "hint": null,
+  "message": "invalid input syntax for type uuid: \"21\""
+}
+2025-01-15T04:11:27.819Z - 🎯 Webhook reçu 
+2025-01-15T04:11:27.820Z - 🔑 Secret Key reçue: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T04:11:27.821Z - Signature finale: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T04:11:27.822Z - 📦 Payload reçu: {
+  "id": "fe675320-7152-4b9e-97c1-e2ec29bce2f6",
+  "status": "succeeded",
+  "amount": 14000,
+  "currency": "XOF",
+  "merchantReference": "22",
+  "paymentMeans": "wave_money",
+  "pspName": "wave"
+}
+2025-01-15T04:11:27.822Z - 🔄 Appel du service Bictorys... 
+2025-01-15T04:11:28.630Z - ❌ Erreur webhook: {}
+2025-01-15T04:11:28.632Z - Message d'erreur: "Transaction not found for order 22"
+2025-01-15T04:11:28.635Z - Stack trace: "Error: Transaction not found for order 22\n    at BictorysService.handleWebhook (webpack-internal:///(rsc)/./src/lib/services/bictorys.service.ts:110:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async POST (webpack-internal:///(rsc)/./src/app/api/webhook/bictorys/route.ts:33:24)\n    at async AppRouteRouteModule.do (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32804)\n    at async AppRouteRouteModule.handle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:39698)\n    at async doRender (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1452:42)\n    at async responseGenerator (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1813:28)\n    at async DevServer.renderToResponseWithComponentsImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1823:28)\n    at async DevServer.renderPageComponent (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:2250:24)\n    at async DevServer.renderToResponseImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:2288:32)\n    at async DevServer.pipeImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:959:25)\n    at async NextNodeServer.handleCatchallRenderRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/next-server.js:281:17)\n    at async DevServer.handleRequestImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:853:17)\n    at async /Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/dev/next-dev-server.js:371:20\n    at async Span.traceAsyncFn (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/trace/trace.js:153:20)\n    at async DevServer.handleRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/dev/next-dev-server.js:368:24)\n    at async invokeRender (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:230:21)\n    at async handleRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:408:24)\n    at async requestHandlerImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:432:13)\n    at async Server.requestListener (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/start-server.js:146:13)"
+2025-01-15T05:06:40.087Z - 🎯 Webhook reçu 
+2025-01-15T05:06:40.089Z - 🔑 Secret Key reçue: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T05:06:40.089Z - Signature finale: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-15T05:06:40.090Z - 📦 Payload reçu: {
+  "id": "87e866dc-11bc-4245-9f6b-1422f8fbbd85",
+  "status": "succeeded",
+  "amount": 14000,
+  "currency": "XOF",
+  "merchantReference": "23",
+  "paymentMeans": "wave_money",
+  "pspName": "wave"
+}
+2025-01-15T05:06:40.090Z - 🔄 Appel du service Bictorys... 
+2025-01-15T05:06:40.335Z - ❌ Erreur webhook: {}
+2025-01-15T05:06:40.335Z - Message d'erreur: "Transaction not found for order 23"
+2025-01-15T05:06:40.335Z - Stack trace: "Error: Transaction not found for order 23\n    at BictorysService.handleWebhook (webpack-internal:///(rsc)/./src/lib/services/bictorys.service.ts:107:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async POST (webpack-internal:///(rsc)/./src/app/api/webhook/bictorys/route.ts:33:24)\n    at async AppRouteRouteModule.do (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32804)\n    at async AppRouteRouteModule.handle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:39698)\n    at async doRender (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1452:42)\n    at async responseGenerator (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1813:28)\n    at async DevServer.renderToResponseWithComponentsImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:1823:28)\n    at async DevServer.renderPageComponent (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:2250:24)\n    at async DevServer.renderToResponseImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:2288:32)\n    at async DevServer.pipeImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:959:25)\n    at async NextNodeServer.handleCatchallRenderRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/next-server.js:281:17)\n    at async DevServer.handleRequestImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/base-server.js:853:17)\n    at async /Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/dev/next-dev-server.js:371:20\n    at async Span.traceAsyncFn (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/trace/trace.js:153:20)\n    at async DevServer.handleRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/dev/next-dev-server.js:368:24)\n    at async invokeRender (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:230:21)\n    at async handleRequest (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:408:24)\n    at async requestHandlerImpl (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/router-server.js:432:13)\n    at async Server.requestListener (/Users/ibukandjoli/Documents/dev/vosc/node_modules/next/dist/server/lib/start-server.js:146:13)"
+2025-01-16T01:00:19.780Z - 🎯 Webhook reçu 
+2025-01-16T01:00:19.783Z - 🔑 Secret Key reçue: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-16T01:00:19.783Z - Signature finale: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-16T01:00:19.784Z - 📦 Payload reçu: {
+  "id": "71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+  "status": "succeeded",
+  "amount": 14000,
+  "currency": "XOF",
+  "merchantReference": "TR_1736989217143_28",
+  "paymentMeans": "wave_money",
+  "pspName": "wave"
+}
+2025-01-16T01:00:19.784Z - 🔄 Appel du service Bictorys... 
+2025-01-16T01:00:20.330Z - ✅ Résultat du service: {
+  "success": true,
+  "transaction": {
+    "id": "012a356c-b0ad-47d7-953e-368e70a176cf",
+    "order_id": 28,
+    "amount": 14000,
+    "currency": "XOF",
+    "provider": "WAVE",
+    "status": "COMPLETED",
+    "reference": "TR_1736989217143_28",
+    "metadata": {
+      "updatedAt": "2025-01-16T01:00:20.091Z",
+      "initiatedAt": "2025-01-16T01:00:17.635Z",
+      "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+      "webhookPayload": {
+        "id": "71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+        "amount": 14000,
+        "status": "succeeded",
+        "pspName": "wave",
+        "currency": "XOF",
+        "paymentMeans": "wave_money",
+        "merchantReference": "TR_1736989217143_28"
+      },
+      "bictorysTransactionId": "71f70198-5fd5-4a73-859c-7eccd8fd87a8"
+    },
+    "created_at": "2025-01-16T01:00:17.9847+00:00",
+    "updated_at": "2025-01-16T01:00:17.9847+00:00"
+  }
+}
+2025-01-16T01:00:20.331Z - 💬 Ajout du message dans le chat... 
+2025-01-16T01:00:20.457Z - ❌ Erreur lors de l'ajout du message: {}
+2025-01-16T01:00:20.457Z - ❌ Erreur webhook: {}
+2025-01-16T01:07:48.805Z - 🎯 Webhook reçu 
+2025-01-16T01:07:48.808Z - 🔑 Secret Key reçue: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-16T01:07:48.808Z - Signature finale: "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9"
+2025-01-16T01:07:48.809Z - 📦 Payload reçu: {
+  "id": "c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+  "status": "succeeded",
+  "amount": 14000,
+  "currency": "XOF",
+  "merchantReference": "TR_1736989666783_29",
+  "paymentMeans": "wave_money",
+  "pspName": "wave"
+}
+2025-01-16T01:07:48.809Z - 🔄 Appel du service Bictorys... 
+2025-01-16T01:07:49.465Z - ✅ Résultat du service: {
+  "success": true,
+  "transaction": {
+    "id": "3c0a960f-4184-4df7-85b2-84ed627ecbaa",
+    "order_id": 29,
+    "amount": 14000,
+    "currency": "XOF",
+    "provider": "WAVE",
+    "status": "COMPLETED",
+    "reference": "TR_1736989666783_29",
+    "metadata": {
+      "updatedAt": "2025-01-16T01:07:49.116Z",
+      "initiatedAt": "2025-01-16T01:07:47.248Z",
+      "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+      "webhookPayload": {
+        "id": "c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+        "amount": 14000,
+        "status": "succeeded",
+        "pspName": "wave",
+        "currency": "XOF",
+        "paymentMeans": "wave_money",
+        "merchantReference": "TR_1736989666783_29"
+      },
+      "bictorysTransactionId": "c4c7a5c4-17f9-44ca-9f2a-86871d234619"
+    },
+    "created_at": "2025-01-16T01:07:47.457406+00:00",
+    "updated_at": "2025-01-16T01:07:47.457406+00:00"
+  }
+}
+2025-01-16T01:07:49.466Z - 💬 Ajout du message dans le chat... 
+2025-01-16T01:07:49.579Z - ❌ Erreur lors de l'ajout du message: {}

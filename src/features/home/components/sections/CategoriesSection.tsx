@@ -2,7 +2,6 @@
 "use client"
 
 import { Heart, Users, UserCircle, Briefcase } from 'lucide-react';
-import { useTheme } from '../../../../core/theme/ThemeProvider';
 import { useBreakpoint } from '../../../../core/theme/hooks/useBreakpoint';
 import { motion } from 'framer-motion';
 import Link from 'next/link';

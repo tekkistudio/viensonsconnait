@@ -2,22 +2,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
+import {
+  Dialog,
+  DialogContent,
   DialogTitle,
   DialogDescription,
   DialogHeader
-} from "../../../components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "../../../components/ui/select";
-import useCountryStore, { getDefaultCountry } from "../../../core/hooks/useCountryStore";
-import { countries } from "../../../lib/data/countries";
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import useCountryStore, { getDefaultCountry } from "@/core/hooks/useCountryStore";
+import { countries } from "@/lib/data/countries";
+import { supabase } from "@/lib/supabase";
 
 interface CountrySelectorProps {
   isOpen: boolean;
@@ -25,20 +26,79 @@ interface CountrySelectorProps {
 }
 
 export function CountrySelector({ isOpen, onClose }: CountrySelectorProps) {
-  const { setCountry } = useCountryStore();
-  const [selectedCountry, setSelectedCountry] = useState<string>("SN");
+  const { setCountry, currentCountry } = useCountryStore();
+  const [selectedCountry, setSelectedCountry] = useState<string>(currentCountry?.code || "SN");
 
-  const handleCountryChange = (countryCode: string) => {
+  const handleCountryChange = async (countryCode: string) => {
     const country = countries.find((c) => c.code === countryCode);
     if (country) {
       setSelectedCountry(countryCode);
       setCountry(country);
+
+      // Sauvegarder la préférence de pays pour l'utilisateur
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase
+            .from('user_preferences')
+            .upsert({
+              user_id: session.user.id,
+              country_code: countryCode,
+              currency_code: country.currency?.code || 'XOF',
+              updated_at: new Date().toISOString()
+            });
+        }
+      } catch (error) {
+        console.error('Error saving country preference:', error);
+      }
+
+      // Stocker dans le localStorage
+      localStorage.setItem('userCountry', JSON.stringify({
+        code: country.code,
+        name: country.name,
+        currency: country.currency,
+        flag: country.flag
+      }));
+
       onClose();
     }
   };
 
   useEffect(() => {
     const checkFirstVisit = async () => {
+      // Vérifier d'abord le localStorage
+      const savedCountry = localStorage.getItem('userCountry');
+      if (savedCountry) {
+        const parsed = JSON.parse(savedCountry);
+        setSelectedCountry(parsed.code);
+        setCountry(parsed);
+        return;
+      }
+
+      // Ensuite vérifier les préférences utilisateur dans Supabase
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('country_code')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (preferences?.country_code) {
+            const country = countries.find(c => c.code === preferences.country_code);
+            if (country) {
+              setSelectedCountry(country.code);
+              setCountry(country);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user preferences:', error);
+      }
+
+      // Si aucune préférence trouvée, détecter le pays
       const hasVisited = localStorage.getItem("hasVisitedBefore");
       if (!hasVisited) {
         const detectedCountry = await getDefaultCountry();
@@ -64,11 +124,8 @@ export function CountrySelector({ isOpen, onClose }: CountrySelectorProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Country Selector */}
           <Select value={selectedCountry} onValueChange={handleCountryChange}>
-            <SelectTrigger
-              className="w-full mt-4 bg-black text-white border border-gray-300 rounded-md focus:border-brand-pink focus:ring-2 focus:ring-brand-pink"
-            >
+            <SelectTrigger className="w-full mt-4 bg-black text-white border border-gray-300 rounded-md">
               <SelectValue>
                 <div className="flex items-center gap-2">
                   <span className="text-lg">
@@ -80,7 +137,8 @@ export function CountrySelector({ isOpen, onClose }: CountrySelectorProps) {
                 </div>
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto bg-white text-gray-900 border border-gray-300 rounded-md">
+
+            <SelectContent className="max-h-60 overflow-y-auto">
               {countries.map((country) => (
                 <SelectItem key={country.code} value={country.code}>
                   <div className="flex items-center gap-2">
@@ -92,7 +150,6 @@ export function CountrySelector({ isOpen, onClose }: CountrySelectorProps) {
             </SelectContent>
           </Select>
 
-          {/* Continue Button */}
           <button
             onClick={onClose}
             className="w-full bg-brand-blue text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"

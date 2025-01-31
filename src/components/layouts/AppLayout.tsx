@@ -1,8 +1,6 @@
 // src/components/layouts/AppLayout.tsx
 'use client'
 
-import { usePathname } from 'next/navigation'
-import { useBreakpoint } from '../../core/theme/hooks/useBreakpoint'
 import { useLayoutContext } from '../../core/context/LayoutContext'
 import Header from './Header'
 import Footer from './Footer'
@@ -13,37 +11,35 @@ const ANNOUNCEMENT_DATA = {
   text: "Livraison gratuite à Dakar • Paiement à la livraison disponible",
   phone: "+221781362728",
   whatsapp: "221781362728"
-};
+}
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { hideDukkaBadge } = useLayoutContext();
-  const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith('/admin');
+  const { hideDukkaBadge, hideHeaderGroup } = useLayoutContext()
 
-  // Pour les routes admin, retourner juste le contenu sans header/footer/badge
-  if (isAdminRoute) {
-    return <main className="min-h-screen">{children}</main>;
-  }
-
-  // Pour les autres routes, retourner le layout complet
   return (
-    <div className="flex min-h-screen flex-col">
-      <AnnouncementBar {...ANNOUNCEMENT_DATA} />
-      
-      <div className="header-wrapper">
-        <Header />
-      </div>
-      
-      <main className="flex-1">
+    <div className="min-h-screen flex flex-col">
+      {/* Header group avec z-index, caché quand hideHeaderGroup est true */}
+      {!hideHeaderGroup && (
+        <div className="sticky top-0 z-50 bg-white">
+          <AnnouncementBar {...ANNOUNCEMENT_DATA} />
+          <Header />
+        </div>
+      )}
+
+      {/* Main content */}
+      <main className="flex-1 relative z-0">
         {children}
       </main>
 
+      {/* Footer */}
       <Footer />
-      {!hideDukkaBadge && !isAdminRoute && <DukkaBadge />}
+      
+      {/* Dukka Badge */}
+      {!hideDukkaBadge && <DukkaBadge />}
     </div>
-  );
+  )
 }

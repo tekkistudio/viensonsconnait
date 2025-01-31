@@ -1,13 +1,14 @@
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx
 'use client';
 
 import React, { useEffect } from 'react';
-import { ArrowLeft, Star, Mic, Send } from 'lucide-react';
+import { ArrowLeft, Star, Mic, Send, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatContext } from '../../../context/ChatContext';
-import PaymentButton from './PaymentButton';
-import type { PaymentTotal } from '../../../types/chat';
+import { useLayoutContext } from '@/core/context/LayoutContext';
 import type { Product } from '../../../../../types/product';
-import { PaymentModal } from '../../../components/PaymentModal';
+import type { ChatMessage } from '../../../types/chat';
+import { UnifiedPaymentModal } from '@/components/payment';
 
 interface MobileChatContainerProps {
   onBackClick: () => void;
@@ -19,6 +20,56 @@ type PaymentButtonType = 'wave-button' | 'om-button';
 
 const isValidPaymentType = (type: string): type is PaymentButtonType => {
   return type === 'wave-button' || type === 'om-button';
+};
+
+const useMessageRedirect = (messages: ChatMessage[]) => {
+  useEffect(() => {
+    const handleRedirect = (message: ChatMessage) => {
+      if (message.metadata?.action === 'redirect' && message.metadata.externalUrl) {
+        const { url, type } = message.metadata.externalUrl;
+        if (type === 'whatsapp' || type === 'email') {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+          window.location.href = url;
+        }
+      }
+    };
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage) {
+      handleRedirect(lastMessage);
+    }
+  }, [messages]);
+};
+
+const RedirectIndicator = ({ type }: { type: string }) => (
+  <div className="flex items-center gap-2 text-sm text-blue-600">
+    <ExternalLink className="w-4 h-4" />
+    <span>
+      {type === 'whatsapp' ? "Ouverture de WhatsApp..." : 
+       type === 'email' ? "Ouverture de votre messagerie..." :
+       "Redirection en cours..."}
+    </span>
+  </div>
+);
+
+const renderMessageContent = (message: ChatMessage): React.ReactNode => {
+  const content = typeof message.content === 'string' ? message.content : String(message.content);
+  
+  if (message.metadata?.externalUrl) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div dangerouslySetInnerHTML={{ __html: content }} />
+        <RedirectIndicator type={message.metadata.externalUrl.type} />
+      </div>
+    );
+  }
+
+  if (content.includes('<strong>')) {
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  }
+
+  return <>{content}</>;
 };
 
 const useScrollToBottom = (
@@ -42,8 +93,16 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   product
 }) => {
   const { state, handleUserChoice, calculateOrderTotal, dispatch } = useChatContext();
+  const { setHideHeaderGroup } = useLayoutContext();
   const { messages, isTyping } = state;
   const [inputMessage, setInputMessage] = React.useState('');
+
+  useMessageRedirect(messages);
+  
+  useEffect(() => {
+    setHideHeaderGroup(true);
+    return () => setHideHeaderGroup(false);
+  }, [setHideHeaderGroup]);
 
   useScrollToBottom(chatRef, [messages, isTyping]);
 
@@ -145,11 +204,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                         </div>
                       )}
                       <div className="mb-1 whitespace-pre-line">
-                        {message.content.includes('<strong>') ? (
-                          <div dangerouslySetInnerHTML={{ __html: message.content }} />
-                        ) : (
-                          message.content
-                        )}
+                        {renderMessageContent(message)}
                       </div>
                       <div className="text-[11px] opacity-60 text-right mt-1">
                         {new Date().toLocaleTimeString([], {
@@ -160,19 +215,51 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                     </div>
                   )}
 
-                  {/* Choix après un message de l'assistant */}
                   {message.type === 'assistant' && message.choices && message.choices.length > 0 && (
                     renderChoices(message.choices)
                   )}
 
-                  {/* Boutons de paiement */}
+                  {/* Actions de paiement */}
                   {isValidPaymentType(message.type) && (
                     <div className="flex justify-center mt-4">
-                      <PaymentButton
-                        type={message.type}
-                        total={calculateOrderTotal() as PaymentTotal}
-                        paymentUrl={message.paymentUrl}
-                        isMobile={true}
+                      <UnifiedPaymentModal
+                        isOpen={state.paymentModal.isOpen}
+                        onClose={() => {
+                          dispatch({
+                            type: 'SET_PAYMENT_MODAL',
+                            payload: {
+                              isOpen: false,
+                              iframeUrl: ''
+                            }
+                          });
+                        }}
+                        amount={calculateOrderTotal().value}
+                        currency="XOF"
+                        customerInfo={{
+                          name: `${state.orderData.firstName} ${state.orderData.lastName}`,
+                          phone: state.orderData.phone,
+                          city: state.orderData.city
+                        }}
+                        orderId={parseInt(state.orderData.orderId || Date.now().toString())}
+                        onPaymentComplete={(result) => {
+                          if (result.success) {
+                            dispatch({
+                              type: 'SET_PAYMENT_STATUS',
+                              payload: {
+                                status: 'completed',
+                                transactionId: result.transactionId
+                              }
+                            });
+                          } else {
+                            dispatch({
+                              type: 'SET_PAYMENT_STATUS',
+                              payload: {
+                                status: 'failed',
+                                error: result.error
+                              }
+                            });
+                          }
+                        }}
                       />
                     </div>
                   )}
@@ -181,7 +268,6 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
             </motion.div>
           ))}
 
-          {/* Indicateur de frappe */}
           {isTyping && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -239,19 +325,6 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           </div>
         </div>
       </div>
-      <PaymentModal 
-              isOpen={state.paymentModal.isOpen}
-              onClose={() => {
-                dispatch({ 
-                  type: 'SET_PAYMENT_MODAL', 
-                  payload: { 
-                    isOpen: false, 
-                    iframeUrl: '' 
-                  }
-                });
-              }}
-              iframeUrl={state.paymentModal.iframeUrl}
-            />
     </div>
   );
 };

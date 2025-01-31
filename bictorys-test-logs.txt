@@ -1,0 +1,646 @@
+2025-01-15T06:01:21.131Z - 🚀 Démarrage des tests 
+2025-01-15T06:01:21.133Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-15T06:01:21.134Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-15T06:01:21.134Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-15T06:01:21.134Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-15T06:01:21.134Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-15T06:01:21.134Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-15T06:01:21.408Z - ✅ Commande créée: {
+  "id": 24,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-15T06:01:21.135+00:00",
+  "updated_at": "2025-01-15T06:01:21.135+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-15T06:01:21.135Z"
+  }
+}
+2025-01-15T06:01:21.408Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736920881408_24",
+    "metadata": {
+      "orderId": "24",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-15T06:01:21.983Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "ba43294f-88ea-466d-aa70-8d8556ca31ce",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=ba43294f-88ea-466d-aa70-8d8556ca31ce",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACFElEQVR4Xu2WUWoDMQxEBXstg67Woxl0LYM7Txuo0tLSH/lrRbKb+DmgSDPy2v4jPuz7So2H1nhojYfW+AddZjaGDTNf17LhLPgB6nsJ+o557TlcL9b6qZDiWj713hH33lN0XKQzSfEc9ZjmesW64hglEbVcecUWoyTrBE3V1fipyQ56R2gT7c9e3NFMsZbEprugKrKyJf003bX3pOXBVQ05QlUJpZOl4JNmC6Lvp8tUD5PLVAahaVecoCt1pgIoM8l8puj5VTdNcwNCt2C3l6z6qMDIuR2SAEeH2nKCUn4qofJjdanuKln1UQ0Rvs9026YiUbvQRfnveUAyVaTzhRb8AJ0jnwTkLzE1g7acoIGz1H8+5CVK9/vowtkLR2sxOx8lq0bq+RyC2nRnh9pwgFL6HGHBrlAbaMsBKocxt42kJEC68OWyPsrCQHh317EY93bKLEN4UhxXleTNZY00V1IBUh82O0NT2yqAzqnJo99K1k9zfDFVDL1JBDo94M0UuQlECo7hPUepRh+lC8wyBkpu0jfq004l8IncOTpIEf0RzfQlNJ2NyE9vquP9lHhNFaVnuSNYbKZaVhrp643gbVCaA9SZo5QeueVWL1n1Ua0pizwlMbeG2VVc1kqVmNSmE0uZSfmrVKOXQuLl73h7KuijTha36rTzPjhOUOMxaKfJHc+p9+9q76G/xkNrPLTGQ2s00k8CBemcKYplvAAAAABJRU5ErkJggg==",
+  "message": null,
+  "state": null
+}
+2025-01-15T06:01:21.985Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "ba43294f-88ea-466d-aa70-8d8556ca31ce",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=ba43294f-88ea-466d-aa70-8d8556ca31ce",
+  "reference": "TR_1736920881408_24"
+}
+2025-01-15T06:01:22.255Z - Envoi webhook: {
+  "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "ba43294f-88ea-466d-aa70-8d8556ca31ce",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736920881408_24",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-15T06:01:22.640Z - Erreur webhook: {
+  "message": "Request failed with status code 404",
+  "name": "AxiosError",
+  "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:526:35)\n    at IncomingMessage.emit (node:domain:488:12)\n    at endReadableNT (node:internal/streams/readable:1589:12)\n    at processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async BictorysTestSuite.testWebhook (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:256:24)\n    at async BictorysTestSuite.runTests (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:118:7)",
+  "config": {
+    "transitional": {
+      "silentJSONParsing": true,
+      "forcedJSONParsing": true,
+      "clarifyTimeoutError": false
+    },
+    "adapter": [
+      "xhr",
+      "http",
+      "fetch"
+    ],
+    "transformRequest": [
+      null
+    ],
+    "transformResponse": [
+      null
+    ],
+    "timeout": 0,
+    "xsrfCookieName": "XSRF-TOKEN",
+    "xsrfHeaderName": "X-XSRF-TOKEN",
+    "maxContentLength": -1,
+    "maxBodyLength": -1,
+    "env": {},
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-Secret-Key": "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9",
+      "User-Agent": "axios/1.7.9",
+      "Content-Length": "185",
+      "Accept-Encoding": "gzip, compress, deflate, br"
+    },
+    "method": "post",
+    "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+    "data": "{\"id\":\"ba43294f-88ea-466d-aa70-8d8556ca31ce\",\"status\":\"succeeded\",\"amount\":14000,\"currency\":\"XOF\",\"merchantReference\":\"TR_1736920881408_24\",\"paymentMeans\":\"wave_money\",\"pspName\":\"wave\"}"
+  },
+  "code": "ERR_BAD_REQUEST",
+  "status": 404
+}
+2025-01-15T06:01:22.642Z - ❌ Erreur tests: {}
+2025-01-15T06:08:38.412Z - 🚀 Démarrage des tests 
+2025-01-15T06:08:38.415Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-15T06:08:38.415Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-15T06:08:38.415Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-15T06:08:38.416Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-15T06:08:38.416Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-15T06:08:38.416Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-15T06:08:39.143Z - ✅ Commande créée: {
+  "id": 25,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-15T06:08:38.417+00:00",
+  "updated_at": "2025-01-15T06:08:38.417+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-15T06:08:38.417Z"
+  }
+}
+2025-01-15T06:08:39.144Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736921319144_25",
+    "metadata": {
+      "orderId": "25",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-15T06:08:39.615Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "901bc567-9cdd-4c6d-89ec-2eaea8298999",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=901bc567-9cdd-4c6d-89ec-2eaea8298999",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACFUlEQVR4Xu2XUWokMQxEBb6WQVfbowl8LYO3npwwnlkS9kf+aoWkEz0HhKok99j6Jf7YZ+aMh57x0DMeesZ/0GlmPq3p2dua3TqJC9SVAo+lr/BM3KCqw6dYmFFVy8Qd2lt0tcRHAO9RNUPEQ2XFv1UVUVRoQl25qQp53KAyWX+LT0/W0IyJ09eYqcVXrpgyXXRf35JgjYwLdGE2X7jABz9l+pcKdXQ2FUQ5e8AkgI7zX9WUZZZ+X4EEIUFuUPUdw/vIzaL6RjannKobVBX4TU1J63VwMUVwCWGe+4Qn/rtAwwcXhmqyvVHiUL+Ozt4RHs0nGqx3FcqobOesUXUCu2vk1BBwOZXs6ol6r6cas3ZR5XQlGhO81/epfiUN9WAPOMIP+lFPVYnjOc34YN5sX5T1lL+0RIMkhmO7ENVUknOifS0UdsoxZXVUZk+vN+a7sVJPFcqo1E7HbcPTnLcpq6PBWx8tyVsyJx1YTvME0tMXdSY36gWK9hQitw/dkpJeU1dPmTKYSsIB9q5CJSVhjg0mVyWEqKZq/UD7zmt2yzMvFUppAmmA1elH1lhNCS0weUAHvt+JSBZTqsDp+5YMPkXdob62DPRAM6aqTtfVUTa2KqIyHywz22XdoNwUKiVUGDfGR1V1tO1bUr9or3RWeT1V7zOfu5QF3ngFq6fpOn1+4dpQRRjBL9Af46FnPPSMh55RSP8C0S3/pJRK//4AAAAASUVORK5CYII=",
+  "message": null,
+  "state": null
+}
+2025-01-15T06:08:39.616Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "901bc567-9cdd-4c6d-89ec-2eaea8298999",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=901bc567-9cdd-4c6d-89ec-2eaea8298999",
+  "reference": "TR_1736921319144_25"
+}
+2025-01-15T06:08:39.740Z - Envoi webhook: {
+  "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "901bc567-9cdd-4c6d-89ec-2eaea8298999",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736921319144_25",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-15T06:08:40.125Z - Erreur webhook: {
+  "message": "Request failed with status code 404",
+  "name": "AxiosError",
+  "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:526:35)\n    at IncomingMessage.emit (node:domain:488:12)\n    at endReadableNT (node:internal/streams/readable:1589:12)\n    at processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async BictorysTestSuite.testWebhook (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:256:24)\n    at async BictorysTestSuite.runTests (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:118:7)",
+  "config": {
+    "transitional": {
+      "silentJSONParsing": true,
+      "forcedJSONParsing": true,
+      "clarifyTimeoutError": false
+    },
+    "adapter": [
+      "xhr",
+      "http",
+      "fetch"
+    ],
+    "transformRequest": [
+      null
+    ],
+    "transformResponse": [
+      null
+    ],
+    "timeout": 0,
+    "xsrfCookieName": "XSRF-TOKEN",
+    "xsrfHeaderName": "X-XSRF-TOKEN",
+    "maxContentLength": -1,
+    "maxBodyLength": -1,
+    "env": {},
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-Secret-Key": "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9",
+      "User-Agent": "axios/1.7.9",
+      "Content-Length": "185",
+      "Accept-Encoding": "gzip, compress, deflate, br"
+    },
+    "method": "post",
+    "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+    "data": "{\"id\":\"901bc567-9cdd-4c6d-89ec-2eaea8298999\",\"status\":\"succeeded\",\"amount\":14000,\"currency\":\"XOF\",\"merchantReference\":\"TR_1736921319144_25\",\"paymentMeans\":\"wave_money\",\"pspName\":\"wave\"}"
+  },
+  "code": "ERR_BAD_REQUEST",
+  "status": 404
+}
+2025-01-15T06:08:40.131Z - ❌ Erreur tests: {}
+2025-01-15T06:18:25.958Z - 🚀 Démarrage des tests 
+2025-01-15T06:18:25.961Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-15T06:18:25.961Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-15T06:18:25.961Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-15T06:18:25.961Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-15T06:18:25.962Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-15T06:18:25.963Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-15T06:18:26.243Z - ✅ Commande créée: {
+  "id": 26,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-15T06:18:25.963+00:00",
+  "updated_at": "2025-01-15T06:18:25.963+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-15T06:18:25.963Z"
+  }
+}
+2025-01-15T06:18:26.244Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736921906244_26",
+    "metadata": {
+      "orderId": "26",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-15T06:18:26.710Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "940516ee-6732-4056-9e93-144b0c2ed9ec",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=940516ee-6732-4056-9e93-144b0c2ed9ec",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACI0lEQVR4Xu2XQWpkMQxEDb6WQFeboxl0LYOnnn5g1BMyzEZefRGaxM+LQiqVO+P8o36Nv09qvbTWS2u9tNZ/0D3GMBs2hu+5hjkHfoH62WbmJ5b588NZP5UiSZnb19zmERzcoqqJnODve1SClq/hcRB1ibou+FnSJbhtcnCDputqffdkB31q4XaNP2fxVDOV31KEgNCM7bGK5jaq7Zr6ZK/162C77QpVJ1gvdkzdCMk76wKV2yeOl99jOWOYcYMeNV+9V4aqHYoWU2+C82Yqt0/moKlLTaDSi+Y+Ki1DjTcyhWv6KNvdRzNG1IkldcZIvE6/j5IqGv16ti078jGFJnrYZxxOquA75Ys0ttOt3JTPny6QaTTnBp35LjN2PvL1uEElQZLS6WSLDBhFVR9VaOqA7R6O29WdWV3XRTNVUhddCW0bfrhAd9pt80rqvdCtqNneRvE6xtupK4B1Cm1UbVcPJjmmJwMLfuxgIyVS6MjOUeTzfIMeIgU1uE092cnaKT4nywjRTO/zMf0+mmZ3Jq9bcjvfPS9QUswY/cABONCr6xop8WUk+ETi4M2imqkOMBr/rskCD/6jqo9STGBwARPoRnDYTHXMiuF3uU3cPrzRR50ZyOS8zUSKelFU9VHsrU4sDC+3S2R9y1qp7xQ00cWql2700vX1SmrdeDb2DcoUvlyXK67Z11eyjartpMrhi5BiPJWdfvpjvbTWS2u9tFYj/Q3k0QCjqkjo4QAAAABJRU5ErkJggg==",
+  "message": null,
+  "state": null
+}
+2025-01-15T06:18:26.713Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "940516ee-6732-4056-9e93-144b0c2ed9ec",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=940516ee-6732-4056-9e93-144b0c2ed9ec",
+  "reference": "TR_1736921906244_26"
+}
+2025-01-15T06:18:26.832Z - Envoi webhook: {
+  "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "940516ee-6732-4056-9e93-144b0c2ed9ec",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736921906244_26",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-15T06:18:27.296Z - Erreur webhook: {
+  "message": "Request failed with status code 404",
+  "name": "AxiosError",
+  "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:526:35)\n    at IncomingMessage.emit (node:domain:488:12)\n    at endReadableNT (node:internal/streams/readable:1589:12)\n    at processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async BictorysTestSuite.testWebhook (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:261:24)\n    at async BictorysTestSuite.runTests (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:123:7)",
+  "config": {
+    "transitional": {
+      "silentJSONParsing": true,
+      "forcedJSONParsing": true,
+      "clarifyTimeoutError": false
+    },
+    "adapter": [
+      "xhr",
+      "http",
+      "fetch"
+    ],
+    "transformRequest": [
+      null
+    ],
+    "transformResponse": [
+      null
+    ],
+    "timeout": 0,
+    "xsrfCookieName": "XSRF-TOKEN",
+    "xsrfHeaderName": "X-XSRF-TOKEN",
+    "maxContentLength": -1,
+    "maxBodyLength": -1,
+    "env": {},
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-Secret-Key": "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9",
+      "User-Agent": "axios/1.7.9",
+      "Content-Length": "185",
+      "Accept-Encoding": "gzip, compress, deflate, br"
+    },
+    "method": "post",
+    "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+    "data": "{\"id\":\"940516ee-6732-4056-9e93-144b0c2ed9ec\",\"status\":\"succeeded\",\"amount\":14000,\"currency\":\"XOF\",\"merchantReference\":\"TR_1736921906244_26\",\"paymentMeans\":\"wave_money\",\"pspName\":\"wave\"}"
+  },
+  "code": "ERR_BAD_REQUEST",
+  "status": 404
+}
+2025-01-15T06:18:27.299Z - ❌ Erreur tests: {}
+2025-01-16T00:52:34.500Z - 🚀 Démarrage des tests 
+2025-01-16T00:52:34.574Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-16T00:52:34.574Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-16T00:52:34.574Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-16T00:52:34.574Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-16T00:52:34.575Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-16T00:52:34.575Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-16T00:52:35.234Z - ✅ Commande créée: {
+  "id": 27,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-16T00:52:34.575+00:00",
+  "updated_at": "2025-01-16T00:52:34.575+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-16T00:52:34.575Z"
+  }
+}
+2025-01-16T00:52:35.235Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736988755235_27",
+    "metadata": {
+      "orderId": "27",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-16T00:52:35.755Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "8efb968b-8e5e-4dfd-84b4-113dad557145",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=8efb968b-8e5e-4dfd-84b4-113dad557145",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACGElEQVR4Xu2XUYocMQwFDb6WwVfL0Qy+VoNTJS+sZ0NCfuSvFsPMjssLQu9J6inrH/Gr/Dw546VnvPSMl57xH/QppbR49aeO0roH/QLt62mV9zla3y/P8mkrDQonpdbn9OAWJerwja/tHu1zFJMq/HGNqkJfnNa55hbkUCGP6rqP+MOTKXTH0O0DE4wmMZIpfiOJySeQijwhyQ06KtC+ptGK3d1uUCuByaMUyD/oszVu0McKcGOE1Rlodd6gT6EciN/1PBJEbv5XNo0RtgSWgq9M0u+sEim2q0jRtUCsDhs8n1ZLQCUoPzcRoh/qJ1KGCELousKhFfnQKIsu+/mhHE4VGNPchsunJERHF0uv/ZT+W4VEOr1AWqQXglQW9A1qS6/t9MgLFW5QuyyU56Xxuta7QE0IwaMG5BTKn7VKo3SYg9QtyZqudveRVRpVcE69oQyTyXaon0fJipxclWsPsvHRZWnUbmZPhQMsRaznG5QKrMimVbstJqqRTME+fxQNb6NXL8uTKV2mBHO7AAWKezKfojn681GqAxxEgjco/e0ZDqgKAZxxmky/jMaziMObb3uBpFMjFPDCHqM7rWTKcZybyqAkin94I49256hDBQGaVx9dn0+1d3GuTPMCl49dlklJLFZk/K7wl/ktOvaWnOG+r3mWTbtZbNfZYo8j/Aal7E6V5YNQjHEXZT79a7z0jJee8dIzEulvV4LUSINV4n0AAAAASUVORK5CYII=",
+  "message": null,
+  "state": null
+}
+2025-01-16T00:52:35.756Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "8efb968b-8e5e-4dfd-84b4-113dad557145",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=8efb968b-8e5e-4dfd-84b4-113dad557145",
+  "reference": "TR_1736988755235_27"
+}
+2025-01-16T00:52:35.885Z - Envoi webhook: {
+  "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "8efb968b-8e5e-4dfd-84b4-113dad557145",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736988755235_27",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-16T00:52:36.279Z - Erreur webhook: {
+  "message": "Request failed with status code 404",
+  "name": "AxiosError",
+  "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:526:35)\n    at IncomingMessage.emit (node:domain:488:12)\n    at endReadableNT (node:internal/streams/readable:1589:12)\n    at processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async BictorysTestSuite.testWebhook (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:261:24)\n    at async BictorysTestSuite.runTests (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:123:7)",
+  "config": {
+    "transitional": {
+      "silentJSONParsing": true,
+      "forcedJSONParsing": true,
+      "clarifyTimeoutError": false
+    },
+    "adapter": [
+      "xhr",
+      "http",
+      "fetch"
+    ],
+    "transformRequest": [
+      null
+    ],
+    "transformResponse": [
+      null
+    ],
+    "timeout": 0,
+    "xsrfCookieName": "XSRF-TOKEN",
+    "xsrfHeaderName": "X-XSRF-TOKEN",
+    "maxContentLength": -1,
+    "maxBodyLength": -1,
+    "env": {},
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-Secret-Key": "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9",
+      "User-Agent": "axios/1.7.9",
+      "Content-Length": "185",
+      "Accept-Encoding": "gzip, compress, deflate, br"
+    },
+    "method": "post",
+    "url": "https://193c-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+    "data": "{\"id\":\"8efb968b-8e5e-4dfd-84b4-113dad557145\",\"status\":\"succeeded\",\"amount\":14000,\"currency\":\"XOF\",\"merchantReference\":\"TR_1736988755235_27\",\"paymentMeans\":\"wave_money\",\"pspName\":\"wave\"}"
+  },
+  "code": "ERR_BAD_REQUEST",
+  "status": 404
+}
+2025-01-16T00:52:36.282Z - ❌ Erreur tests: {}
+2025-01-16T01:00:16.397Z - 🚀 Démarrage des tests 
+2025-01-16T01:00:16.400Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-16T01:00:16.401Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-16T01:00:16.401Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-16T01:00:16.401Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-16T01:00:16.401Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-16T01:00:16.401Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-16T01:00:17.142Z - ✅ Commande créée: {
+  "id": 28,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-16T01:00:16.402+00:00",
+  "updated_at": "2025-01-16T01:00:16.402+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-16T01:00:16.401Z"
+  }
+}
+2025-01-16T01:00:17.143Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736989217143_28",
+    "metadata": {
+      "orderId": "28",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-16T01:00:17.633Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACEklEQVR4Xu2WQWoDMQxFDb6WwFfr0Qy+lkH9Tw7UaWnpRlqNQjKM3iyUr29pmv8RH+175o6H3vHQOx56xz/obq2N3TrX7tuakSigQynw8uVTeRIVVHWM2SEqzaxHooZKAJMkYzZgHRXwNU9tP6tKonShC5lyWxVyqaAymb3Fd0/m0Ig9dndfa9OLVy6Zbjrf5TlhPbIiCqgqUuMdF4zFL6Yf+RTYVcfarwM2bVw151HNkxgrMrwe9amGlFDVwjFbJGenQsTJp40zxvzUVJEDVkiST7Gdxpi+NAEL4r8Cuvj7NEAzVOVslCmg6kFDDJMJ6IG/dyGRspP7lArYXd6XMOBkigx8pL1kWGxLWD49ImiAUp183xmoFZSGo8NGhqlunLqSKS4Lp22mKT/2NkXTqLouAyip4JxvXFhAjSnGA+jCCbe3U5ZG1fTwujRQHxYD/OpCItUYiwGG4SWOYYIC2jrDjKktnzPRaEU+lfaxmg0tJAW3X67Lo3TB+P8YnRc+TVGroKrHo/G8Hzhy3F3Io4Namu410c5+DrMX0HHagOHlOFw4KmgA1JcDeQC/51Nix9bQA5w5PQ3Mpsqq4aqrHw8wTUvoOI2gKo4cm+N2XRo1/M1J472TYRb3NbTHivT4elyKqJ8tqQmqDXJ3IY+iBHmPXbnZkXG8symu02bsrA3egV5iZNNf46F3PPSOh96RSD8By1H6fPTKHhAAAAAASUVORK5CYII=",
+  "message": null,
+  "state": null
+}
+2025-01-16T01:00:17.634Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+  "reference": "TR_1736989217143_28"
+}
+2025-01-16T01:00:17.936Z - Envoi webhook: {
+  "url": "https://ca2e-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "71f70198-5fd5-4a73-859c-7eccd8fd87a8",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736989217143_28",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-16T01:00:20.583Z - Erreur webhook: {
+  "message": "Request failed with status code 500",
+  "name": "AxiosError",
+  "stack": "AxiosError: Request failed with status code 500\n    at settle (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:526:35)\n    at IncomingMessage.emit (node:domain:488:12)\n    at endReadableNT (node:internal/streams/readable:1589:12)\n    at processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (/Users/ibukandjoli/Documents/dev/vosc/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async BictorysTestSuite.testWebhook (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:261:24)\n    at async BictorysTestSuite.runTests (/Users/ibukandjoli/Documents/dev/vosc/src/tests/test-bictorys-payment.ts:123:7)",
+  "config": {
+    "transitional": {
+      "silentJSONParsing": true,
+      "forcedJSONParsing": true,
+      "clarifyTimeoutError": false
+    },
+    "adapter": [
+      "xhr",
+      "http",
+      "fetch"
+    ],
+    "transformRequest": [
+      null
+    ],
+    "transformResponse": [
+      null
+    ],
+    "timeout": 0,
+    "xsrfCookieName": "XSRF-TOKEN",
+    "xsrfHeaderName": "X-XSRF-TOKEN",
+    "maxContentLength": -1,
+    "maxBodyLength": -1,
+    "env": {},
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-Secret-Key": "13311a9801df914618857873e92345675b00fdd31cae41c49da696cbcca1a1d9",
+      "User-Agent": "axios/1.7.9",
+      "Content-Length": "185",
+      "Accept-Encoding": "gzip, compress, deflate, br"
+    },
+    "method": "post",
+    "url": "https://ca2e-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+    "data": "{\"id\":\"71f70198-5fd5-4a73-859c-7eccd8fd87a8\",\"status\":\"succeeded\",\"amount\":14000,\"currency\":\"XOF\",\"merchantReference\":\"TR_1736989217143_28\",\"paymentMeans\":\"wave_money\",\"pspName\":\"wave\"}"
+  },
+  "code": "ERR_BAD_RESPONSE",
+  "status": 500
+}
+2025-01-16T01:00:20.585Z - ❌ Erreur tests: {}
+2025-01-16T01:07:46.437Z - 🚀 Démarrage des tests 
+2025-01-16T01:07:46.441Z - Configuration - NEXT_PUBLIC_SUPABASE_URL: "présent"
+2025-01-16T01:07:46.441Z - Configuration - NEXT_PUBLIC_SUPABASE_ANON_KEY: "présent"
+2025-01-16T01:07:46.441Z - Configuration - BICTORYS_API_URL: "présent"
+2025-01-16T01:07:46.442Z - Configuration - BICTORYS_API_KEY: "présent"
+2025-01-16T01:07:46.442Z - Configuration - BICTORYS_WEBHOOK_SECRET: "présent"
+2025-01-16T01:07:46.442Z - Configuration - NEXT_PUBLIC_API_URL: "présent"
+2025-01-16T01:07:46.782Z - ✅ Commande créée: {
+  "id": 29,
+  "product_id": "TEST-001",
+  "customer_name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "city": "Dakar",
+  "address": "123 Test Street",
+  "phone": "221776794638",
+  "payment_method": "WAVE",
+  "order_details": "Test Order",
+  "total_amount": 14000,
+  "delivery_cost": 0,
+  "status": "pending",
+  "order_date": "2025-01-16T01:07:46.442+00:00",
+  "updated_at": "2025-01-16T01:07:46.442+00:00",
+  "metadata": {
+    "test": true,
+    "source": "test_script",
+    "timestamp": "2025-01-16T01:07:46.442Z"
+  }
+}
+2025-01-16T01:07:46.783Z - Envoi requête Bictorys: {
+  "url": "https://api.test.bictorys.com/pay/v1/charges?payment_type=wave_money",
+  "payload": {
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736989666783_29",
+    "metadata": {
+      "orderId": "29",
+      "provider": "wave_money"
+    }
+  }
+}
+2025-01-16T01:07:47.245Z - Réponse Bictorys: {
+  "3ds2": null,
+  "3ds": null,
+  "transactionId": "c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+  "redirectUrl": null,
+  "merchantReference": null,
+  "type": "MobilePaymentObject",
+  "link": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+  "qrCode": "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhAQAAAAAWyO/XAAACDUlEQVR4Xu2XUWoDMQxEDb6WQFfr0Qy+lsCdJxfiBFr6I3+tmm6yfg4IzUjetPVHfLXPlTMeesZDz3joGf+g0Vrz0TrvfYY1Y+EC9RUm1ueaaw3PhRtUefiacw1llRtz4Qo1H9Y8fM7QzT3qYT6HtGhsuERTBSFjE0m9qVBHZTJ7i09P1tAMFb+vhQieGRHFVFmZrK4+0+euHcQFujXgTdJzlelfKtTRYKQMpZM9rvpPuZ5vFdO1K68rIwU9rN+g0QHKJJhnKQG7LtDRh8YKuXGhJAYuptt2Kv9gfubnznI5HbI6fts57YULNDyFV3vLbgKK3eDV1JSM/K4qGHKozz3lr6bcUAodkWqxsU1fT/NZQOMsEge2O9UvpDOXDDXUZ8FE9XqK5IvTWQ2ukzKVSPmrqVQnG4hrpLAALKcwIZV+ktDefIF2Bpq83iUGLqDlSKuYKhdJj9EwvGphZ5fV0SAd3f6ckqk/sJouKS8pLN1Of3MLLqdCpBXyHA2GFy7QLAXC6yWfD6mwy1FPG8srx0v+r4xqmrWgJA3tNWPkQr9APR8GGhMl6LWG3+spkVVgA42u3cBqGhRBf/uUHPyKukOdgnhmxWjLoxpcTZWSyh7Z3SSVHrhFzfM5pG+vf2ZVRvs+JQ0xxjZdOVXtWe8kwzM9PypuUFxHIdTg0kCbqEs9/TUeesZDz3joGYX0G5f/6ozInOMgAAAAAElFTkSuQmCC",
+  "message": null,
+  "state": null
+}
+2025-01-16T01:07:47.247Z - ✅ Paiement Wave Money: {
+  "success": true,
+  "transactionId": "c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+  "redirectUrl": "https://api.test.bictorys.com/simulator/v1/verification?transaction_id=c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+  "reference": "TR_1736989666783_29"
+}
+2025-01-16T01:07:47.395Z - Envoi webhook: {
+  "url": "https://ca2e-41-82-157-142.ngrok-free.app/api/webhook/bictorys",
+  "payload": {
+    "id": "c4c7a5c4-17f9-44ca-9f2a-86871d234619",
+    "status": "succeeded",
+    "amount": 14000,
+    "currency": "XOF",
+    "merchantReference": "TR_1736989666783_29",
+    "paymentMeans": "wave_money",
+    "pspName": "wave"
+  }
+}
+2025-01-16T01:07:49.669Z - Réponse webhook: {
+  "success": true
+}
+2025-01-16T01:07:49.786Z - ✅ Webhook Wave traité 
+2025-01-16T01:07:49.787Z - ✨ Tests terminés avec succès 

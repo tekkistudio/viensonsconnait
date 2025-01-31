@@ -1,3 +1,4 @@
+// src/config/crossSelling.ts
 import type { ProductId } from '../features/product/utils/chatMessages';
 
 interface ProductRelation {

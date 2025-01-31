@@ -1,6 +1,6 @@
 // src/config/products.ts
 
-export const PRODUCTS_INFO = {
+export const PRODUCTS_INFO: Record<string, ProductInfo> = {
     couples: {
       name: "Pour les Couples non mariés",
       description: `Jeu de 150 questions soigneusement élaborées pour les couples non mariés. Ce jeu a été conçu pour stimuler le dialogue et permettre aux couples de mieux se connaître afin de se préparer aux prochaines étapes de leur relation : fiançailles, mariage, vie de couple, parentalité, etc. Il est parfait pour les couples non mariés qui veulent approfondir leur connexion. Il permet d'aborder des sujets essentiels tels que les finances, les différences culturelles, les croyances, le mariage, les projets d'avenir, la vie de couple, les valeurs personnelles, l'intimité, la parentalité, et bien plus encore.`,
@@ -139,6 +139,8 @@ export const PRODUCTS_INFO = {
     price: number;
     benefits: string[];
     topics: string[];
+    howToPlay?: string;
+    testimonials?: string;
   }
   
   export type ProductId = keyof typeof PRODUCTS_INFO;

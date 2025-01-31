@@ -1,7 +1,7 @@
 // src/lib/services/notification.service.ts
 import { Resend } from 'resend';
-import { prisma } from '../prisma';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { supabase } from '@/lib/supabase';
 
 interface NotificationOptions {
   type: 'ORDER_CREATED' | 'PAYMENT_RECEIVED' | 'ORDER_SHIPPED' | 'ORDER_DELIVERED';
@@ -12,36 +12,36 @@ interface NotificationOptions {
 
 class NotificationService {
   private resend: Resend;
-  private twilioClient: any; // À implémenter plus tard pour les SMS
 
   constructor() {
     this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   async sendNotification(options: NotificationOptions) {
-    const order = await prisma.order.findUnique({
-      where: { id: options.orderId }
-    });
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', options.orderId)
+      .single();
 
-    if (!order) {
+    if (error || !order) {
       throw new Error('Order not found');
     }
 
-    const customerInfo = order.customerInfo as any;
     const notifications: Promise<any>[] = [];
 
     // Notification email
-    if (options.recipientEmail || customerInfo.email) {
+    if (options.recipientEmail || order.metadata?.email) {
       notifications.push(this.sendEmail({
         type: options.type,
         order,
-        email: options.recipientEmail || customerInfo.email
+        email: options.recipientEmail || order.metadata?.email
       }));
     }
 
-    // Notification SMS
-    if (options.recipientPhone || customerInfo.phone) {
-      const phone = options.recipientPhone || customerInfo.phone;
+    // Notification SMS si un numéro est disponible
+    if (options.recipientPhone || order.phone) {
+      const phone = options.recipientPhone || order.phone;
       notifications.push(this.sendSMS({
         type: options.type,
         order,
@@ -49,7 +49,7 @@ class NotificationService {
       }));
     }
 
-    // Notification dashboard (stockée en base de données)
+    // Notification dashboard
     notifications.push(this.createDashboardNotification({
       type: options.type,
       order
@@ -66,23 +66,47 @@ class NotificationService {
   private async sendEmail({ type, order, email }: { type: NotificationOptions['type']; order: any; email: string }) {
     const templates = {
       ORDER_CREATED: {
-        subject: 'Confirmation de votre commande',
+        subject: 'Confirmation de votre commande - VIENS ON S\'CONNAÎT',
         html: `
           <h1>Merci pour votre commande!</h1>
           <p>Votre commande #${order.id} a été reçue et est en cours de traitement.</p>
-          <p>Total: ${order.totalAmount} FCFA</p>
+          <p>Détails de la commande:</p>
+          <ul>
+            <li>Montant total: ${order.total_amount.toLocaleString()} FCFA</li>
+            <li>Adresse de livraison: ${order.address}, ${order.city}</li>
+            <li>Mode de paiement: ${order.payment_method}</li>
+          </ul>
           <p>Nous vous tiendrons informé de son évolution.</p>
         `
       },
       PAYMENT_RECEIVED: {
-        subject: 'Paiement reçu pour votre commande',
+        subject: 'Paiement reçu - VIENS ON S\'CONNAÎT',
         html: `
           <h1>Paiement confirmé</h1>
           <p>Nous avons bien reçu votre paiement pour la commande #${order.id}.</p>
+          <p>Montant: ${order.total_amount.toLocaleString()} FCFA</p>
           <p>Votre commande va être préparée pour expédition.</p>
+          <p>Adresse de livraison:</p>
+          <p>${order.address}<br>${order.city}</p>
+        `
+      },
+      ORDER_SHIPPED: {
+        subject: 'Votre commande a été expédiée - VIENS ON S\'CONNAÎT',
+        html: `
+          <h1>Commande expédiée</h1>
+          <p>Bonne nouvelle! Votre commande #${order.id} a été expédiée.</p>
+          <p>Vous recevrez bientôt un SMS avec les détails de la livraison.</p>
+        `
+      },
+      ORDER_DELIVERED: {
+        subject: 'Commande livrée - VIENS ON S\'CONNAÎT',
+        html: `
+          <h1>Commande livrée</h1>
+          <p>Votre commande #${order.id} a été livrée.</p>
+          <p>Nous espérons que vous apprécierez votre achat!</p>
+          <p>N'hésitez pas à nous contacter si vous avez des questions.</p>
         `
       }
-      // Ajoutez d'autres templates selon les besoins
     };
 
     const template = templates[type];
@@ -92,9 +116,10 @@ class NotificationService {
 
     return this.resend.emails.send({
       from: 'VIENS ON S\'CONNAÎT <commandes@viensonconnait.com>',
-      to: email,
+      to: [email], 
       subject: template.subject,
-      html: template.html
+      html: template.html,
+      replyTo: 'support@viensonconnait.com'
     });
   }
 
@@ -106,9 +131,10 @@ class NotificationService {
     }
 
     const templates = {
-      ORDER_CREATED: `Commande #${order.id} reçue. Total: ${order.totalAmount} FCFA. Merci de votre confiance!`,
-      PAYMENT_RECEIVED: `Paiement reçu pour commande #${order.id}. Préparation en cours.`,
-      // Ajoutez d'autres templates selon les besoins
+      ORDER_CREATED: `VIENS ON S'CONNAÎT - Commande #${order.id} reçue. Total: ${order.total_amount.toLocaleString()} FCFA. Merci!`,
+      PAYMENT_RECEIVED: `VIENS ON S'CONNAÎT - Paiement reçu pour commande #${order.id}. Préparation en cours.`,
+      ORDER_SHIPPED: `VIENS ON S'CONNAÎT - Commande #${order.id} expédiée. Livraison en cours.`,
+      ORDER_DELIVERED: `VIENS ON S'CONNAÎT - Commande #${order.id} livrée. Merci de votre confiance!`
     };
 
     const message = templates[type];
@@ -116,8 +142,8 @@ class NotificationService {
       throw new Error('SMS template not found');
     }
 
-    // TODO: Implémenter l'envoi de SMS via un service comme Twilio ou MessageBird
-    console.log(`SMS would be sent to ${parsedPhone.formatInternational()}: ${message}`);
+    // TODO: Implémentation future du service SMS
+    console.log(`SMS à envoyer à ${parsedPhone.formatInternational()}: ${message}`);
   }
 
   private async createDashboardNotification({ type, order }: { type: NotificationOptions['type']; order: any }) {
@@ -133,19 +159,25 @@ class NotificationService {
       throw new Error('Notification template not found');
     }
 
-    return prisma.notification.create({
-      data: {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
         title: template.title,
         content: `Commande #${order.id}`,
         type,
         priority: template.priority,
-        orderId: order.id,
+        order_id: order.id,
         metadata: {
-          orderAmount: order.totalAmount,
-          customerName: (order.customerInfo as any).firstName + ' ' + (order.customerInfo as any).lastName
+          orderAmount: order.total_amount,
+          customerName: `${order.first_name} ${order.last_name}`,
+          timestamp: new Date().toISOString()
         }
-      }
-    });
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 }
 
