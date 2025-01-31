@@ -1,10 +1,11 @@
+// next.config.ts
 import type { NextConfig } from "next";
 import type { Configuration as WebpackConfig } from "webpack";
 
 const nextConfig: NextConfig = {
-  // Désactiver la compression temporairement pour déboguer
+  reactStrictMode: true,
   compress: false,
-  
+
   // Configuration des images
   images: {
     domains: ['localhost', 'res.cloudinary.com'],
@@ -25,6 +26,7 @@ const nextConfig: NextConfig = {
 
   // Configuration webpack
   webpack: (config: WebpackConfig, { dev, isServer }): WebpackConfig => {
+    // Configuration de développement
     if (dev && !isServer) {
       config.watchOptions = {
         ...(config.watchOptions || {}),
@@ -32,6 +34,20 @@ const nextConfig: NextConfig = {
         poll: 1000,
       };
     }
+
+    // Gestion des modules Node côté client
+    if (!isServer) {
+      config.resolve = {
+        ...config.resolve,
+        fallback: {
+          ...config.resolve?.fallback,
+          fs: false,
+          net: false,
+          tls: false,
+        },
+      };
+    }
+
     return config;
   },
 
@@ -60,20 +76,20 @@ const nextConfig: NextConfig = {
   },
 
   // Variables d'environnement publiques
-env: {
-  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
-  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  // Ajout des variables Stripe
-  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-  NEXT_PUBLIC_STRIPE_KEY: process.env.NEXT_PUBLIC_STRIPE_KEY,
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-  // Variables Stripe Live
-  STRIPE_LIVE_SECRET_KEY: process.env.STRIPE_LIVE_SECRET_KEY,
-  NEXT_PUBLIC_STRIPE_LIVE_KEY: process.env.NEXT_PUBLIC_STRIPE_LIVE_KEY,
-  STRIPE_LIVE_WEBHOOK_SECRET: process.env.STRIPE_LIVE_WEBHOOK_SECRET,
-},
+  env: {
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    // Configuration Stripe
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    NEXT_PUBLIC_STRIPE_KEY: process.env.NEXT_PUBLIC_STRIPE_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    // Configuration Stripe Live
+    STRIPE_LIVE_SECRET_KEY: process.env.STRIPE_LIVE_SECRET_KEY,
+    NEXT_PUBLIC_STRIPE_LIVE_KEY: process.env.NEXT_PUBLIC_STRIPE_LIVE_KEY,
+    STRIPE_LIVE_WEBHOOK_SECRET: process.env.STRIPE_LIVE_WEBHOOK_SECRET,
+  },
 
   // Configuration expérimentale
   experimental: {

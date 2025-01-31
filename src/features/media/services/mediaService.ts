@@ -1,13 +1,5 @@
 // src/features/media/services/mediaService.ts
-import { v2 as cloudinary } from 'cloudinary';
-
-// Configuration de Cloudinary
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+import { v2 as cloudinaryClient } from 'cloudinary';
 
 interface MediaFile {
   url: string;
@@ -23,6 +15,38 @@ interface CloudinaryResource {
   bytes: number;
   created_at: string;
 }
+
+// Configuration de Cloudinary selon l'environnement
+const cloudinary = (() => {
+  if (typeof window === 'undefined') {
+    // Configuration côté serveur
+    const cloudinaryServer = require('cloudinary').v2;
+    cloudinaryServer.config({
+      cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
+    return cloudinaryServer;
+  } else {
+    // Version stub pour le client
+    return {
+      api: {
+        resources: async () => {
+          throw new Error('Cette opération n\'est disponible que côté serveur');
+        }
+      },
+      uploader: {
+        upload: async () => {
+          throw new Error('Cette opération n\'est disponible que côté serveur');
+        },
+        destroy: async () => {
+          throw new Error('Cette opération n\'est disponible que côté serveur');
+        }
+      }
+    };
+  }
+})();
 
 // Fonction helper pour convertir File en base64
 const fileToBase64 = (file: File): Promise<string> => {
@@ -60,7 +84,7 @@ export const mediaService = {
     try {
       // Convertir le fichier en base64
       const base64Data = await fileToBase64(file);
-      
+
       // Upload vers Cloudinary
       const result = await cloudinary.uploader.upload(base64Data, {
         folder: 'blog',
