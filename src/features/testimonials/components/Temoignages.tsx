@@ -1,129 +1,73 @@
 // features/testimonials/components/Temoignages.tsx
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-const testimonials = [
-  {
-    letter: "M",
-    name: "Mariama S.",
-    status: "Couple depuis 3 ans",
-    text: "Ce jeu a vraiment transformé nos soirées. Nous avons découvert tellement de choses l'un sur l'autre ! Les questions sont pertinentes et nous permettent d'avoir des conversations profondes que nous n'aurions peut-être jamais eues autrement.",
-    rating: 5,
-    category: "couples"
-  },
-  {
-    letter: "A",
-    name: "Abdou K.",
-    status: "Couple depuis 1 an",
-    text: "Au début, on était un peu sceptiques, mais dès la première utilisation, on a été conquis ! Les cartes nous aident à aborder naturellement des sujets importants. C'est devenu notre rituel du weekend.",
-    rating: 5,
-    category: "couples"
-  },
-  {
-    letter: "F",
-    name: "Fatou D.",
-    status: "Couple depuis 2 ans",
-    text: "Un excellent investissement pour notre couple ! Les questions sont bien pensées et nous permettent d'avoir des discussions enrichissantes. Je le recommande à tous les couples qui veulent approfondir leur relation.",
-    rating: 5,
-    category: "couples"
-  },
-  {
-    letter: "S",
-    name: "Sarah M.",
-    status: "Famille de 4 personnes",
-    text: "Depuis que nous avons commencé à jouer en famille, nos dîners sont devenus des moments privilégiés de partage. Nos enfants s'ouvrent plus facilement et nous avons des conversations incroyables !",
-    rating: 5,
-    category: "famille"
-  },
-  {
-    letter: "O",
-    name: "Omar D.",
-    status: "Marié depuis 5 ans",
-    text: "Ces cartes ont ravivé la flamme dans notre mariage. Nous redécouvrons des aspects de notre relation que nous avions oubliés. Un véritable cadeau pour notre couple.",
-    rating: 5,
-    category: "maries"
-  },
-  {
-    letter: "B",
-    name: "Bineta F.",
-    status: "Groupe d'amis",
-    text: "Nos soirées entre amis ont pris une toute nouvelle dimension. Au lieu des discussions habituelles, nous partageons des moments plus profonds et significatifs.",
-    rating: 5,
-    category: "amis"
-  },
-  {
-    letter: "K",
-    name: "Khady N.",
-    status: "Couple depuis 6 mois",
-    text: "Ce jeu nous a permis d'aborder des sujets importants dès le début de notre relation. C'est un excellent outil pour construire des bases solides.",
-    rating: 5,
-    category: "couples"
-  },
-  {
-    letter: "M",
-    name: "Moussa T.",
-    status: "Marié depuis 2 ans",
-    text: "Les questions nous ont aidés à mieux comprendre nos différences et à les accepter. Notre communication s'est nettement améliorée.",
-    rating: 5,
-    category: "maries"
-  },
-  {
-    letter: "A",
-    name: "Aïssatou L.",
-    status: "Famille de 3 enfants",
-    text: "Un excellent moyen de créer des moments de qualité en famille. Nos adolescents participent volontiers et s'ouvrent plus facilement.",
-    rating: 5,
-    category: "famille"
-  },
-  {
-    letter: "I",
-    name: "Ibrahim C.",
-    status: "Groupe d'amis de longue date",
-    text: "Même après 15 ans d'amitié, nous découvrons encore de nouvelles choses les uns sur les autres grâce à ce jeu !",
-    rating: 5,
-    category: "amis"
-  },
-  {
-    letter: "R",
-    name: "Rama S.",
-    status: "Couple depuis 4 ans",
-    text: "Les cartes nous ont aidés à surmonter une période difficile en améliorant notre communication. Un véritable outil de développement relationnel.",
-    rating: 5,
-    category: "couples"
-  },
-  {
-    letter: "Y",
-    name: "Yacine M.",
-    status: "Marié depuis 3 ans",
-    text: "Ces cartes ont ajouté une nouvelle dimension à notre relation. Nous avons des conversations plus profondes et significatives.",
-    rating: 5,
-    category: "maries"
-  }
-];
+interface Testimonial {
+  id: string;
+  product_id: string;
+  author_name: string;
+  author_location: string;
+  content: string;
+  rating: number;
+  status: string;
+}
 
 const categories = [
   { value: "all", label: "Tous" },
-  { value: "couples", label: "Couples" },
-  { value: "maries", label: "Mariés" },
-  { value: "famille", label: "Famille" },
-  { value: "amis", label: "Amis" }
+  { value: "e692369c-e2f6-420f-a6b1-9ed592e14115", label: "Couples" },
+  { value: "6da8c128-3828-45f9-961a-c61adba787f3", label: "Mariés" },
+  { value: "9657fe13-1686-4453-88e4-af4449b3e2ef", label: "Famille" },
+  { value: "3474c719-ff8b-4a1b-a20c-6f75b5c61f99", label: "Amis" }
 ];
 
 export default function Temoignages() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [loading, setLoading] = useState(true);
   const itemsPerPage = 12;
 
-  const filteredTestimonials = testimonials.filter(
-    testimonial => selectedCategory === "all" || testimonial.category === selectedCategory
-  );
+  useEffect(() => {
+    async function fetchTestimonials() {
+      try {
+        let query = supabase
+          .from('testimonials')
+          .select('*')
+          .eq('status', 'active');
 
-  const totalPages = Math.ceil(filteredTestimonials.length / itemsPerPage);
+        if (selectedCategory !== 'all') {
+          query = query.eq('product_id', selectedCategory);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        setTestimonials(data || []);
+      } catch (error) {
+        console.error('Error fetching testimonials:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTestimonials();
+  }, [selectedCategory]);
+
+  const totalPages = Math.ceil(testimonials.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedTestimonials = filteredTestimonials.slice(startIndex, startIndex + itemsPerPage);
+  const displayedTestimonials = testimonials.slice(startIndex, startIndex + itemsPerPage);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -186,9 +130,9 @@ export default function Temoignages() {
               }
             }}
           >
-            {displayedTestimonials.map((testimonial, index) => (
+            {displayedTestimonials.map((testimonial) => (
               <motion.div
-                key={index}
+                key={testimonial.id}
                 variants={{
                   initial: { opacity: 0, y: 20 },
                   animate: { opacity: 1, y: 0 }
@@ -198,20 +142,20 @@ export default function Temoignages() {
                 <div className="flex items-start gap-4 mb-4">
                   <div className="bg-brand-blue w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xl font-bold">
-                      {testimonial.letter}
+                      {testimonial.author_name[0]}
                     </span>
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-brand-blue">
-                      {testimonial.name}
+                      {testimonial.author_name}
                     </h3>
                     <p className="text-gray-600 text-sm">
-                      {testimonial.status}
+                      {testimonial.author_location}
                     </p>
                   </div>
                 </div>
                 <p className="text-gray-600 mb-4">
-                  {testimonial.text}
+                  {testimonial.content}
                 </p>
                 <div className="flex text-brand-pink">
                   {Array.from({ length: testimonial.rating }).map((_, i) => (

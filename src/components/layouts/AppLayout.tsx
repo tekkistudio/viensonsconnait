@@ -8,7 +8,7 @@ import { AnnouncementBar } from '../../features/home/components/sections/Announc
 import { DukkaBadge } from '../../components/ui/DukkaBadge'
 
 const ANNOUNCEMENT_DATA = {
-  text: "Livraison gratuite à Dakar • Paiement à la livraison disponible",
+  text: "Livraison Gratuite à Dakar 🇸🇳 et Abidjan 🇨🇮 | Paiement à la livraison disponible",
   phone: "+221781362728",
   whatsapp: "221781362728"
 }
@@ -18,28 +18,27 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { hideDukkaBadge, hideHeaderGroup } = useLayoutContext()
-
+  const { hideDukkaBadge, hideHeaderGroup } = useLayoutContext();
+  
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header group avec z-index, caché quand hideHeaderGroup est true */}
+      {/* Header group avec z-index */}
       {!hideHeaderGroup && (
-        <div className="sticky top-0 z-50 bg-white">
+        <>
           <AnnouncementBar {...ANNOUNCEMENT_DATA} />
-          <Header />
-        </div>
+          <div className="sticky top-0 z-50 bg-white">
+            <Header />
+          </div>
+        </>
       )}
-
       {/* Main content */}
       <main className="flex-1 relative z-0">
         {children}
       </main>
-
       {/* Footer */}
       <Footer />
-      
       {/* Dukka Badge */}
       {!hideDukkaBadge && <DukkaBadge />}
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 // src/lib/services/cart.service.ts
 import { supabase } from "@/lib/supabase";
-import { OrderData } from "@/features/product/types/chat";
+import { OrderData } from "@/types/chat";
 
 interface CartItem {
   productId: string;
@@ -133,8 +133,8 @@ export class CartService {
       })) || [];
 
       const updatedCart: Partial<Cart> = {
-        first_name: orderData.firstName,
-        last_name: orderData.lastName,
+        first_name: orderData.first_name,
+        last_name: orderData.last_name,
         email: orderData.email,
         phone: orderData.phone,
         city: orderData.city,

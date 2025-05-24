@@ -1,11 +1,11 @@
-// src/components/Blog.tsx
+// src/features/blog/components/Blog.tsx
 'use client';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { useArticles } from '@/features/blog/hooks/useArticles';
-import type { CompletePost } from '@/features/blog/services/api';
+import type { Article } from '@/types/blog';
 import FeaturedArticle from '@/components/blog/FeaturedArticle';
 import ArticleCard from '@/components/blog/ArticleCard';
 
@@ -18,19 +18,7 @@ const categories = [
   { id: 'marriage', name: 'Mariage' }
 ] as const;
 
-{categories.map((category: typeof categories[number]) => (
-  <button
-    key={category.id}
-    onClick={() => setSelectedCategory(category.id)}
-    className={`px-6 py-2 rounded-full transition-colors ${
-      selectedCategory === category.id
-        ? 'bg-brand-blue text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-    }`}
-  >
-    {category.name}
-  </button>
-))}
+type CategoryId = typeof categories[number]['id'];
 
 const SearchBar = () => {
   return (
@@ -46,7 +34,7 @@ const SearchBar = () => {
 };
 
 export default function Blog() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const { allArticles, isLoading, error } = useArticles();
 
   if (isLoading) {
@@ -65,10 +53,18 @@ export default function Blog() {
     );
   }
 
-  const featuredArticles = allArticles.filter((article): article is CompletePost => article.featured);
-const filteredArticles = allArticles.filter((article): article is CompletePost =>
-  !article.featured && (selectedCategory === 'all' || article.category === selectedCategory)
-);
+  const featuredArticles = allArticles.filter((article): article is Article => {
+    return Boolean(article.featured) && 
+           typeof article.image === 'string' &&
+           typeof article.category === 'string';
+  });
+  
+  const filteredArticles = allArticles.filter((article): article is Article => {
+    return !article.featured &&
+           typeof article.image === 'string' &&
+           typeof article.category === 'string' &&
+           (selectedCategory === 'all' || article.category === selectedCategory);
+  });
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -113,19 +109,19 @@ const filteredArticles = allArticles.filter((article): article is CompletePost =
       </section>
 
       {featuredArticles.length > 0 && (
-  <section className="py-12">
-    <div className="max-w-6xl mx-auto px-4">
-      <h2 className="text-2xl font-bold text-brand-blue mb-8">
-        Articles à la une
-      </h2>
-      <div className="grid md:grid-cols-2 gap-8">
-        {featuredArticles.map((article: CompletePost) => (
-        <FeaturedArticle key={article.id} article={article} />
-        ))}
-      </div>
-    </div>
-  </section>
-)}
+        <section className="py-12">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold text-brand-blue mb-8">
+              Articles à la une
+            </h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              {featuredArticles.map((article) => (
+                <FeaturedArticle key={article.id} article={article} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Regular Articles */}
       <section className="py-12">
@@ -134,8 +130,8 @@ const filteredArticles = allArticles.filter((article): article is CompletePost =
             Tous les articles
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredArticles.map((article: CompletePost) => (
-            <ArticleCard key={article.id} article={article} />
+            {filteredArticles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
             ))}
           </div>
           {filteredArticles.length === 0 && (

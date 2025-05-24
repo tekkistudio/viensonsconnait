@@ -1,3 +1,4 @@
+// src/app/admin/analytics/page.tsx
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { 

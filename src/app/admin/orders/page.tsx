@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   Clock, 
   Package, 
@@ -10,15 +11,13 @@ import {
   AlertCircle,
   Truck,
   Search,
-  Filter,
   Phone,
   Loader2,
-  ArrowUpRight,
-  TrendingUp,
-  Calendar
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Database } from '@/types/supabase';
+import { NewOrderDialog } from '@/components/admin/orders/NewOrderDialog';
+import { OrderFilters } from '@/components/admin/orders/OrderFilters';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,27 +31,13 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-
-type Order = Database['public']['Tables']['orders']['Row'];
-type OrderStatus = Order['status'];
-type TimeFilter = 'today' | 'yesterday' | '7days' | '30days' | '365days' | 'all';
-
-interface OrderFilters {
-  status?: string;
-  paymentMethod?: string;
-  city?: string;
-  minAmount?: number;
-  maxAmount?: number;
-}
-
-interface OrderStats {
-  total: number;
-  pending: number;
-  confirmed: number;
-  delivered: number;
-  totalRevenue: number;
-  averageOrderValue: number;
-}
+import type { 
+  Order, 
+  OrderStatus, 
+  OrderFilters as OrderFiltersType, 
+  TimeFilter, 
+  OrderStats 
+} from '@/types/orders';
 
 const initialStats: OrderStats = {
   total: 0,
@@ -109,7 +94,7 @@ const getDateForTimeFilter = (filter: TimeFilter): { from: Date; to: Date } => {
     }
     default:
       return {
-        from: new Date(0), // début des temps
+        from: new Date(0),
         to: now
       };
   }
@@ -124,7 +109,6 @@ const formatPrice = (amount: number) => {
 };
 
 export default function OrdersManagement() {
-  // States
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<OrderStats>(initialStats);
@@ -132,17 +116,19 @@ export default function OrdersManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filters, setFilters] = useState<OrderFilters>({});
+  const [filters, setFilters] = useState<OrderFiltersType>({});
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('7days');
 
   const { toast } = useToast();
 
-  // Effets
+  const handleOrderCreated = () => {
+    fetchOrders();
+  };
+
   useEffect(() => {
     fetchOrders();
   }, [currentPage, filters, timeFilter]);
 
-  // Fonctions
   const calculateStats = (orders: Order[]) => {
     const total = orders.length;
     const pending = orders.filter(o => o.status === 'pending').length;
@@ -170,7 +156,6 @@ export default function OrdersManagement() {
         .from('orders')
         .select('*, payment_transactions(*)', { count: 'exact' });
 
-      // Appliquer les filtres de base
       if (filters.status) {
         query = query.eq('status', filters.status);
       }
@@ -186,16 +171,19 @@ export default function OrdersManagement() {
       if (filters.maxAmount) {
         query = query.lte('total_amount', filters.maxAmount);
       }
-
-      // Filtre de date
-      const dateRange = getDateForTimeFilter(timeFilter);
-      if (timeFilter !== 'all') {
+      if (filters.dateRange?.from && filters.dateRange?.to) {
         query = query
-          .gte('created_at', dateRange.from.toISOString())
-          .lte('created_at', dateRange.to.toISOString());
+          .gte('created_at', filters.dateRange.from.toISOString())
+          .lte('created_at', filters.dateRange.to.toISOString());
+      } else {
+        const dateRange = getDateForTimeFilter(timeFilter);
+        if (timeFilter !== 'all') {
+          query = query
+            .gte('created_at', dateRange.from.toISOString())
+            .lte('created_at', dateRange.to.toISOString());
+        }
       }
 
-      // Pagination
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE - 1;
 
@@ -270,7 +258,6 @@ export default function OrdersManagement() {
     }
   };
 
-  // Filtrer les commandes
   const filteredOrders = orders.filter(order => {
     if (!searchTerm) return true;
     
@@ -313,9 +300,7 @@ export default function OrdersManagement() {
               Gérez toutes vos commandes
             </p>
           </div>
-          <Button className="bg-brand-blue hover:bg-brand-blue/90 text-white">
-            Nouvelle commande
-          </Button>
+          <NewOrderDialog onOrderCreated={handleOrderCreated} />
         </div>
 
         {/* Stats Cards */}
@@ -392,23 +377,6 @@ export default function OrdersManagement() {
         </div>
 
         <Select
-          value={filters.status}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            <SelectItem value="pending">En attente</SelectItem>
-            <SelectItem value="confirmed">Confirmée</SelectItem>
-            <SelectItem value="shipped">Expédiée</SelectItem>
-            <SelectItem value="delivered">Livrée</SelectItem>
-            <SelectItem value="cancelled">Annulée</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
           value={timeFilter}
           onValueChange={(value: TimeFilter) => {
             setTimeFilter(value);
@@ -416,7 +384,7 @@ export default function OrdersManagement() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Période" />
+          <SelectValue placeholder="Période" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="today">Aujourd'hui</SelectItem>
@@ -428,11 +396,15 @@ export default function OrdersManagement() {
           </SelectContent>
         </Select>
 
-        <Button variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Plus de filtres
-        </Button>
+        <OrderFilters 
+          filters={filters}
+          onFilterChange={(newFilters) => {
+            setFilters(newFilters);
+            setCurrentPage(1);
+          }}
+        />
       </div>
+
       {/* Liste des commandes */}
       <div className="overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm">
         {/* Vue mobile */}
@@ -440,10 +412,16 @@ export default function OrdersManagement() {
           {filteredOrders.length > 0 ? (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredOrders.map((order) => (
-                <div key={order.id} className="p-4">
+                <div
+                  key={order.id}
+                  className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  onClick={() => window.location.href = `/admin/orders/${order.id}`}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="font-medium text-gray-900 dark:text-white">#{order.id}</div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        #{order.id}
+                      </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         {new Date(order.created_at).toLocaleDateString()}
                       </div>
@@ -458,14 +436,19 @@ export default function OrdersManagement() {
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {order.first_name} {order.last_name}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{order.city}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {order.city}
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatPrice(order.total_amount || 0)}
                       </div>
-                      <div className="flex gap-2">
+                      <div 
+                        className="flex gap-2"
+                        onClick={(e) => e.stopPropagation()} // Empêche la navigation lors du clic sur les boutons
+                      >
                         {order.status === 'pending' && (
                           <>
                             <Button
@@ -537,15 +520,17 @@ export default function OrdersManagement() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr 
+                    key={order.id} 
+                    onClick={() => window.location.href = `/admin/orders/${order.id}`}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
                     <td className="py-3 px-4">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          #{order.id}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        #{order.id}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(order.created_at).toLocaleDateString()}
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -563,13 +548,14 @@ export default function OrdersManagement() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-center items-center gap-2">
-                        {order.payment_method === 'mobile_money' && (
+                        {(order.payment_method === 'wave' || order.payment_method === 'orange_money') && (
                           <Phone className="w-4 h-4 text-brand-blue dark:text-blue-400" />
                         )}
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          {order.payment_method === 'mobile_money' ? 'Mobile Money' : 
-                           order.payment_method === 'card' ? 'Carte bancaire' : 
-                           'Paiement à la livraison'}
+                          {order.payment_method === 'wave' ? 'Wave' :
+                          order.payment_method === 'orange_money' ? 'Orange Money' : 
+                          order.payment_method === 'card' ? 'Carte bancaire' : 
+                          'Paiement à la livraison'}
                         </span>
                       </div>
                     </td>
@@ -581,7 +567,10 @@ export default function OrdersManagement() {
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex justify-center gap-2">
+                      <div 
+                        className="flex justify-center gap-2"
+                        onClick={(e) => e.stopPropagation()} // Empêche la navigation lors du clic sur les boutons
+                      >
                         {order.status === 'pending' && (
                           <>
                             <Button

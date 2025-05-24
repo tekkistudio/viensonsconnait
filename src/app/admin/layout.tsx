@@ -25,7 +25,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <NotificationsProvider>
             <div className="relative min-h-screen bg-background">
               {isLoginPage ? (
-                <>{children}</>
+                <>
+                  {children}
+                </>
               ) : (
                 <div className="flex h-full min-h-screen">
                   {/* Sidebar pour desktop */}

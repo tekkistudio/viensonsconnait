@@ -1,281 +1,308 @@
 // src/features/product/components/ProductChat/ChatContainer.tsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink } from 'lucide-react';
-import type { Product } from '../../../../types/product';
-import type { ChatMessage as ChatMessageType } from '../../types/chat';
-import { useChatContext } from '../../context/ChatContext';
+import { Mic, Send } from 'lucide-react';
+import { useChatStore } from '@/stores/chatStore';
+import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal';
+import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
+import { ConversationProvider } from '@/hooks/useConversationContext';
+import ChatMessage from './components/ChatMessage';
+import ChatChoices from './components/ChatChoices';
+import TypingIndicator from './components/TypingIndicator';
 import ChatHeader from './components/ChatHeader';
-import { default as ChatMessageComponent } from './components/ChatMessage';
-import ChatInput from './components/ChatInput';
-import { UnifiedPaymentModal } from '@/components/payment';
+import type { PaymentProvider } from '@/types/order';
+import type { Product } from '@/types/product';
+import type { ChatMessage as ChatMessageType } from '@/types/chat';
+import QuantitySelector from './components/QuantitySelector';
+import { ChatService } from '@/services/ChatService';
 
 interface ChatContainerProps {
   product: Product;
-  isMobile: boolean;
-  isFullscreen: boolean;
+  storeId: string;
+  isMobile?: boolean;
+  isFullscreen?: boolean;
 }
 
-type PaymentButtonType = 'wave-button' | 'om-button';
-
-const isValidPaymentType = (type: string): type is PaymentButtonType => {
-  return type === 'wave-button' || type === 'om-button';
-};
-
-const useMessageRedirect = (messages: ChatMessageType[]) => {
-  useEffect(() => {
-    const handleRedirect = (message: ChatMessageType) => {
-      if (message.metadata?.action === 'redirect' && message.metadata.externalUrl) {
-        const { url, type } = message.metadata.externalUrl;
-        if (type === 'whatsapp' || type === 'email') {
-          window.open(url, '_blank', 'noopener,noreferrer');
-        } else {
-          window.location.href = url;
-        }
-      }
-    };
-
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage) {
-      handleRedirect(lastMessage);
-    }
-  }, [messages]);
-};
-
-const RedirectIndicator = ({ type }: { type: string }) => (
-  <div className="flex items-center gap-2 text-sm text-blue-600">
-    <ExternalLink className="w-4 h-4" />
-    <span>
-      {type === 'whatsapp' ? "Ouverture de WhatsApp..." : 
-       type === 'email' ? "Ouverture de votre messagerie..." :
-       "Redirection en cours..."}
-    </span>
-  </div>
-);
-
-function ChatContainerInner({ product, isMobile, isFullscreen }: ChatContainerProps) {
-  const [inputMessage, setInputMessage] = useState('');
+const ChatContainer = ({ 
+  product,
+  storeId,
+  isMobile = false, 
+  isFullscreen = false 
+}: ChatContainerProps) => {
   const chatRef = useRef<HTMLDivElement>(null);
-  const { state, handleUserChoice, calculateOrderTotal, dispatch } = useChatContext();
-  const { messages, isTyping } = state;
+  const [inputMessage, setInputMessage] = useState('');
+  const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [showTyping, setShowTyping] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  useMessageRedirect(messages);
+  const { 
+    messages,
+    orderData,
+    sessionId,
+    isTyping,
+    payment,
+    paymentModal,
+    initialize,
+    sendMessage,
+    initiatePayment,
+    addMessage,
+    cleanup,
+    setPaymentModal
+  } = useChatStore();
+
+  useEffect(() => {
+    initialize(product.id, storeId).catch(console.error);
+    return () => cleanup();
+  }, [product.id, storeId, initialize, cleanup]);
 
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, showTyping]);
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
-    handleUserChoice(inputMessage.trim());
+  const handleSubmit = async (contentOrEvent: string | React.MouseEvent<HTMLButtonElement>) => {
+    const content = typeof contentOrEvent === 'string' 
+      ? contentOrEvent 
+      : inputMessage.trim();
+  
+    if (!content) return;
+    
     setInputMessage('');
+    setIsProcessing(true);
+    setShowTyping(true);
+    
+    try {
+      await sendMessage(content);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setShowTyping(false);
+      setIsProcessing(false);
+    }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      const content = inputMessage.trim();
+      if (content) {
+        handleSubmit(content);
+      }
     }
   };
 
-  const renderMessageContent = (message: ChatMessageType): React.ReactNode => {
-    const content = typeof message.content === 'string' ? message.content : String(message.content);
+  const handleChoiceSelect = async (choice: string) => {
+    if (isProcessing) return;
+  
+    // Marquer qu'on est en traitement
+    setIsProcessing(true);
+    setShowTyping(true);
     
-    if (message.metadata?.externalUrl) {
-      return (
-        <div className="flex flex-col gap-2">
-          <div dangerouslySetInnerHTML={{ __html: content }} />
-          <RedirectIndicator type={message.metadata.externalUrl.type} />
-        </div>
-      );
+    try {
+      // Créer explicitement un message utilisateur avec des flags pour éviter l'intervention IA
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content: choice,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          flags: {
+            inPurchaseFlow: true,
+            preventAIIntervention: true,
+            isButtonChoice: true // Nouveau flag pour indiquer que c'est un choix de bouton
+          }
+        }
+      };
+      
+      // Ajouter le message manuellement
+      useChatStore.getState().addMessage(userMessage);
+      
+      // Attendre un peu pour l'animation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Si c'est un des choix spécifiques pour ajouter des produits, forcer le bon handler
+      if (['Oui, je veux bien', 'Non, juste celui-là'].includes(choice)) {
+        // Obtenir la session ID
+        const sessionId = useChatStore.getState().sessionId;
+        const currentStep = useChatStore.getState().formStep;
+        
+        // Appeler directement le service
+        const chatService = ChatService.create();
+        const response = await chatService.handleAdditionalProducts(
+          sessionId,
+          currentStep as string,
+          choice
+        );
+        
+        if (response) {
+          // Ajouter la réponse au store
+          useChatStore.getState().addMessage(response);
+          setIsProcessing(false);
+          setShowTyping(false);
+          return;
+        }
+      }
+      
+      // Sinon, utiliser sendMessage standard
+      await sendMessage(choice);
+    } catch (error) {
+      console.error('Error sending choice:', error);
+    } finally {
+      setShowTyping(false);
+      setIsProcessing(false);
     }
-
-    if (content.includes('<strong>')) {
-      return <div dangerouslySetInnerHTML={{ __html: content }} />;
-    }
-
-    return <>{content}</>;
   };
 
-  const renderChoices = (choices: string[]) => (
-    <div className="flex flex-wrap gap-2 mt-2">
-      {choices.map((choice, idx) => (
-        <button
-          key={`${choice}-${idx}`}
-          onClick={() => handleUserChoice(choice)}
-          className="bg-white border border-[#FF7E93] text-[#FF7E93] rounded-full px-4 py-2 
-            hover:bg-[#FF7E93] hover:text-white transition-colors text-sm"
-        >
-          {choice}
-        </button>
-      ))}
-    </div>
-  );
+  const handleClosePaymentModal = () => {
+    setPaymentModal({ 
+      isOpen: false, 
+      iframeUrl: '', 
+      provider: undefined 
+    });
+  };
 
-  return (
-    <div className={`flex flex-col ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[600px]'} bg-white rounded-xl`}>
+  const chatContent = (
+    <div className={`flex flex-col ${
+      isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[600px]'
+    } bg-white rounded-xl overflow-hidden`}>
       <ChatHeader
+        productId={product.id}
         title={`Le Jeu ${product.name}`}
         rating={product.stats?.satisfaction || 5}
         price={`${product.price.toLocaleString()} FCFA`}
         oldPrice={product.compareAtPrice ? `${product.compareAtPrice.toLocaleString()} FCFA` : undefined}
-        reviews={product.stats?.reviews || 0}
       />
 
-      <div ref={chatRef} className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4">
+      <div 
+        ref={chatRef}
+        className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4"
+      >
         <AnimatePresence mode="popLayout">
-          {messages.map((message, index) => {
-            const key = `${message.type}-${index}`;
-
-            if (message.type === 'user-choices') {
-              return (
-                <motion.div
-                  key={key}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {renderChoices(message.choices || [])}
-                </motion.div>
-              );
-            }
-
-            return (
-              <motion.div
-                key={key}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {message.content && (
-                  <div className="space-y-4">
-                    <ChatMessageComponent
-                      message={renderMessageContent(message)}
-                      timestamp={new Date().toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                      isUser={message.type === 'user'}
-                      assistant={message.type === 'assistant' ? {
-                        name: 'Rose',
-                        title: 'Assistante'
-                      } : undefined}
-                    />
-                    {message.type === 'assistant' && message.choices && message.choices.length > 0 && (
-                      renderChoices(message.choices)
-                    )}
-                  </div>
-                )}
-
-                {isValidPaymentType(message.type) && (
-                  <div className="flex justify-center mt-4">
-                    <UnifiedPaymentModal
-                      isOpen={state.paymentModal.isOpen}
-                      onClose={() => {
-                        dispatch({
-                          type: 'SET_PAYMENT_MODAL',
-                          payload: {
-                            isOpen: false,
-                            iframeUrl: ''
-                          }
-                        });
-                      }}
-                      amount={calculateOrderTotal().value}
-                      currency="XOF"
-                      customerInfo={{
-                        name: `${state.orderData.firstName} ${state.orderData.lastName}`,
-                        phone: state.orderData.phone,
-                        city: state.orderData.city
-                      }}
-                      orderId={parseInt(state.orderData.orderId || Date.now().toString())}
-                      onPaymentComplete={(result) => {
-                        if (result.success) {
-                          dispatch({
-                            type: 'SET_PAYMENT_STATUS',
-                            payload: {
-                              status: 'completed',
-                              transactionId: result.transactionId
-                            }
-                          });
-                        } else {
-                          dispatch({
-                            type: 'SET_PAYMENT_STATUS',
-                            payload: {
-                              status: 'failed',
-                              error: result.error
-                            }
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-
-          {isTyping && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex space-x-1 bg-white p-3 rounded-lg w-16"
-            >
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-1.5 h-1.5 bg-gray-400 rounded-full"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{
-                    duration: 0.5,
-                    delay: i * 0.15,
-                    repeat: Infinity
+        {messages.map((message, index) => (
+          <motion.div
+            key={`${message.type}-${index}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChatMessage
+              message={message}
+              isTyping={false}
+            />
+            {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+              <div className="mt-4">
+                <QuantitySelector
+                  quantity={1}
+                  onQuantityChange={(qty: number) => {
+                    if (message.metadata?.handleQuantityChange) {
+                      message.metadata.handleQuantityChange(qty);
+                    }
                   }}
+                  onConfirm={async (qty: number) => {
+                    if (message.metadata?.handleQuantitySubmit) {
+                      await message.metadata.handleQuantitySubmit(qty);
+                      message.metadata.quantityHandled = true;
+                    }
+                      handleSubmit(qty.toString());
+                  }}
+                  maxQuantity={message.metadata?.maxQuantity || 10}
                 />
-              ))}
+              </div>
+            )}
+          </motion.div>
+        ))}
+          {showTyping && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              key="typing-indicator"
+            >
+              <TypingIndicator />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="bg-white border-t">
-        <ChatInput
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onSend={handleSendMessage}
-          isMobile={isMobile}
-        />
+      <div className="bg-white border-t px-4 py-3">
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Tapez votre message..."
+            className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none"
+            disabled={isProcessing}
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <button
+              type="button"
+              className="p-2 text-gray-400 cursor-not-allowed"
+              disabled
+            >
+              <Mic className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!inputMessage.trim() || isProcessing}
+              className={`p-2 ${
+                inputMessage.trim() && !isProcessing
+                  ? 'text-[#FF7E93] hover:text-[#132D5D]' 
+                  : 'text-gray-400'
+              } transition-colors`}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       </div>
+
+      <BictorysPaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={handleClosePaymentModal}
+        amount={orderData.totalAmount || 0}
+        currency="XOF"
+        orderId={parseInt(orderData.session_id || Date.now().toString())}
+        customerInfo={{
+          name: `${orderData.first_name} ${orderData.last_name}`,
+          phone: orderData.phone,
+          email: orderData.email,
+          city: orderData.city
+        }}
+      />
+
+      {payment.status === 'processing' && payment.clientSecret && (
+        <StripePaymentModal
+          isOpen={stripeModalOpen}
+          onClose={() => setStripeModalOpen(false)}
+          clientSecret={payment.clientSecret}
+        />
+      )}
     </div>
   );
-}
-
-export default function ChatContainer(props: ChatContainerProps) {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  if (!isClient) {
-    return (
-      <div className="h-full bg-gray-100 rounded-xl animate-pulse">
-        <div className="h-16 bg-white border-b" />
-      </div>
-    );
-  }
 
   return (
-    <div className={`h-full rounded-xl ${!props.isFullscreen && 'ring-1 ring-gray-200'} overflow-hidden`}>
-      <ChatContainerInner {...props} />
-    </div>
+    <ConversationProvider 
+      value={{
+        productId: product.id,
+        sessionId: sessionId,
+        storeId,
+        customerInfo: {
+          firstName: orderData.first_name,
+          lastName: orderData.last_name,
+          city: orderData.city,
+          email: orderData.email
+        }
+      }}
+    >
+      {chatContent}
+    </ConversationProvider>
   );
-}
+};
+
+export default ChatContainer;

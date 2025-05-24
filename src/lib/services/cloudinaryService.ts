@@ -1,3 +1,4 @@
+// src/lib/services/cloudinaryService.ts
 'use client';
 
 interface CloudinaryUploadResponse {
@@ -10,40 +11,117 @@ interface CloudinaryUploadResponse {
   bytes: number;
   created_at: string;
   thumbnail_url?: string;
+  context?: {
+    alt?: string;
+  };
+}
+
+interface CloudinaryListResponse {
+  resources: CloudinaryUploadResponse[];
+  next_cursor: string | null;
+  rate_limit_allowed: number;
+  rate_limit_remaining: number;
+  rate_limit_reset_at: string;
+}
+
+interface CloudinaryListParams {
+  resource_type: 'image' | 'video';
+  prefix: string;
+  max_results: number;
+  next_cursor?: string;
+  type: string;
+  context: boolean;
+  metadata: boolean;
 }
 
 class CloudinaryService {
-  private readonly cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  private readonly cloudName: string;
+  private readonly apiKey: string;
+  private readonly apiSecret: string;
 
-  async upload(file: File, preset: string, folder: string) {
+  constructor() {
+    this.cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+    this.apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '';
+    this.apiSecret = process.env.CLOUDINARY_API_SECRET || '';
+
+    if (!this.cloudName || !this.apiKey) {
+      throw new Error('Missing Cloudinary configuration');
+    }
+  }
+
+  async list(params: CloudinaryListParams): Promise<CloudinaryListResponse> {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', preset);
-      formData.append('folder', folder);
+      const searchParams = new URLSearchParams({
+        resource_type: params.resource_type,
+        prefix: params.prefix,
+        max_results: params.max_results.toString(),
+        type: params.type,
+        context: params.context.toString(),
+        metadata: params.metadata.toString(),
+      });
+
+      if (params.next_cursor) {
+        searchParams.append('next_cursor', params.next_cursor);
+      }
 
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${this.cloudName}/auto/upload`,
+        `/api/cloudinary/list?${searchParams.toString()}`,
         {
-          method: 'POST',
-          body: formData,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
+        const errorText = await response.text();
+        throw new Error(`List failed: ${errorText}`);
       }
 
-      const data: CloudinaryUploadResponse = await response.json();
-      return data;
+      return await response.json();
+    } catch (error) {
+      console.error('Cloudinary list error:', error);
+      throw error;
+    }
+  }
+
+  async upload(file: File, preset: string, folder: string): Promise<CloudinaryUploadResponse> {
+    try {
+      console.log('Starting upload with:', {
+        cloudName: this.cloudName,
+        preset,
+        folder,
+        fileName: file.name
+      });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', preset);
+      formData.append('folder', folder);
+      formData.append('api_key', this.apiKey);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${errorText}`);
+      }
+
+      return await response.json();
     } catch (error) {
       console.error('Cloudinary upload error:', error);
       throw error;
     }
   }
 
-  async delete(publicId: string) {
+  async delete(publicId: string): Promise<any> {
     try {
       const response = await fetch('/api/cloudinary/delete', {
         method: 'POST',
@@ -54,8 +132,8 @@ class CloudinaryService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Delete failed');
+        const errorText = await response.text();
+        throw new Error(`Delete failed: ${errorText}`);
       }
 
       return await response.json();
@@ -70,7 +148,7 @@ class CloudinaryService {
     height?: number;
     quality?: number;
     format?: string;
-  } = {}) {
+  } = {}): string {
     const transformations = [];
 
     if (options.width) transformations.push(`w_${options.width}`);
@@ -87,3 +165,8 @@ class CloudinaryService {
 }
 
 export const cloudinaryService = new CloudinaryService();
+export type { 
+  CloudinaryUploadResponse, 
+  CloudinaryListResponse, 
+  CloudinaryListParams 
+};

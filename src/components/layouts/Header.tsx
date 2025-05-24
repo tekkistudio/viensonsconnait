@@ -16,18 +16,23 @@ const games = [
   },
   {
     name: 'Pour les Mariés',
-    href: '/products/maries',
+    href: '/products/couples-maries',
     image: '/images/products/maries-1.jpg'
   },
   {
     name: 'Pour la Famille',
-    href: '/products/famille',
+    href: '/products/familles',
     image: '/images/products/famille-1.jpg'
   },
   {
     name: 'Pour les Amis',
     href: '/products/amis',
     image: '/images/products/amis-1.jpg'
+  },
+  {
+    name: 'Pour les Collègues',
+    href: '/products/collegues',
+    image: '/images/products/collegues-1.jpg'
   }
 ];
 

@@ -38,7 +38,7 @@ export default function DeliveryPage() {
     setStatusFilter,
     dateFilter,
     setSelectedDate,
-    assignDelivery,
+    assignDelivery: handleAssignDelivery,
     updateDeliveryStatus,
     refreshData,
     isMobile
@@ -51,6 +51,52 @@ export default function DeliveryPage() {
   const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false);
   const [deliveryType, setDeliveryType] = useState<DeliveryType | 'all'>('all');
   const { toast } = useToast();
+
+  const getNextPendingDelivery = () => {
+    return deliveries.find(delivery => delivery.status === 'pending' && !delivery.driver_id && !delivery.company_id);
+  };
+
+  const handleAddDriver = async (data: DriverFormData) => {
+    try {
+      const workingHoursJson = data.working_hours 
+        ? JSON.stringify(data.working_hours)
+        : null;
+  
+      const { error } = await supabase
+        .from('delivery_drivers')
+        .insert([{
+          full_name: data.full_name,
+          phone: data.phone,
+          email: data.email || null,
+          vehicle_type: data.vehicle_type,
+          current_zone: data.current_zone,
+          working_hours: workingHoursJson,
+          notes: data.notes || null,
+          status: 'active',
+          is_available: true,
+          total_deliveries: 0,
+          rating: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]);
+  
+      if (error) throw error;
+  
+      toast({
+        title: "Succès",
+        description: "Le livreur a été ajouté avec succès"
+      });
+      setIsAddDriverOpen(false);
+      await refreshData();
+    } catch (error) {
+      console.error('Error adding driver:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'ajouter le livreur"
+      });
+    }
+  };
 
   const handleAddCompany = async (data: CompanyFormData) => {
     try {
@@ -88,50 +134,13 @@ export default function DeliveryPage() {
     }
   };
 
-  const handleAddDriver = async (data: DriverFormData) => {
-    try {
-      const { error } = await supabase
-        .from('delivery_drivers')
-        .insert([{
-          full_name: data.full_name,
-          phone: data.phone,
-          email: data.email || null,
-          vehicle_type: data.vehicle_type,
-          current_zone: data.current_zone,
-          availability_hours: data.availability_hours || null,
-          notes: data.notes || null,
-          status: 'active',
-          is_available: true,
-          total_deliveries: 0,
-          rating: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Succès",
-        description: "Le livreur a été ajouté avec succès"
-      });
-      setIsAddDriverOpen(false);
-      await refreshData();
-    } catch (error) {
-      console.error('Error adding driver:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d'ajouter le livreur"
-      });
-    }
-  };
-
   const handleDriverStatusChange = async (driverId: string, status: string) => {
     try {
       const { error } = await supabase
         .from('delivery_drivers')
         .update({
           status,
+          is_available: status === 'active',
           updated_at: new Date().toISOString()
         })
         .eq('id', driverId);
@@ -192,6 +201,97 @@ export default function DeliveryPage() {
         description: "Impossible d'annuler la livraison"
       });
     }
+  };
+
+  const handleDeleteDriver = async (driverId: string) => {
+    try {
+      const { data: activeDeliveries, error: checkError } = await supabase
+        .from('deliveries')
+        .select('id')
+        .eq('driver_id', driverId)
+        .in('status', ['assigned', 'picked_up', 'in_transit'])
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') throw checkError;
+      
+      if (activeDeliveries) {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de supprimer un livreur ayant des livraisons en cours"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('delivery_drivers')
+        .delete()
+        .eq('id', driverId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Le livreur a été supprimé"
+      });
+      await refreshData();
+    } catch (error) {
+      console.error('Error deleting driver:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de supprimer le livreur"
+      });
+    }
+  };
+
+  const handleDeleteCompany = async (companyId: string) => {
+    try {
+      const { data: activeDeliveries, error: checkError } = await supabase
+        .from('deliveries')
+        .select('id')
+        .eq('company_id', companyId)
+        .in('status', ['assigned', 'picked_up', 'in_transit'])
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') throw checkError;
+      
+      if (activeDeliveries) {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de supprimer une entreprise ayant des livraisons en cours"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('delivery_companies')
+        .delete()
+        .eq('id', companyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "L'entreprise a été supprimée"
+      });
+      await refreshData();
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de supprimer l'entreprise"
+      });
+    }
+  };
+
+  const handleEditCompany = (companyId: string) => {
+    toast({
+      title: "Info",
+      description: "Fonctionnalité en développement"
+    });
   };
 
   if (isLoading) {
@@ -263,8 +363,8 @@ export default function DeliveryPage() {
               setShowTrackingMap(true);
             }}
             onStatusChange={updateDeliveryStatus}
-            onAssignDriver={(deliveryId, driverId) => assignDelivery(deliveryId, driverId, 'driver')}
-            onAssignCompany={(deliveryId, companyId) => assignDelivery(deliveryId, companyId, 'company')}
+            onAssignDriver={(deliveryId, driverId) => handleAssignDelivery(deliveryId, driverId, 'driver')}
+            onAssignCompany={(deliveryId, companyId) => handleAssignDelivery(deliveryId, companyId, 'company')}
             onCancel={handleDeliveryCancel}
           />
         </TabsContent>
@@ -276,12 +376,19 @@ export default function DeliveryPage() {
                 key={driver.id}
                 driver={driver}
                 onStatusChange={handleDriverStatusChange}
-                onAssignDelivery={(id) => {
-                  toast({
-                    title: "Info",
-                    description: "Fonctionnalité en développement"
-                  });
+                onAssignDelivery={(driverId) => {
+                  const nextDelivery = getNextPendingDelivery();
+                  if (!nextDelivery) {
+                    toast({
+                      title: "Aucune livraison disponible",
+                      description: "Il n'y a pas de livraison en attente d'assignation",
+                      variant: "warning"
+                    });
+                    return;
+                  }
+                  handleAssignDelivery(nextDelivery.id, driverId, 'driver');
                 }}
+                onDelete={handleDeleteDriver}
               />
             ))}
           </div>
@@ -294,6 +401,8 @@ export default function DeliveryPage() {
                 key={company.id}
                 company={company}
                 onStatusChange={handleCompanyStatusChange}
+                onDelete={handleDeleteCompany}
+                onEdit={handleEditCompany}
               />
             ))}
           </div>
@@ -311,46 +420,46 @@ export default function DeliveryPage() {
           </DialogHeader>
           {selectedDelivery && (
             <TrackingMap
-              deliveryId={selectedDelivery}
-              onLocationUpdate={(location) => {
-                console.log('Location update:', location);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal d'ajout de livreur */}
-      <Dialog open={isAddDriverOpen} onOpenChange={setIsAddDriverOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Ajouter un nouveau livreur</DialogTitle>
-            <DialogDescription>
-              Le livreur sera notifié par SMS une fois ajouté
-            </DialogDescription>
-          </DialogHeader>
-          <AddDriverForm
-            onSubmit={handleAddDriver}
-            onCancel={() => setIsAddDriverOpen(false)}
+            deliveryId={selectedDelivery}
+            onLocationUpdate={(location) => {
+              console.log('Location update:', location);
+            }}
           />
-        </DialogContent>
-      </Dialog>
+        )}
+      </DialogContent>
+    </Dialog>
 
-      {/* Modal d'ajout d'entreprise */}
-      <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Ajouter une entreprise de livraison</DialogTitle>
-            <DialogDescription>
-              Configurez les paramètres de l'entreprise
-            </DialogDescription>
-          </DialogHeader>
-          <AddCompanyForm
-            onSubmit={handleAddCompany}
-            onCancel={() => setIsAddCompanyOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+    {/* Modal d'ajout de livreur */}
+    <Dialog open={isAddDriverOpen} onOpenChange={setIsAddDriverOpen}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Ajouter un nouveau livreur</DialogTitle>
+          <DialogDescription>
+            Le livreur sera notifié par SMS une fois ajouté
+          </DialogDescription>
+        </DialogHeader>
+        <AddDriverForm
+          onSubmit={handleAddDriver}
+          onCancel={() => setIsAddDriverOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+
+    {/* Modal d'ajout d'entreprise */}
+    <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Ajouter une entreprise de livraison</DialogTitle>
+          <DialogDescription>
+            Configurez les paramètres de l'entreprise
+          </DialogDescription>
+        </DialogHeader>
+        <AddCompanyForm
+          onSubmit={handleAddCompany}
+          onCancel={() => setIsAddCompanyOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  </div>
+);
 }

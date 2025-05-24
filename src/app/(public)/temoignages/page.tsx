@@ -1,6 +1,6 @@
 // app/temoignages/page.tsx
 import { Metadata } from 'next';
-import Temoignages from '../../../features/testimonials/components/Temoignages';
+import Temoignages from '@/features/testimonials/components/Temoignages';
 
 export const metadata: Metadata = {
   title: 'Témoignages | VIENS ON S\'CONNAÎT',

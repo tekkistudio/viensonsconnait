@@ -11,6 +11,7 @@ interface AuthUser {
   email: string;
   name: string;
   role: string;
+  store_id: string;
 }
 
 interface AuthState {
@@ -38,13 +39,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const supabase = createClientComponentClient();
 
+  // Fonction utilitaire pour vérifier/créer les paramètres du chatbot
+  const ensureChatbotSettings = async (storeId: string) => {
+    try {
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from('chatbot_settings')
+        .select('*')
+        .eq('store_id', storeId)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+
+      if (!existingSettings) {
+        const defaultSettings = {
+          store_id: storeId,
+          bot_name: "Assistant",
+          bot_role: "Assistant commercial",
+          welcome_message: "Bonjour ! Comment puis-je vous aider ?",
+          initial_message_template: "Je suis là pour répondre à vos questions.",
+          primary_color: "#FF7E93",
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: insertError } = await supabase
+          .from('chatbot_settings')
+          .insert([defaultSettings]);
+
+        if (insertError) throw insertError;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la gestion des paramètres chatbot:', error);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-  
+    
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
+        if (sessionError) throw sessionError;
+
         if (!session) {
           if (mounted) {
             setState({
@@ -53,19 +93,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               user: null,
             });
           }
-          if (!publicRoutes.includes(pathname)) {
-            router.push('/admin/login');
-          }
           return;
         }
-  
+
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('name, email, role')
+          .select('name, email, role, store_id')
           .eq('id', session.user.id)
           .single();
-  
-        if (userError || !userData || userData.role !== 'admin') {
+
+        if (userError) throw userError;
+
+        if (!userData || userData.role !== 'admin') {
           if (mounted) {
             setState({
               isAuthenticated: false,
@@ -74,12 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }
           await supabase.auth.signOut();
-          if (!publicRoutes.includes(pathname)) {
-            router.push('/admin/login');
-          }
           return;
         }
-  
+
+        // Vérifier/créer les paramètres du chatbot une fois authentifié
+        await ensureChatbotSettings(userData.store_id);
+
         if (mounted) {
           setState({
             isAuthenticated: true,
@@ -89,12 +128,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: userData.email,
               name: userData.name,
               role: userData.role,
+              store_id: userData.store_id,
             },
           });
         }
-  
+
       } catch (error) {
-        console.error('Auth check error:', error);
+        console.error('Erreur de vérification auth:', error);
         if (mounted) {
           setState({
             isAuthenticated: false,
@@ -102,34 +142,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: null,
           });
         }
-        if (!publicRoutes.includes(pathname)) {
-          router.push('/admin/login');
-        }
       }
     };
-  
+
     checkAuth();
-  
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setState({
           isAuthenticated: false,
           isLoading: false,
           user: null,
         });
-        if (!publicRoutes.includes(pathname)) {
-          router.push('/admin/login');
-        }
       } else {
         checkAuth();
       }
     });
-  
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, router, pathname]);
+  }, [supabase]);
 
   const signOut = async () => {
     try {
@@ -141,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       router.push('/admin/login');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Erreur de déconnexion:', error);
     }
   };
 

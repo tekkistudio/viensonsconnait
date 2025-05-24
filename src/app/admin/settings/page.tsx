@@ -19,41 +19,43 @@ import {
   MessageSquare,
   ShieldCheck,
   Settings2,
-  Building2
+  Building2,
+  ImageIcon
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { supabase } from '@/lib/supabase';
 
 const settingsGroups = [
   {
-    title: "Paramètres boutique",
+    title: "Paramètres de la boutique",
     description: "Configuration générale de votre boutique en ligne",
     items: [
       {
         title: "Informations de la boutique",
-        description: "Gérez le nom, la description et les informations de contact",
+        description: "Gérez le nom et les informations de contact",
         icon: Store,
         href: "/admin/settings/store",
         color: "text-blue-600 dark:text-blue-400",
         bgColor: "bg-blue-50 dark:bg-blue-900/20"
       },
       {
-        title: "Assistant IA",
-        description: "Configurez la personnalité et le comportement de l'assistant",
+        title: "Chatbot IA",
+        description: "Configurez la personnalité et le comportement de votre Chatbot",
         icon: Bot,
-        href: "/admin/settings/assistant",
+        href: "/admin/settings/chatbot",
         color: "text-purple-600 dark:text-purple-400",
         bgColor: "bg-purple-50 dark:bg-purple-900/20"
       },
       {
-        title: "Localisation",
-        description: "Gérez les langues, devises et fuseaux horaires",
-        icon: Globe2,
-        href: "/admin/settings/store",
-        color: "text-green-600 dark:text-green-400",
-        bgColor: "bg-green-50 dark:bg-green-900/20"
+        title: "Médias",  
+        description: "Gérez l'ensemble de vos images et fichiers multimédias",
+        icon: ImageIcon,
+        href: "/admin/settings/media",
+        color: "text-indigo-600 dark:text-indigo-400",
+        bgColor: "bg-indigo-50 dark:bg-indigo-900/20"
       }
     ]
   },
@@ -101,9 +103,9 @@ const settingsGroups = [
       },
       {
         title: "WhatsApp",
-        description: "Configurez l'intégration WhatsApp Business",
-        icon: MessageSquare,
-        href: "/admin/settings/notifications",
+        description: "Gérez votre communication sur WhatsApp",
+        icon: WhatsAppIcon,
+        href: "/admin/settings/whatsapp",
         color: "text-green-600 dark:text-green-400",
         bgColor: "bg-green-50 dark:bg-green-900/20"
       }

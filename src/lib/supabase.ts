@@ -24,14 +24,15 @@ export const createSupabaseClient = (options: {
     enableLogging = process.env.NODE_ENV === 'development'
   } = options;
 
-  return createClient<Database>(
+  const client = createClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {
       auth: {
         persistSession,
         autoRefreshToken,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
+        storageKey: 'vosc-admin-supabase-auth',
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
       db: {
@@ -44,7 +45,20 @@ export const createSupabaseClient = (options: {
         }
       } : undefined
     }
-  )
+  );
+
+  // Debug logs en dev
+  if (enableLogging && typeof window !== 'undefined') {
+    client.auth.getSession().then(({ data: { session } }) => {
+      console.log('Session initiale:', session);
+    });
+
+    client.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
+    });
+  }
+
+  return client;
 }
 
 // Client par défaut pour l'utilisation côté client

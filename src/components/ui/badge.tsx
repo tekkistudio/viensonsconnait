@@ -12,6 +12,7 @@ const badgeVariants = cva(
         promo: "bg-[#FF7E93] text-white",
         new: "bg-[#132D5D] text-white",
         app: "bg-[#132D5D] text-white",
+        special: "bg-[#FFD700] text-slate-900", 
         outline: "border border-gray-200 text-gray-800 dark:border-gray-700 dark:text-gray-200",
         primary: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
         success: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",

@@ -4,23 +4,18 @@
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X, Eye, ShoppingBag } from 'lucide-react';
-import { useBreakpoint } from '../../../core/theme/hooks/useBreakpoint';
-import type { Product } from '../../../types/product';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useBreakpoint } from '@/core/theme/hooks/useBreakpoint';
+import type { Product } from '@/types/product';
+import { generateImageProps } from '@/utils/image';
+import ProductStats from './ProductChat/components/ProductStats';
 
 interface ProductImageGalleryProps {
   images: string[];
   name: string;
   stats?: Product['stats'];
+  productId: string;
 }
-
-const generateViewerCount = (productName: string): number => {
-  const hash = productName.split('').reduce((acc, char) => {
-    return acc + char.charCodeAt(0);
-  }, 0);
-  
-  return Math.max(12, (hash % 56) + 12);
-};
 
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 0.3;
@@ -30,20 +25,23 @@ const wrap = (min: number, max: number, v: number) => {
   return ((((v - min) % rangeSize) + rangeSize) % rangeSize) + min;
 };
 
-export default function ProductImageGallery({ images, name, stats }: ProductImageGalleryProps) {
+export default function ProductImageGallery({ 
+  images = [], 
+  name, 
+  stats,
+  productId
+}: ProductImageGalleryProps) {
   const { isMobile } = useBreakpoint();
   const [[page, direction], setPage] = useState([0, 0]);
   const [showZoom, setShowZoom] = useState(false);
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
-
+  
   const imageIndex = wrap(0, images.length, page);
 
   const paginate = useCallback((newDirection: number) => {
     setPage([page + newDirection, newDirection]);
   }, [page]);
-
-  // Suppression du préchargement des images qui causait l'erreur
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart({
@@ -67,7 +65,7 @@ export default function ProductImageGallery({ images, name, stats }: ProductImag
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-square rounded-xl overflow-hidden bg-white shadow-sm">
+      <div className="relative aspect-square rounded-xl overflow-hidden bg-[#F8F9FA] shadow-sm">
         <div className="absolute inset-0">
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
@@ -78,26 +76,21 @@ export default function ProductImageGallery({ images, name, stats }: ProductImag
               exit={{ opacity: 0, x: direction < 0 ? '100%' : '-100%' }}
               transition={{
                 x: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 }
+                opacity: { duration: 0.15 }
               }}
-              className="absolute inset-0"
+              className="absolute inset-0 bg-[#F8F9FA]"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
               <div className="relative w-full h-full">
-                {!imageLoaded && (
-                  <div className="absolute inset-0 bg-gray-100 animate-pulse" />
-                )}
                 <Image
-                  src={images[imageIndex]}
-                  alt={`${name} - Vue ${imageIndex + 1}`}
+                  {...generateImageProps(images[imageIndex], `${name} - Vue ${imageIndex + 1}`, imageIndex === 0)}
                   fill
-                  className={`object-cover transition-opacity duration-300 ${
-                    imageLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
+                  className="object-contain transition-all duration-300"
                   sizes={isMobile ? "100vw" : "(max-width: 1024px) 50vw, 33vw"}
                   priority={imageIndex === 0}
-                  quality={90}
+                  loading={imageIndex === 0 ? "eager" : "lazy"}
+                  quality={95}
                   onLoad={() => setImageLoaded(true)}
                   onClick={() => !isMobile && setShowZoom(true)}
                 />
@@ -136,7 +129,7 @@ export default function ProductImageGallery({ images, name, stats }: ProductImag
         </div>
       </div>
 
-      <div className={`grid gap-4 ${isMobile ? 'grid-cols-4 px-4' : 'grid-cols-4'}`}>
+      <div className="grid gap-4 grid-cols-4">
         {images.map((img, idx) => (
           <motion.button
             key={idx}
@@ -151,29 +144,25 @@ export default function ProductImageGallery({ images, name, stats }: ProductImag
             whileTap={{ scale: 0.95 }}
           >
             <Image
-              src={img}
-              alt={`${name} - Miniature ${idx + 1}`}
+              {...generateImageProps(img, `${name} - Miniature ${idx + 1}`)}
               fill
               className="object-cover"
               sizes="(max-width: 640px) 25vw, (max-width: 1024px) 20vw, 15vw"
-              quality={80}
+              quality={75}
             />
           </motion.button>
         ))}
       </div>
 
       {stats && (
-        <div className={`flex items-center justify-between text-sm text-gray-600 ${
-          isMobile ? 'px-4' : ''
-        }`}>
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            <span>{generateViewerCount(name)} personnes consultent ce jeu</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4" />
-            <span>{stats?.sold ? stats.sold.toLocaleString() : '0'} ventes</span>
-          </div>
+        <div className="text-sm text-gray-600">
+          <ProductStats 
+            productId={productId}
+            initialStats={{
+              sold: stats.sold || 0,
+              currentViewers: stats.currentViewers || 0
+            }} 
+          />
         </div>
       )}
 
@@ -193,13 +182,10 @@ export default function ProductImageGallery({ images, name, stats }: ProductImag
               className="relative w-[90vw] h-[90vh]"
             >
               <Image
-                src={images[imageIndex]}
-                alt={`${name} - Vue ${imageIndex + 1}`}
+                {...generateImageProps(images[imageIndex], `${name} - Vue ${imageIndex + 1}`, true)}
                 fill
                 className="object-contain"
                 sizes="100vw"
-                quality={95}
-                priority
               />
               <button
                 onClick={(e) => {

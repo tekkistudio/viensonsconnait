@@ -176,7 +176,7 @@ export default function MarketingPage() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Revenu généré</p>
               <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
                   {stats.totalRevenue.toLocaleString()} FCFA
                 </p>
                 <ArrowUpRight className="w-4 h-4 text-green-500" />

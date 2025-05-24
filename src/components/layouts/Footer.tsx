@@ -2,6 +2,7 @@
 "use client";
 
 import { Facebook, Instagram, Mail, MapPin, Phone, Smartphone } from "lucide-react";
+import { TikTokIcon } from '@/components/icons/TikTokIcon';
 import Link from "next/link";
 import Image from "next/image";
 
@@ -19,7 +20,7 @@ const socialLinks = [
   {
     name: "TikTok",
     href: "https://www.tiktok.com/@viensonsconnait",
-    icon: Smartphone,
+    icon: TikTokIcon,
   },
 ];
 
@@ -31,9 +32,9 @@ const quickLinks = [
 ];
 
 const products = [
-  { name: "Pour les Couples", href: "/products/couples" },
-  { name: "Pour les Mariés", href: "/products/maries" },
-  { name: "Pour la Famille", href: "/products/famille" },
+  { name: "Pour les Couples", href: "/nos-jeux?category=couples" },
+  { name: "Pour les Mariés", href: "/products/couples-maries" },
+  { name: "Pour la Famille", href: "/products/familles" },
   { name: "Pour les Amis", href: "/products/amis" },
 ];
 

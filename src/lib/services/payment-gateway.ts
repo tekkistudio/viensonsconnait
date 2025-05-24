@@ -1,7 +1,9 @@
 // src/lib/services/payment-gateway.ts
+
 import Stripe from 'stripe';
 import { BictorysService } from './bictorys.service';
 import { supabase } from '@/lib/supabase';
+import { PAYMENT_CONFIG, validatePaymentConfig } from '@/lib/config/payment.config';
 import type {
   PaymentProvider,
   PaymentInitiationParams,
@@ -9,67 +11,87 @@ import type {
   CustomerInfo,
   BictorysPaymentParams,
   BictorysProvider,
-  PaymentResponse
+  PaymentResponse,
+  BictorysWebhookPayload,
+  PaymentMode
 } from '@/types/payment';
-import type {
-  BictorysWebhookPayload
-} from '@/types/bictorys';
-
-interface StripeConfig {
-  publicKey: string;
-  secretKey: string;
-  webhookSecret: string;
-  mode: 'test' | 'live';
-}
-
-const stripeConfig: StripeConfig = {
-  publicKey: process.env.NODE_ENV === 'production' 
-    ? process.env.NEXT_PUBLIC_STRIPE_LIVE_KEY!
-    : process.env.NEXT_PUBLIC_STRIPE_KEY!,
-  secretKey: process.env.NODE_ENV === 'production'
-    ? process.env.STRIPE_LIVE_SECRET_KEY!
-    : process.env.STRIPE_SECRET_KEY!,
-  webhookSecret: process.env.NODE_ENV === 'production'
-    ? process.env.STRIPE_LIVE_WEBHOOK_SECRET!
-    : process.env.STRIPE_WEBHOOK_SECRET!,
-  mode: process.env.NODE_ENV === 'production' ? 'live' : 'test'
-};
 
 const providerMapping: Record<PaymentProvider, BictorysProvider | undefined> = {
   'WAVE': 'wave_money',
   'ORANGE_MONEY': 'orange_money',
   'STRIPE': undefined,
   'CASH': undefined
-};
+} as const;
 
 export class PaymentGateway {
-  private stripe: Stripe;
-  private bictorysService: BictorysService;
+  private stripeInstance: Stripe | null = null;
+  private readonly bictorysService: BictorysService;
+  private readonly currentMode: PaymentMode;
+  private readonly axiosInstance: any;
 
   constructor() {
-    if (!stripeConfig.secretKey) {
-      throw new Error('Stripe secret key not configured');
-    }
-  
-    this.stripe = new Stripe(stripeConfig.secretKey, {
-      apiVersion: '2024-12-18.acacia',
-      typescript: true,
-      appInfo: {
-        name: 'VOSC Chat',
-        version: '1.0.0'
+    try {
+      validatePaymentConfig(typeof window === 'undefined');
+
+      // Initialiser Stripe uniquement côté serveur
+      if (typeof window === 'undefined' && PAYMENT_CONFIG.stripe.secretKey) {
+        this.stripeInstance = new Stripe(PAYMENT_CONFIG.stripe.secretKey, {
+          apiVersion: '2024-12-18.acacia' as const,
+          typescript: true,
+          appInfo: {
+            name: 'VOSC Chat',
+            version: '1.0.0'
+          }
+        });
       }
-    });
-    this.bictorysService = new BictorysService();
+
+      // Initialiser BictorysService
+      this.bictorysService = new BictorysService();
+      this.currentMode = PAYMENT_CONFIG.mode;
+
+      // Initialiser axios avec la configuration correcte
+      if (PAYMENT_CONFIG.bictorys.apiUrl) {
+        const axios = require('axios');
+        this.axiosInstance = axios.create({
+          baseURL: PAYMENT_CONFIG.bictorys.apiUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': PAYMENT_CONFIG.bictorys.publicKey
+          },
+          timeout: 10000
+        });
+      }
+
+    } catch (error) {
+      console.error('PaymentGateway initialization error:', error);
+      if (typeof window === 'undefined') {
+        throw error;
+      }
+      // Initialisation par défaut pour le client
+      this.bictorysService = new BictorysService();
+      this.currentMode = 'test';
+    }
+  }
+
+  protected get stripe(): Stripe {
+    if (!this.stripeInstance) {
+      throw new Error('Stripe n\'est pas initialisé ou n\'est disponible que côté serveur');
+    }
+    return this.stripeInstance;
+  }
+
+  protected get mode(): PaymentMode {
+    return this.currentMode;
   }
 
   private isValidAmount(amount: number): boolean {
-    return amount > 0 && Number.isFinite(amount);
+    return amount > 0 && Number.isFinite(amount) && amount <= 10000000;
   }
 
   async initiatePayment(params: PaymentInitiationParams): Promise<PaymentResponse> {
     try {
       if (!this.isValidAmount(params.amount)) {
-        throw new Error('Montant invalide. Le montant doit être supérieur à 0.');
+        throw new Error('Montant invalide. Le montant doit être supérieur à 0 et inférieur à 10M FCFA.');
       }
 
       const reference = `tr_${Date.now()}_${params.orderId}`;
@@ -85,6 +107,7 @@ export class PaymentGateway {
           metadata: {
             customerInfo: params.customerInfo,
             initiatedAt: new Date().toISOString(),
+            mode: this.mode,
             ...params.metadata
           }
         }])
@@ -95,10 +118,12 @@ export class PaymentGateway {
 
       switch (params.provider) {
         case 'STRIPE':
-          return await this.initiateStripePayment(params, transaction);
+          return this.handleStripePayment(params, transaction);
         case 'WAVE':
         case 'ORANGE_MONEY':
-          return await this.initiateMobileMoneyPayment(params, transaction);
+          return this.handleMobileMoneyPayment(params, transaction);
+        case 'CASH':
+          return this.handleCashPayment(params, transaction);
         default:
           throw new Error(`Provider de paiement non supporté: ${params.provider}`);
       }
@@ -111,11 +136,15 @@ export class PaymentGateway {
     }
   }
 
-  private async initiateStripePayment(
+  private async handleStripePayment(
     params: PaymentInitiationParams,
     transaction: PaymentTransaction
   ): Promise<PaymentResponse> {
     try {
+      if (!this.stripeInstance) {
+        throw new Error('Stripe n\'est pas initialisé');
+      }
+
       const session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -129,12 +158,13 @@ export class PaymentGateway {
           quantity: 1,
         }],
         mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_API_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_API_URL}/payment/cancel`,
+        success_url: `${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/stripe/cancel`,
         customer_email: params.customerInfo.email,
         metadata: {
           orderId: params.orderId.toString(),
-          transactionId: transaction.id
+          transactionId: transaction.id,
+          mode: this.mode
         }
       });
 
@@ -144,7 +174,9 @@ export class PaymentGateway {
           reference: session.id,
           metadata: {
             ...transaction.metadata,
-            stripeSessionId: session.id
+            stripeSessionId: session.id,
+            mode: this.mode,
+            updatedAt: new Date().toISOString()
           }
         })
         .eq('id', transaction.id);
@@ -165,52 +197,72 @@ export class PaymentGateway {
     }
   }
 
-  private async initiateMobileMoneyPayment(
+  private async handleMobileMoneyPayment(
     params: PaymentInitiationParams,
     transaction: PaymentTransaction
   ): Promise<PaymentResponse> {
     try {
-      const bictorysProvider = providerMapping[params.provider];
-      if (!bictorysProvider) {
-        throw new Error(`Provider incompatible avec Bictorys: ${params.provider}`);
-      }
-  
-      if (!params.customerInfo.phone) {
-        throw new Error('Le numéro de téléphone est requis pour le paiement mobile');
-      }
-  
-      const bictorysParams: BictorysPaymentParams = {
+      const bictorysParams = {
         amount: params.amount,
         currency: params.currency,
-        provider: bictorysProvider,
-        customerPhone: params.customerInfo.phone,
-        customerCountry: params.customerInfo.city || 'SN',
-        orderId: params.orderId
+        successRedirectUrl: `${process.env.NEXT_PUBLIC_API_URL}/payment/success`,
+        errorRedirectUrl: `${process.env.NEXT_PUBLIC_API_URL}/payment/error`,
+        callbackUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/bictorys`,
+        merchantReference: transaction.reference,
+        customer: {
+          name: params.customerInfo.name,
+          phone: params.customerInfo.phone.replace(/\s/g, ''),
+          email: params.customerInfo.email,
+          city: params.customerInfo.city || 'Dakar',
+          country: params.customerInfo.country || 'SN'
+        }
       };
-  
-      const session = await this.bictorysService.createPaymentSession(bictorysParams);
-  
+
+      // Utiliser le service Bictorys
+      const bictorysResponse = await this.bictorysService.createPaymentSession({
+        ...bictorysParams,
+        provider: providerMapping[params.provider]!
+      });
+
+      if (!bictorysResponse.iframeUrl) {
+        throw new Error('Réponse invalide de Bictorys');
+      }
+
       await supabase
         .from('payment_transactions')
         .update({
-          reference: session.transactionId,
+          status: 'pending',
+          reference: bictorysResponse.transactionId,
           metadata: {
             ...transaction.metadata,
-            bictorysResponse: session,
-            bictorysTransactionId: session.transactionId
+            checkoutUrl: bictorysResponse.iframeUrl,
+            mode: this.mode,
+            updatedAt: new Date().toISOString()
           }
         })
         .eq('id', transaction.id);
-  
+
       return {
         success: true,
-        paymentUrl: session.iframeUrl,
-        transactionId: session.transactionId,
-        reference: transaction.reference
+        paymentUrl: bictorysResponse.iframeUrl,
+        transactionId: bictorysResponse.transactionId
       };
-  
+
     } catch (error) {
       console.error('Mobile money payment initiation failed:', error);
+      
+      await supabase
+        .from('payment_transactions')
+        .update({
+          status: 'failed',
+          metadata: {
+            ...transaction.metadata,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            updatedAt: new Date().toISOString()
+          }
+        })
+        .eq('id', transaction.id);
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Mobile money payment initiation failed'
@@ -218,31 +270,72 @@ export class PaymentGateway {
     }
   }
 
-  async handleWebhook(provider: PaymentProvider, payload: any, receivedSignature: string): Promise<{ received: boolean }> {
-    switch (provider) {
-      case 'STRIPE':
-        return this.handleStripeWebhook(payload, receivedSignature);
-      case 'WAVE':
-      case 'ORANGE_MONEY': {
-        const webhookPayload = payload as BictorysWebhookPayload;
-        webhookPayload.type = 'payment';
-        webhookPayload.orderType = 'standard';
-        webhookPayload.merchantId = webhookPayload.id;
-        webhookPayload.paymentReference = webhookPayload.merchantReference;
-        webhookPayload.timestamp = new Date().toISOString();
-        return this.handleBictorysWebhook(webhookPayload);
-      }
-      default:
-        throw new Error(`Provider de webhook non supporté: ${provider}`);
+  private async handleCashPayment(
+    params: PaymentInitiationParams,
+    transaction: PaymentTransaction
+  ): Promise<PaymentResponse> {
+    try {
+      await supabase
+        .from('payment_transactions')
+        .update({
+          status: 'pending',
+          metadata: {
+            ...transaction.metadata,
+            paymentMethod: 'CASH',
+            initiatedAt: new Date().toISOString(),
+            mode: this.mode
+          }
+        })
+        .eq('id', transaction.id);
+
+      return {
+        success: true,
+        transactionId: transaction.id,
+        reference: transaction.reference
+      };
+    } catch (error) {
+      console.error('Cash payment initiation failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Cash payment initiation failed'
+      };
     }
   }
 
-  private async handleStripeWebhook(payload: any, signature: string): Promise<{ received: boolean }> {
+  async handleWebhook(
+    provider: PaymentProvider,
+    payload: any,
+    receivedSignature: string
+  ): Promise<{ received: boolean }> {
     try {
+      switch (provider) {
+        case 'STRIPE':
+          return this.handleStripeWebhook(payload, receivedSignature);
+        case 'WAVE':
+        case 'ORANGE_MONEY':
+          return this.handleBictorysWebhook(payload as BictorysWebhookPayload, receivedSignature);
+        default:
+          throw new Error(`Provider de webhook non supporté: ${provider}`);
+      }
+    } catch (error) {
+      console.error('Webhook handling failed:', error);
+      throw error;
+    }
+  }
+
+  private async handleStripeWebhook(
+    payload: any,
+    signature: string
+  ): Promise<{ received: boolean }> {
+    try {
+      if (!this.stripeInstance) {
+        throw new Error('Stripe n\'est pas initialisé');
+      }
+
       const event = this.stripe.webhooks.constructEvent(
         payload,
         signature,
-        stripeConfig.webhookSecret
+        PAYMENT_CONFIG.stripe.webhookSecret!
       );
 
       switch (event.type) {
@@ -257,7 +350,7 @@ export class PaymentGateway {
                 stripePaymentId: session.payment_intent,
                 paymentStatus: 'completed',
                 updatedAt: new Date().toISOString(),
-                mode: stripeConfig.mode
+                mode: this.mode
               }
             })
             .eq('reference', session.id)
@@ -270,6 +363,7 @@ export class PaymentGateway {
             .from('orders')
             .update({
               status: 'PAID',
+              payment_method: 'STRIPE',
               updated_at: new Date().toISOString()
             })
             .eq('id', transaction.order_id);
@@ -287,10 +381,26 @@ export class PaymentGateway {
               metadata: {
                 stripePaymentId: paymentIntent.id,
                 error: paymentIntent.last_payment_error?.message,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                mode: this.mode
               }
             })
             .eq('reference', paymentIntent.id);
+          break;
+        }
+
+        case 'checkout.session.expired': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await supabase
+            .from('payment_transactions')
+            .update({
+              status: 'expired',
+              metadata: {
+                updatedAt: new Date().toISOString(),
+                mode: this.mode
+              }
+            })
+            .eq('reference', session.id);
           break;
         }
       }
@@ -302,13 +412,11 @@ export class PaymentGateway {
     }
   }
 
-  private async handleBictorysWebhook(payload: BictorysWebhookPayload): Promise<{ received: boolean }> {
+  private async handleBictorysWebhook(
+    payload: BictorysWebhookPayload,
+    signature: string
+  ): Promise<{ received: boolean }> {
     try {
-      const signature = process.env.BICTORYS_WEBHOOK_SECRET;
-      if (!signature) {
-        throw new Error('BICTORYS_WEBHOOK_SECRET is not configured');
-      }
-
       const result = await this.bictorysService.handleWebhook(payload, signature);
       return { received: true };
     } catch (error) {

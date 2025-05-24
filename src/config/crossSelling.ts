@@ -1,5 +1,5 @@
 // src/config/crossSelling.ts
-import type { ProductId } from '../features/product/utils/chatMessages';
+import type { ProductId } from '@/types/chat'; // Corrigé pour utiliser le bon chemin
 
 interface ProductRelation {
   id: ProductId;

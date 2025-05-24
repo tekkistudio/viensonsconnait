@@ -5,6 +5,28 @@ import { ReactNode } from 'react';
 export type BictorysProvider = 'wave_money' | 'orange_money' | 'card';
 export type PaymentProvider = 'STRIPE' | 'WAVE' | 'ORANGE_MONEY' | 'CASH';
 export type PaymentMethodType = PaymentProvider;
+export type PaymentMode = 'test' | 'live';
+
+// Types pour les configurations
+export interface StripeConfig {
+  publicKey: string | undefined;
+  secretKey: string | undefined;
+  webhookSecret: string | undefined;
+  apiVersion: string;
+}
+
+export interface BictorysConfig {
+  publicKey: string | undefined;
+  webhookSecret: string | undefined;
+  apiUrl: string | undefined;
+  jsUrl: string | undefined;
+}
+
+export interface PaymentUrls {
+  success: string;
+  cancel: string;
+  webhook: string;
+}
 
 // Types pour les statuts
 export type PaymentStatus = 
@@ -13,7 +35,8 @@ export type PaymentStatus =
   | 'completed'
   | 'failed'
   | 'cancelled'
-  | 'success';
+  | 'success'
+  | 'expired';
 
 // Interface pour les informations client
 export interface CustomerInfo {
@@ -41,6 +64,8 @@ export interface PaymentTransaction {
   status: PaymentStatus;
   reference: string;
   metadata: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PaymentResult {
@@ -58,6 +83,8 @@ export interface BictorysPaymentSession {
   iframeUrl: string;
   transactionId: string;
   checkoutUrl?: string;
+  qrCode?: string;
+  opToken?: string;   
 }
 
 export interface StripeSession {
@@ -73,14 +100,20 @@ export interface PaymentInitiationParams extends BasePaymentParams {
   metadata?: Record<string, any>;
 }
 
+// Mise à jour de BictorysPaymentParams
 export interface BictorysPaymentParams extends BasePaymentParams {
-  provider: BictorysProvider;
-  customerPhone: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerCity?: string;
-  customerCountry: string;
-  orderId: number;
+  provider?: BictorysProvider;
+  merchantReference: string;
+  successRedirectUrl: string;
+  errorRedirectUrl: string;
+  callbackUrl: string;
+  customer: {
+    name: string;
+    phone: string;
+    email?: string;
+    city: string;
+    country: string;
+  };
 }
 
 export interface BictorysInitiatePaymentParams extends BasePaymentParams {
@@ -97,43 +130,32 @@ export interface StripePaymentParams extends BasePaymentParams {
   cancel_url?: string;
 }
 
-// Types pour les messages de paiement dans le chat
-export interface PaymentMessageData {
-  amount: number;
-  currency: string;
-  orderId: number;
-  type: 'payment-request';
-  paymentType?: PaymentMethodType;
-  customerInfo: CustomerInfo;
-}
-
 // Types pour les réponses API
-export interface BictorysPaymentResponse {
-  success?: boolean;
-  paymentUrl?: string;
-  id?: string;
-  transactionId?: string;
-  status?: string;
-  link?: string;
-  qrCode?: string;
-  '3ds'?: any;
-  '3ds2'?: any;
-  redirectUrl?: string;
-  merchantReference?: string | null;
-  type?: string;
-  message?: string | null;
-  state?: string | null;
-}
-
 export interface PaymentResponse {
   success: boolean;
   transactionId?: string;
   error?: string;
   sessionId?: string;
   paymentUrl?: string;
+  link?: string;  
   checkoutUrl?: string;
   reference?: string;
   qrCode?: string;
+}
+
+export interface BictorysPaymentResponse {
+  success?: boolean;
+  chargeId: string;       
+  opToken: string;       
+  link: string;           // URL de redirection Bictorys
+  id?: string;
+  transactionId?: string;
+  status?: string;
+  qrCode?: string;
+  merchantReference?: string;
+  type?: string;
+  message?: string;
+  state?: string;
 }
 
 // Types pour les webhooks
@@ -149,6 +171,7 @@ export interface BictorysWebhookPayload {
   orderId?: string;
   metadata?: Record<string, any>;
   timestamp?: string;
+  type?: string;
 }
 
 // Interfaces pour les services
@@ -172,6 +195,12 @@ export interface PaymentMethod {
   name: string;
   icon: ReactNode;
   description: string;
+  enabled: boolean;
+  fees?: {
+    type: 'fixed' | 'percentage';
+    value: number;
+  };
+  requiredFields?: Array<keyof CustomerInfo>;
 }
 
 export interface PaymentProps {
@@ -192,7 +221,7 @@ export interface PaymentProps {
 
 export interface PaymentUIConfig {
   provider: PaymentProvider;
-  mode: 'test' | 'live';
+  mode: PaymentMode;
   publicKey: string;
   modalTitle?: string;
   modalDescription?: string;
@@ -201,41 +230,90 @@ export interface PaymentUIConfig {
 // Types pour les états de paiement dans l'UI
 export interface PaymentState {
   selectedMethod: PaymentMethodType | null;
-  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
+  status: PaymentStatus;
   transactionId?: string;
   error?: string;
+  iframeUrl?: string;
+  qrCode?: string;
+  clientSecret?: string | null;
 }
 
 export interface PaymentModalState {
   isOpen: boolean;
-  iframeUrl: string;
-  provider?: PaymentProvider;
-}
-
-// Types pour les résultats
-export interface BictorysResult {
-  success: boolean;
-  error?: string;
-  checkoutUrl?: string;
-  transactionId?: string;
-  reference?: string;
+  iframeUrl?: string;
   qrCode?: string;
+  provider?: PaymentProvider;
+  error?: string;
 }
 
-// Types pour les configurations de paiement
-export interface PaymentConfig {
-  enabled: boolean;
-  mode: 'test' | 'live';
+// Types pour les messages de paiement dans le chat
+export interface PaymentMessageData {
+  amount: number;
+  currency: string;
+  orderId: number;
+  type: 'payment-request';
+  paymentType?: PaymentMethodType;
+  customerInfo: CustomerInfo;
+}
+
+// Configuration globale du système de paiement
+export interface PaymentSystemConfig {
+  stripe: StripeConfig;
+  bictorys: BictorysConfig;
+  mode: PaymentMode;
+  defaultCurrency: string;
+  callbackUrls: PaymentUrls;
   providers: {
-    stripe?: {
-      publicKey: string;
-      webhookSecret: string;
-    };
-    bictorys?: {
-      publicKey: string;
-      webhookSecret: string;
+    [key in PaymentProvider]: {
+      enabled: boolean;
+      fees?: {
+        type: 'fixed' | 'percentage';
+        value: number;
+      };
     };
   };
-  defaultCurrency: string;
   supportedCurrencies: string[];
+}
+
+// Extensions de types pour la persistance
+export interface PaymentConfigRecord {
+  id: string;
+  provider: PaymentProvider;
+  mode: PaymentMode;
+  publicKey: string;
+  secretKey?: string;
+  webhookSecret?: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+}
+
+export interface PaymentMethodRecord {
+  id: PaymentMethodType;
+  name: string;
+  description: string;
+  enabled: boolean;
+  country_availability: string[];
+  minimum_amount?: number;
+  maximum_amount?: number;
+  fees: {
+    type: 'fixed' | 'percentage';
+    value: number;
+  };
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Résultat de la vérification d'un paiement
+ */
+export interface PaymentVerificationResult {
+  isValid: boolean;
+  success: boolean;
+  status: 'pending' | 'completed' | 'failed';
+  message?: string;
+  transactionId?: string;
+  error?: string;
 }

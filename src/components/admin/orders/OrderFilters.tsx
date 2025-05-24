@@ -18,18 +18,7 @@ import {
 } from "@/components/ui/select";
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Input } from "@/components/ui/input";
-import type { DateRange } from 'react-day-picker';
-import { cn } from "@/lib/utils";
-import type { OrderStatus } from '@/types/orders';
-
-interface OrderFilters {
-  status?: OrderStatus;
-  paymentMethod?: string;
-  city?: string;
-  dateRange?: DateRange;
-  minAmount?: number;
-  maxAmount?: number;
-}
+import type { OrderFilters, OrderStatus, PaymentMethod } from '@/types/orders';
 
 interface OrderFiltersProps {
   filters: OrderFilters;
@@ -47,7 +36,7 @@ const cities = [
   'Ziguinchor'
 ];
 
-const statuses = [
+const statuses: { value: OrderStatus; label: string }[] = [
   { value: 'pending', label: 'En attente' },
   { value: 'confirmed', label: 'Confirmée' },
   { value: 'shipped', label: 'Expédiée' },
@@ -55,8 +44,9 @@ const statuses = [
   { value: 'cancelled', label: 'Annulée' }
 ];
 
-const paymentMethods = [
-  { value: 'mobile_money', label: 'Mobile Money' },
+const paymentMethods: { value: PaymentMethod; label: string }[] = [
+  { value: 'wave', label: 'Wave' },
+  { value: 'orange_money', label: 'Orange Money' },
   { value: 'card', label: 'Carte bancaire' },
   { value: 'cash_on_delivery', label: 'Paiement à la livraison' }
 ];
@@ -65,8 +55,7 @@ export function OrderFilters({ filters, onFilterChange }: OrderFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState<OrderFilters>(filters);
 
-// Compte le nombre de filtres actifs
-const getActiveFiltersCount = () => {
+  const getActiveFiltersCount = () => {
     let count = 0;
     if (filters.status) count++;
     if (filters.paymentMethod) count++;
@@ -76,7 +65,6 @@ const getActiveFiltersCount = () => {
     return count;
   };
 
-  // Gestion des changements de filtres
   const handleFilterChange = (key: keyof OrderFilters, value: any) => {
     setLocalFilters(prev => ({
       ...prev,
@@ -84,15 +72,13 @@ const getActiveFiltersCount = () => {
     }));
   };
 
-  // Application des filtres
   const handleApplyFilters = () => {
     onFilterChange(localFilters);
     setIsOpen(false);
   };
 
-  // Réinitialisation des filtres
   const clearFilters = () => {
-    const emptyFilters = {} as OrderFilters;
+    const emptyFilters: OrderFilters = {};
     setLocalFilters(emptyFilters);
     onFilterChange(emptyFilters);
   };
@@ -131,7 +117,7 @@ const getActiveFiltersCount = () => {
             </label>
             <Select
               value={localFilters.status}
-              onValueChange={(value) => handleFilterChange('status', value)}
+              onValueChange={(value: OrderStatus) => handleFilterChange('status', value)}
             >
               <SelectTrigger className="w-full bg-white dark:bg-gray-900">
                 <SelectValue placeholder="Tous les statuts" />
@@ -153,7 +139,7 @@ const getActiveFiltersCount = () => {
             </label>
             <Select
               value={localFilters.paymentMethod}
-              onValueChange={(value) => handleFilterChange('paymentMethod', value)}
+              onValueChange={(value: PaymentMethod) => handleFilterChange('paymentMethod', value)}
             >
               <SelectTrigger className="w-full bg-white dark:bg-gray-900">
                 <SelectValue placeholder="Tous les moyens de paiement" />

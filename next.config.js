@@ -54,7 +54,7 @@ const nextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  // Configuration des en-têtes
+  // Configuration des en-têtes et des rewrites
   async headers() {
     return [
       {
@@ -65,11 +65,31 @@ const nextConfig = {
             value: 'no-store, max-age=0',
           },
           {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true',
+          },
+          {
             key: 'Access-Control-Allow-Origin',
             value: '*',
           },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET,DELETE,PATCH,POST,PUT',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-API-Key, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+          },
         ],
       },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/bictorys/:path*',
+        destination: `${process.env.NEXT_PUBLIC_BICTORYS_API_URL}/:path*`
+      }
     ];
   },
   // Variables d'environnement publiques
@@ -86,6 +106,9 @@ const nextConfig = {
     STRIPE_LIVE_SECRET_KEY: process.env.STRIPE_LIVE_SECRET_KEY,
     NEXT_PUBLIC_STRIPE_LIVE_KEY: process.env.NEXT_PUBLIC_STRIPE_LIVE_KEY,
     STRIPE_LIVE_WEBHOOK_SECRET: process.env.STRIPE_LIVE_WEBHOOK_SECRET,
+    // Configuration Bictorys
+    NEXT_PUBLIC_BICTORYS_API_URL: process.env.NEXT_PUBLIC_BICTORYS_API_URL,
+    NEXT_PUBLIC_BICTORYS_API_KEY: process.env.NEXT_PUBLIC_BICTORYS_API_KEY,
   },
   // Configuration expérimentale
   experimental: {

@@ -5,80 +5,92 @@ import type { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 
 export async function middleware(req: NextRequest) {
-  console.log('🔒 Middleware - URL:', req.nextUrl.pathname);
   const res = NextResponse.next();
   const supabase = createMiddlewareClient<Database>({ req, res });
 
+  console.log('🔒 Middleware - URL:', req.nextUrl.pathname);
+
   try {
-    console.log('🔍 Vérification de la session...');
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Récupérer et rafraîchir la session
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (error) {
-      console.error('❌ Erreur session:', error);
-      throw error;
+    if (sessionError) {
+      console.error('❌ Erreur session:', sessionError);
+      throw sessionError;
     }
 
-    console.log('📋 Session:', session ? 'Présente' : 'Absente');
+    // Log détaillé de la session
+    console.log('📋 Session détails:', {
+      exists: !!session,
+      userId: session?.user?.id,
+      email: session?.user?.email,
+    });
 
-    // Accès à /admin/login
-    if (req.nextUrl.pathname === '/admin/login') {
-      if (session) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-
-        if (userData?.role === 'admin') {
-          console.log('➡️ Redirection login -> dashboard (session admin active)');
-          return NextResponse.redirect(new URL('/admin/dashboard', req.url));
-        }
+    // Pour les routes protégées
+    if (req.nextUrl.pathname.startsWith('/admin') && 
+        !req.nextUrl.pathname.startsWith('/admin/login')) {
+      
+      if (!session) {
+        console.log('➡️ Redirection vers login - Pas de session');
+        const redirectUrl = new URL('/admin/login', req.url);
+        redirectUrl.searchParams.set('from', req.nextUrl.pathname);
+        return NextResponse.redirect(redirectUrl);
       }
-      console.log('✅ Accès login autorisé (pas de session admin)');
-      return res;
+
+      // Vérifier les données utilisateur
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userError) {
+        console.error('❌ Erreur données utilisateur:', userError);
+        throw userError;
+      }
+
+      console.log('👤 Données utilisateur:', userData);
+
+      if (userData?.role !== 'admin') {
+        console.log('❌ Non admin - Déconnexion');
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL('/admin/login', req.url));
+      }
+
+      // Page settings - pas de redirection, juste des logs
+      if (req.nextUrl.pathname.startsWith('/admin/settings/')) {
+        console.log('⚙️ Page settings - Store ID:', userData?.store_id);
+      }
+
+      // Mise à jour des headers pour la persistance de session
+      const response = NextResponse.next();
+      response.headers.set('x-user-id', userData.id);
+      response.headers.set('x-user-role', userData.role);
+      if (userData.store_id) {
+        response.headers.set('x-store-id', userData.store_id);
+      }
+
+      return response;
     }
 
-    // Pour toutes les autres routes /admin/*
-    if (!session) {
-      console.log('➡️ Redirection vers login (pas de session)');
-      return NextResponse.redirect(new URL('/admin/login', req.url));
+    // Page de login avec session active
+    if (req.nextUrl.pathname === '/admin/login' && session) {
+      console.log('➡️ Redirection vers dashboard - Déjà connecté');
+      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
     }
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    const isAdmin = userData?.role === 'admin';
-    console.log('👤 Rôle admin:', isAdmin);
-
-    if (!isAdmin) {
-      console.log('❌ Rôle non admin, déconnexion...');
-      await supabase.auth.signOut();
-      return NextResponse.redirect(new URL('/admin/login', req.url));
-    }
-
-    console.log('✅ Accès autorisé');
     return res;
 
   } catch (error) {
     console.error('❌ Erreur middleware:', error);
+    // En cas d'erreur, on redirige vers login
     return NextResponse.redirect(new URL('/admin/login', req.url));
   }
 }
 
 export const config = {
-  matcher: [
-    '/admin',
-    '/admin/login',
-    '/admin/dashboard/:path*',
-    '/admin/orders/:path*',
-    '/admin/products/:path*',
-    '/admin/customers/:path*',
-    '/admin/delivery/:path*',
-    '/admin/marketing/:path*',
-    '/admin/analytics/:path*',
-    '/admin/settings/:path*'
-  ]
-}
+  matcher: ['/admin/:path*']
+};

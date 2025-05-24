@@ -1,25 +1,45 @@
 // src/types/product.ts
 
-// Interface pour les médias des produits
+export interface CloudinaryImage {
+  url: string;
+  publicId: string;
+}
+
+export interface MediaUpload {
+  url: string;
+  publicId: string;
+  type: 'image' | 'video';
+  thumbnail?: string;
+}
+
+export interface ProductMetadata {
+  category: string;
+  players: string;
+  duration: string;
+  language: string;
+  min_age: number;
+  stats?: {
+    sold: number;
+    satisfaction: number;
+    reviews: number;
+  };
+  benefits: string[];
+  topics: string[];
+  images?: CloudinaryImage[];
+}
+
 export interface ProductMedia {
   url: string;
   alt: string;
 }
 
-// Interface pour les badges des produits
+export type BadgeType = 'promo' | 'outline' | 'default' | 'new' | 'app' | 'error' | 'success' | 'warning' | 'primary' | 'special';
+
 export interface ProductBadge {
-  type: 'promo' | 'new' | 'app' | 'special'; 
+  type: BadgeType;
   text: string;
 }
 
-// Interface pour les statistiques des produits
-export interface ProductStats {
-  sold: number;
-  satisfaction: number;
-  reviews: number;
-}
-
-// Interface principale pour les produits
 export interface Product {
   id: string;
   slug: string;
@@ -28,33 +48,78 @@ export interface Product {
   price: number;
   compareAtPrice?: number;
   images: string[];
-  media: ProductMedia[]; 
+  media: ProductMedia[];
+  category: string;
+  metadata: ProductMetadata;
+  benefits: string[];
+  topics: string[];
+  howToPlay?: string;
+  testimonials?: string;
+  stats: {
+    sold: number;
+    satisfaction: number;
+    reviews: number;
+    currentViewers?: number;
+    totalViews?: number;
+    productId?: string;
+  };
   badges?: ProductBadge[];
-  stats?: ProductStats;
+  createdAt: string;
 }
 
-// Types de messages dans le chat
-export interface Message {
-  type: 'assistant' | 'user' | 'user-choices' | 'wave-button' | 'om-button' | 'cod-button' | 'payment-request' | 'payment-status' | 'payment-action' | 'redirect' | 'order-summary';
-  content: string;
-  choices?: string[];
-  assistant?: {
-    name: string;
-    title: string;
-    avatar?: string;
+// Interface séparée pour la gestion des métadonnées dans l'admin
+export interface AdminProductMetadata {
+  category?: string;
+  players?: string;
+  duration?: string;
+  language?: string;
+  min_age?: number;
+  stats?: {
+    sold?: number;
+    satisfaction?: number;
+    reviews?: number;
   };
-  metadata?: {
-    intent?: number;
-    recommendations?: string[];
-    error?: string;
-    productContext?: string;
-    paymentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
-    transactionId?: string;
-  };
-  paymentUrl?: string;
+  benefits?: string[];
+  topics?: string[];
+  images?: CloudinaryImage[];
 }
 
-// Type pour la map des produits
+// Interface pour le produit dans l'admin
+export interface AdminProduct {
+  id?: string;
+  name: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number;
+  category?: string;
+  metadata: AdminProductMetadata;
+  status: 'active' | 'draft' | 'archived';
+  stock_quantity: number;
+  media?: MediaUpload[];
+  game_rules?: string; 
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductViewStats {
+  currentViewers: number;
+  totalViews: number;
+  sold: number;
+  lastUpdated: Date;
+}
+
+export interface RealTimeStats {
+  viewsCount: number;
+  salesCount: number;
+  reviewsCount: number;
+}
+
+export interface ProductStats {
+  totalViews: number;
+  sold: number;
+  reviewsCount: number;
+}
+
 export type ProductsMap = {
   [key: string]: Product;
 };

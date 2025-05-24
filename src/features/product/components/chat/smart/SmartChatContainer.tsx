@@ -1,9 +1,10 @@
 // src/features/product/components/chat/smart/SmartChatContainer.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Star } from 'lucide-react';
-import type { ChatMessage, ConversationStep, ProductRecommendation } from '../../../types/chat';
+import { Send, Mic } from 'lucide-react';
+import type { ChatMessage } from '../../../../../types/chat';
 import { useChatContext } from '../../../context/ChatContext';
+import { ProductRecommendation } from '@/types/order';
 
 interface MessageGroupProps {
   message: ChatMessage;
@@ -39,7 +40,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
     if (typeof rec === 'string') {
       return rec === 'mobile-app';
     }
-    // Vérifiez la propriété qui identifie une recommandation d'app mobile
     return rec.recommendationType === 'mobile-app' || rec.category === 'mobile-app';
   };
   
@@ -64,7 +64,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
             {getMessageContent(message)}
           </div>
           
-          {/* Mobile App Recommendation */}
           {message.metadata?.recommendations?.some(isAppRecommendation) && (
             <div className="mt-4 p-4 bg-brand-blue/5 rounded-lg border border-brand-blue/10">
               <h4 className="font-medium text-brand-blue mb-2">
@@ -81,14 +80,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
                   rel="noopener noreferrer"
                 >
                   App Store
-                </a>
-                <a
-                  href="#"
-                  className="text-xs px-3 py-1.5 bg-brand-blue text-white rounded-full hover:bg-brand-blue/90"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Play Store
                 </a>
               </div>
             </div>
@@ -118,8 +109,12 @@ const MessageGroup: React.FC<MessageGroupProps> = ({ message, onChoice }) => {
 const SmartChatContainer: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const chatRef = useRef<HTMLDivElement>(null);
-  const { state, handleUserChoice } = useChatContext();
-  const { messages, isTyping } = state;
+  const { 
+    messages, 
+    isTyping, 
+    sendMessage, 
+    handleUserChoice 
+  } = useChatContext();
 
   useEffect(() => {
     if (chatRef.current) {
@@ -132,7 +127,7 @@ const SmartChatContainer: React.FC = () => {
 
   const handleSendMessage = () => {
     if (!inputMessage.trim()) return;
-    handleUserChoice(inputMessage);
+    sendMessage(inputMessage.trim());
     setInputMessage('');
   };
 

@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 
 const stores = [
   { id: 'vosc-main', name: 'VIENS ON S\'CONNAÎT' },
-  { id: 'vosc-eu', name: 'VOSC Europe' },
-  { id: 'vosc-us', name: 'VOSC Amérique' },
+  { id: 'amani', name: 'AMANI' },
+  { id: 'ecoboom', name: 'ECOBOOM' },
 ];
 
 export default function StoreSelector() {

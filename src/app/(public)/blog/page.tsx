@@ -1,6 +1,6 @@
 // app/blog/page.tsx
 import { Metadata } from 'next';
-import Blog from '../../../features/blog/components/Blog';
+import Blog from '@/features/blog/components/Blog';
 
 export const metadata: Metadata = {
   title: 'Blog | VIENS ON S\'CONNAÎT',

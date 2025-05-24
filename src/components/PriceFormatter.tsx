@@ -1,3 +1,4 @@
+// src/components/PriceFormatter.tsx
 import React from 'react';
 import useCountryStore from '../core/hooks/useCountryStore';
 

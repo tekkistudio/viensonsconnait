@@ -24,13 +24,23 @@ interface AddDriverFormProps {
   initialData?: Partial<DriverFormData>;
 }
 
+export interface WorkingHours {
+  monday?: string;
+  tuesday?: string;
+  wednesday?: string;
+  thursday?: string;
+  friday?: string;
+  saturday?: string;
+  sunday?: string;
+}
+
 export interface DriverFormData {
   full_name: string;
   phone: string;
   email?: string;
   vehicle_type: string;
   current_zone: string;
-  availability_hours?: string;
+  working_hours?: WorkingHours;
   notes?: string;
 }
 
@@ -62,6 +72,60 @@ const formatPhoneNumber = (phone: string) => {
   }
 };
 
+// Fonction pour parser les horaires de travail
+const parseWorkingHours = (hoursString: string): WorkingHours => {
+  const daysRegex = /Lun|Mar|Mer|Jeu|Ven|Sam|Dim/gi;
+  const timeRegex = /\d{1,2}[h:]\d{2}/g;
+  
+  const days = hoursString.match(daysRegex) || [];
+  const times = hoursString.match(timeRegex) || [];
+  
+  const workingHours: WorkingHours = {};
+  
+  const dayMapping: Record<string, keyof WorkingHours> = {
+    'lun': 'monday',
+    'mar': 'tuesday',
+    'mer': 'wednesday',
+    'jeu': 'thursday',
+    'ven': 'friday',
+    'sam': 'saturday',
+    'dim': 'sunday'
+  };
+
+  // Si nous avons un format comme "Lun-Ven 9h-18h"
+  if (hoursString.includes('-')) {
+    const daysList = days.filter(Boolean);
+    if (daysList.length >= 2) {
+      const [start, end] = daysList;
+      if (start && end) {
+        const startDay = dayMapping[start.toLowerCase()];
+        const endDay = dayMapping[end.toLowerCase()];
+        const timeRange = times.join('-');
+
+        const daysOrder: Array<keyof WorkingHours> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        let recording = false;
+
+        for (const day of daysOrder) {
+          if (day === startDay) recording = true;
+          if (recording && day) workingHours[day] = timeRange;
+          if (day === endDay) recording = false;
+        }
+      }
+    }
+  } else {
+    // Format individuel pour chaque jour
+    days.forEach((day, index) => {
+      const dayKey = day?.toLowerCase() || '';
+      const englishDay = dayMapping[dayKey];
+      if (englishDay && times[index]) {
+        workingHours[englishDay] = times[index];
+      }
+    });
+  }
+
+  return workingHours;
+};
+
 export function AddDriverForm({
   onSubmit,
   onCancel,
@@ -76,7 +140,7 @@ export function AddDriverForm({
     email: initialData?.email || '',
     vehicle_type: initialData?.vehicle_type || '',
     current_zone: initialData?.current_zone || '',
-    availability_hours: initialData?.availability_hours || '',
+    working_hours: initialData?.working_hours || {},
     notes: initialData?.notes || ''
   });
 
@@ -116,9 +180,16 @@ export function AddDriverForm({
 
     try {
       setIsLoading(true);
-      const dataToSubmit = {
+      const workingHoursString = typeof formData.working_hours === 'string' 
+        ? formData.working_hours 
+        : Object.entries(formData.working_hours || {}).map(([day, hours]) => `${day}: ${hours}`).join(', ');
+      
+      const parsedWorkingHours = workingHoursString ? parseWorkingHours(workingHoursString) : undefined;
+      
+      const dataToSubmit: DriverFormData = {
         ...formData,
-        phone: formData.phone.replace(/\D/g, '')
+        phone: formData.phone.replace(/\D/g, ''),
+        working_hours: parsedWorkingHours
       };
       await onSubmit(dataToSubmit);
     } catch (error) {
@@ -132,7 +203,7 @@ export function AddDriverForm({
     }
   };
 
-  const handleInputChange = (field: keyof DriverFormData, value: string) => {
+  const handleInputChange = (field: keyof DriverFormData, value: any) => {
     if (field === 'phone') {
       value = formatPhoneNumber(value);
     }
@@ -186,22 +257,6 @@ export function AddDriverForm({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="Adresse email"
-            value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            disabled={isLoading}
-            className={cn(errors.email && "border-red-500 focus-visible:ring-red-500")}
-          />
-          {errors.email && (
-            <p className="text-sm text-red-500">{errors.email}</p>
-          )}
-        </div>
-
-        <div className="grid gap-2">
           <Label htmlFor="vehicle_type">Type de véhicule *</Label>
           <Select
             value={formData.vehicle_type}
@@ -240,14 +295,51 @@ export function AddDriverForm({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="availability_hours">Horaires de disponibilité</Label>
-          <Input
-            id="availability_hours"
-            placeholder="Ex: Lun-Ven 9h-18h"
-            value={formData.availability_hours}
-            onChange={(e) => handleInputChange('availability_hours', e.target.value)}
-            disabled={isLoading}
-          />
+          <Label htmlFor="working_hours">Horaires de travail</Label>
+          <Select
+            value={formData.working_hours ? 'custom' : 'default'}
+            onValueChange={(value) => {
+              const defaultHours = value === 'default' 
+                ? { monday: '9h-18h', tuesday: '9h-18h', wednesday: '9h-18h', thursday: '9h-18h', friday: '9h-18h' }
+                : {};
+              handleInputChange('working_hours', defaultHours);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionner les horaires" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Lun-Ven 9h-18h</SelectItem>
+              <SelectItem value="custom">Horaires personnalisés</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {formData.working_hours && Object.keys(formData.working_hours).length > 0 && (
+            <div className="grid gap-2 mt-2">
+              {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
+                <div key={day} className="flex items-center gap-2">
+                  <Label className="w-24">{
+                    day === 'monday' ? 'Lundi' :
+                    day === 'tuesday' ? 'Mardi' :
+                    day === 'wednesday' ? 'Mercredi' :
+                    day === 'thursday' ? 'Jeudi' :
+                    day === 'friday' ? 'Vendredi' :
+                    day === 'saturday' ? 'Samedi' : 'Dimanche'
+                  }</Label>
+                  <Input
+                    type="text"
+                    placeholder="Ex: 9h-18h"
+                    value={formData.working_hours?.[day] || ''}
+                    onChange={(e) => {
+                      const newHours = { ...formData.working_hours, [day]: e.target.value };
+                      handleInputChange('working_hours', newHours);
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-2">

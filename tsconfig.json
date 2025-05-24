@@ -33,6 +33,6 @@
     ".next/types/**/*.ts",
     "src/tests/**/*.ts",
     "scripts/**/*.ts"
-, "src/lib/supabase-config.ts.old"  ],
+, "src/lib/supabase-config.ts.old", "next.config.js"  ],
   "exclude": ["node_modules"]
 }

@@ -13,9 +13,11 @@ import {
   Database,
   Link as LinkIcon,
   Bot,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Toaster } from '@/components/ui/toaster';
@@ -40,14 +42,19 @@ const settingsSections: SettingsSection[] = [
     title: 'Général',
     items: [
       {
-        label: 'Ma Boutique',
+        label: 'Boutique',
         icon: Store,
         href: '/admin/settings/store'
       },
       {
-        label: 'Assistant IA',
+        label: 'Chatbot IA',
         icon: Bot,
-        href: '/admin/settings/assistant'
+        href: '/admin/settings/chatbot'  
+      },
+      {
+        label: 'Médias',  
+        icon: ImageIcon,  
+        href: '/admin/settings/media'
       }
     ]
   },
@@ -69,6 +76,11 @@ const settingsSections: SettingsSection[] = [
   {
     title: 'Communication',
     items: [
+      {
+        label: 'WhatsApp',
+        icon: WhatsAppIcon, 
+        href: '/admin/settings/whatsapp'
+      },
       {
         label: 'Notifications',
         icon: Bell,

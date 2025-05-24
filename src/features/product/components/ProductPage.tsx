@@ -1,48 +1,64 @@
 // src/features/product/components/ProductPage.tsx
 'use client';
 
-import dynamic from 'next/dynamic';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { MessageCircle } from 'lucide-react';
-import { useBreakpoint } from '../../../core/theme/hooks/useBreakpoint';
-import { ChatProvider } from '../context/ChatContext';
-import { products } from '../../../lib/products';
-import type { Product } from '../../../types/product';
-import { useLayoutContext } from '../../../core/context/LayoutContext';
-
-// Chargement dynamique des composants
-const ProductPageContent = dynamic(() => import('./ProductPageContent'), { 
-  ssr: false 
-});
+import ClientOnly from '@/components/utils/ClientOnly';
+import { productService } from '@/lib/services/product.service';
+import type { Product } from '@/types/product';
+import ProductPageContent from './ProductPageContent';
+import { useRouter } from 'next/navigation';
 
 export default function ProductPage() {
   const { productId } = useParams();
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Initialisation du produit
   useEffect(() => {
-    setIsClient(true);
-    if (productId && typeof productId === 'string') {
-      const foundProduct = products[productId];
-      if (foundProduct) {
-        setProduct(foundProduct);
+    async function loadProduct() {
+      if (typeof productId !== 'string') {
+        router.push('/products');
+        return;
+      }
+
+      try {
+        const loadedProduct = await productService.getProductById(productId);
+        if (loadedProduct) {
+          setProduct(loadedProduct);
+        } else {
+          router.push('/products');
+        }
+      } catch (error) {
+        console.error('Failed to load product:', error);
+        router.push('/products');
+      } finally {
+        setLoading(false);
       }
     }
-  }, [productId]);
 
-  if (!isClient || !product) {
+    loadProduct();
+  }, [productId, router]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F2F2F2]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93]" />
       </div>
     );
   }
 
+  if (!product || typeof productId !== 'string') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Produit non trouvé</p>
+      </div>
+    );
+  }
+
   return (
-    <ChatProvider product={product}>
-      <ProductPageContent product={product} />
-    </ChatProvider>
+    <ClientOnly>
+      <ProductPageContent productId={productId} product={product} />
+    </ClientOnly>
   );
 }

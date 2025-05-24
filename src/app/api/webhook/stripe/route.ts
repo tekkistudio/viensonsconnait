@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
 import { notificationService } from '@/lib/services/notification.service';
+import { pusherServer } from '@/lib/pusher';
+import { PAYMENT_CONFIG } from '@/lib/config/payment.config';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any
+const stripe = new Stripe(PAYMENT_CONFIG.stripe.secretKey!, {
+  apiVersion: PAYMENT_CONFIG.stripe.apiVersion
 });
 
 export async function POST(req: NextRequest) {
@@ -18,14 +20,13 @@ export async function POST(req: NextRequest) {
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        PAYMENT_CONFIG.stripe.webhookSecret!
       );
     } catch (err) {
       console.error('⚠️ Webhook signature verification failed:', err);
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    // Gérer les différents types d'événements Stripe
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -38,7 +39,8 @@ export async function POST(req: NextRequest) {
             metadata: {
               stripePaymentId: session.payment_intent,
               paymentStatus: 'completed',
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
+              mode: PAYMENT_CONFIG.mode
             }
           })
           .eq('reference', session.id)
@@ -52,15 +54,27 @@ export async function POST(req: NextRequest) {
           .from('orders')
           .update({
             status: 'PAID',
+            payment_method: 'STRIPE',
             updated_at: new Date().toISOString()
           })
           .eq('id', transaction.order_id);
 
         if (orderError) throw orderError;
 
-        // S'assurer que nous avons l'email avant d'envoyer la notification
+        // Notification Pusher
+        await pusherServer.trigger(
+          `order_${transaction.order_id}`,
+          'payment_status',
+          {
+            status: 'success',
+            orderId: transaction.order_id,
+            amount: session.amount_total ? session.amount_total / 100 : null,
+            transactionId: session.id
+          }
+        );
+
+        // Notification email
         const customerEmail = session.customer_details?.email;
-        
         if (transaction && customerEmail) {
           await notificationService.sendNotification({
             type: 'PAYMENT_RECEIVED',
@@ -71,15 +85,44 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        await supabase
+          .from('payment_transactions')
+          .update({
+            status: 'FAILED',
+            metadata: {
+              stripePaymentId: paymentIntent.id,
+              error: paymentIntent.last_payment_error?.message,
+              updatedAt: new Date().toISOString(),
+              mode: PAYMENT_CONFIG.mode
+            }
+          })
+          .eq('reference', paymentIntent.id);
+        
+        if (paymentIntent.metadata?.orderId) {
+          await pusherServer.trigger(
+            `order_${paymentIntent.metadata.orderId}`,
+            'payment_status',
+            {
+              status: 'failed',
+              orderId: paymentIntent.metadata.orderId,
+              error: paymentIntent.last_payment_error?.message
+            }
+          );
+        }
+        break;
+      }
+
       case 'checkout.session.expired': {
         const session = event.data.object as Stripe.Checkout.Session;
-        // Mettre à jour la transaction comme expirée
         await supabase
           .from('payment_transactions')
           .update({
             status: 'EXPIRED',
             metadata: {
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
+              mode: PAYMENT_CONFIG.mode
             }
           })
           .eq('reference', session.id);

@@ -1,21 +1,31 @@
 // src/lib/services/AIManager.ts
+import { ErrorManager } from './ErrorManager';
+import { PromptManager } from './PromptManager';
+import { supabase } from "@/lib/supabase";
+import { config } from '@/lib/config';
 import OpenAI from "openai";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { 
+import type { 
   CustomerMessage,
   ChatMessage,
   ConversationStep,
   AIResponse,
   OrderData,
   MessageType
-} from '@/features/product/types/chat';
-import { PageContext } from '@/types/assistant';
-import { PRODUCTS_INFO } from "@/config/products";
-import { ErrorManager } from './ErrorManager';
+} from '@/types/chat';
+import type { PageContext } from '@/types/assistant';
 import { ErrorTypes } from '@/constants/errors';
-import type { ErrorCategory } from '@/constants/errors';
-import { PromptManager } from './PromptManager';
-import { supabase } from "@/lib/supabase";
+
+const isServer = typeof window === 'undefined';
+let openai: OpenAI | null = null;
+
+// Initialiser OpenAI uniquement côté serveur
+function initializeOpenAI() {
+  if (isServer && config.openai?.apiKey) {
+    openai = new OpenAI({
+      apiKey: config.openai.apiKey
+    });
+  }
+}
 
 interface MessageHistory {
   content: string;
@@ -24,21 +34,18 @@ interface MessageHistory {
 }
 
 export class AIManager {
-  private static openai: OpenAI;
-  private static instance: AIManager;
+  private static instance: AIManager | null = null;
   private readonly errorManager: ErrorManager;
   private readonly promptManager: PromptManager;
   private messageHistory: Map<string, MessageHistory[]>;
 
   private constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
-    }
-    AIManager.openai = new OpenAI({ apiKey });
     this.errorManager = ErrorManager.getInstance();
     this.promptManager = PromptManager.getInstance();
     this.messageHistory = new Map();
+    if (isServer) {
+      initializeOpenAI();
+    }
   }
 
   public static getInstance(): AIManager {
@@ -48,6 +55,24 @@ export class AIManager {
     return AIManager.instance;
   }
 
+  private async ensureOpenAI(): Promise<OpenAI> {
+    if (!openai) {
+      if (!isServer) {
+        console.error('OpenAI is only available on the server');
+        throw new Error('OpenAI is only available on the server');
+      }
+      if (!config.openai?.apiKey) {
+        console.error('OpenAI API key is not configured');
+        throw new Error('OpenAI API key is not configured');
+      }
+      initializeOpenAI();
+      if (!openai) {
+        throw new Error('Failed to initialize OpenAI');
+      }
+    }
+    return openai;
+  }
+
   async handleProductChatbot(
     message: CustomerMessage,
     productId: string,
@@ -55,6 +80,48 @@ export class AIManager {
     orderData: Partial<OrderData> = {}
   ): Promise<AIResponse> {
     try {
+      // Liste des choix prédéfinis qui ne nécessitent pas l'IA
+      const predefinedChoices = [
+        'Je veux l\'acheter maintenant',
+        'Je veux voir les témoignages',
+        'Comment y jouer ?',
+        'Je veux en savoir plus',
+        'Voir la description du jeu',
+        'Voir les témoignages',
+        'Parler à un humain'
+      ];
+  
+      // Si c'est un choix prédéfini, on retourne directement sans utiliser l'IA
+      if (predefinedChoices.includes(message.content)) {
+        return {
+          content: '', // ChatService s'occupera de la réponse
+          type: 'assistant',
+          choices: [],
+          nextStep: currentStep
+        };
+      }
+  
+      // Si nous sommes côté client, utiliser l'API route
+      if (!isServer) {
+        return this.handleClientSideChat(message, productId, currentStep, orderData);
+      }
+  
+      // Ne pas utiliser l'IA pour les réponses prédéfinies
+      if (currentStep === 'description' || 
+          currentStep === 'testimonials' || 
+          currentStep === 'game_rules' ||
+          currentStep === 'initial') {
+        return {
+          content: '', // Sera géré par ChatService
+          type: 'assistant',
+          choices: [],
+          nextStep: currentStep
+        };
+      }
+  
+      // À partir d'ici, on sait qu'on a besoin de l'IA
+      console.log('Starting AI processing:', { message, currentStep });
+  
       const sessionId = this.getSessionId(productId, orderData);
       const history = this.getMessageHistory(sessionId);
       
@@ -63,21 +130,21 @@ export class AIManager {
         type: 'user',
         timestamp: new Date()
       });
-
-      const productInfo = PRODUCTS_INFO[productId];
-      const formattedHistory = history.map(msg => ({
-        message: msg.content,
-        response: msg.type === 'assistant' ? msg.content : ''
-      }));
-
-      const systemPrompt = this.promptManager.generateProductPrompt(
+  
+      const systemPrompt = await this.promptManager.generateProductPrompt(
         productId,
         this.calculateBuyingIntent(history),
         currentStep,
-        formattedHistory
+        history.map(msg => ({
+          message: msg.content,
+          response: msg.type === 'assistant' ? msg.content : ''
+        }))
       );
-      
-      const completion = await AIManager.openai.chat.completions.create({
+  
+      console.log('System prompt generated, sending to OpenAI');
+  
+      const ai = await this.ensureOpenAI();
+      const completion = await ai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           { role: "system", content: systemPrompt },
@@ -85,43 +152,76 @@ export class AIManager {
             role: msg.type === 'assistant' ? 'assistant' as const : 'user' as const,
             content: msg.content
           })),
-          { role: "user", content: message.content }
+          { role: 'user', content: message.content }
         ],
         temperature: 0.7,
         response_format: { type: "json_object" }
       });
-
-      const response = this.parseAIResponse(completion);
-      const enhancedResponse = this.validateAndEnhanceResponse(response, currentStep);
-
-      this.addToHistory(sessionId, {
-        content: enhancedResponse.content,
-        type: 'assistant',
-        timestamp: new Date()
-      });
-
-      await this.persistConversation(sessionId, history);
-
-      return enhancedResponse;
-
+  
+      console.log('OpenAI response received:', completion.choices[0]?.message);
+  
+      if (!completion.choices[0]?.message?.content) {
+        throw new Error('Empty response from OpenAI');
+      }
+  
+      const parsedResponse = this.parseAIResponse(completion.choices[0].message);
+      return this.validateAndEnhanceResponse(parsedResponse, currentStep);
+  
     } catch (error) {
-      const errorResponse = await this.errorManager.handleError(
-        error as Error,
-        ErrorTypes.AI_ERROR,
-        {
-          timestamp: new Date().toISOString(),
-          path: 'handleProductChatbot',
-          input: { message, productId, currentStep },
-          additionalData: { orderData }
-        }
-      );
-
+      console.error('Chatbot error:', error);
       return {
-        content: errorResponse.userMessage,
+        content: "Je suis désolée, j'ai du mal à comprendre. Puis-je vous rediriger vers un conseiller ?",
         type: 'assistant',
-        choices: errorResponse.choices || ["Réessayer", "Parler à un humain"],
+        choices: ["Réessayer", "Parler à un conseiller", "Voir les produits"],
         error: ErrorTypes.AI_ERROR
       };
+    }
+  }
+
+  private async handleClientSideChat(
+    message: CustomerMessage,
+    productId: string,
+    currentStep: ConversationStep,
+    orderData: Partial<OrderData>
+  ): Promise<AIResponse> {
+    try {
+      console.log('Sending chat request to API:', {
+        message: message.content,
+        productId,
+        currentStep
+      });
+  
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.content,
+          productId,
+          currentStep,
+          orderData,
+          sessionId: orderData.session_id || Date.now().toString(),
+          storeId: orderData.metadata?.storeId || ''
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Chat API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error('Chat API request failed');
+      }
+  
+      const data = await response.json();
+      console.log('Chat API response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in handleClientSideChat:', error);
+      throw error;
     }
   }
 
@@ -130,6 +230,27 @@ export class AIManager {
     context: PageContext
   ): Promise<AIResponse> {
     try {
+      // Si nous sommes côté client, utiliser l'API route
+      if (!isServer) {
+        const response = await fetch('/api/dashboard/assistant', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message,
+            context
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Dashboard assistant API request failed');
+        }
+
+        return response.json();
+      }
+
+      const ai = await this.ensureOpenAI();
       const sessionId = `dashboard_${context.page}_${Date.now()}`;
       const history = this.getMessageHistory(sessionId);
 
@@ -142,8 +263,10 @@ export class AIManager {
             type: msg.type as 'assistant' | 'user' 
           }))
       );
-      
-      const completion = await AIManager.openai.chat.completions.create({
+
+      console.log('System prompt generated for dashboard');
+
+      const completion = await ai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           { role: "system", content: systemPrompt },
@@ -151,14 +274,18 @@ export class AIManager {
             role: msg.type === 'assistant' ? 'assistant' as const : 'user' as const,
             content: msg.content
           })),
-          { role: "user", content: message }
+          { role: 'user', content: message }
         ],
         temperature: 0.7,
         response_format: { type: "json_object" }
       });
 
-      const response = this.parseAIResponse(completion);
-      const enhancedResponse = this.validateAndEnhanceDashboardResponse(response, context);
+      if (!completion.choices[0]?.message?.content) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      const parsedResponse = this.parseAIResponse(completion.choices[0].message);
+      const enhancedResponse = this.validateAndEnhanceDashboardResponse(parsedResponse, context);
 
       this.addToHistory(sessionId, {
         content: enhancedResponse.content,
@@ -171,6 +298,7 @@ export class AIManager {
       return enhancedResponse;
 
     } catch (error) {
+      console.error('Dashboard assistant error:', error);
       const errorResponse = await this.errorManager.handleError(
         error as Error,
         ErrorTypes.AI_ERROR,
@@ -193,12 +321,13 @@ export class AIManager {
 
   private parseAIResponse(completion: any): any {
     try {
-      const responseText = completion.choices[0]?.message?.content;
-      if (!responseText) {
+      if (!completion.content) {
         throw new Error('Empty response from AI');
       }
       
-      const parsedResponse = JSON.parse(responseText);
+      console.log('Parsing AI response:', completion.content);
+      
+      const parsedResponse = JSON.parse(completion.content);
       if (!parsedResponse.message) {
         throw new Error('Invalid response structure');
       }
@@ -211,49 +340,63 @@ export class AIManager {
   }
 
   private validateAndEnhanceResponse(response: any, currentStep: ConversationStep): AIResponse {
-    if (!response.message || typeof response.message !== 'string') {
-      throw new Error('Invalid message in AI response');
+    try {
+      console.log('Validating and enhancing response:', response);
+
+      if (!response.message || typeof response.message !== 'string') {
+        throw new Error('Invalid message in AI response');
+      }
+
+      const choices = Array.isArray(response.choices) 
+        ? response.choices.filter((choice: unknown): choice is string => typeof choice === 'string')
+        : [];
+
+      return {
+        content: response.message,
+        type: 'assistant',
+        choices: choices.length > 0 ? choices : ["Je veux l'acheter maintenant", "En savoir plus", "Parler à un conseiller"],
+        nextStep: response.nextStep || currentStep,
+        recommendations: Array.isArray(response.recommendations) ? response.recommendations : [],
+        buyingIntent: typeof response.buyingIntent === 'number' ? response.buyingIntent : 0,
+        error: response.error
+      };
+    } catch (error) {
+      console.error('Error in validateAndEnhanceResponse:', error);
+      throw error;
     }
-
-    const choices = Array.isArray(response.choices) 
-      ? response.choices.filter((choice: unknown): choice is string => typeof choice === 'string')
-      : [];
-
-    return {
-      content: response.message,
-      type: 'assistant',
-      choices: choices,
-      nextStep: response.nextStep || currentStep,
-      recommendations: Array.isArray(response.recommendations) ? response.recommendations : [],
-      buyingIntent: typeof response.buyingIntent === 'number' ? response.buyingIntent : 0,
-      error: response.error
-    };
   }
 
   private validateAndEnhanceDashboardResponse(response: any, context: PageContext): AIResponse {
-    if (!response.message || typeof response.message !== 'string') {
-      throw new Error('Invalid message in AI response');
+    try {
+      console.log('Validating and enhancing dashboard response:', response);
+
+      if (!response.message || typeof response.message !== 'string') {
+        throw new Error('Invalid message in AI response');
+      }
+
+      const insights = Array.isArray(response.insights) 
+        ? response.insights.filter((insight: unknown): insight is string => typeof insight === 'string')
+        : [];
+      
+      const actions = Array.isArray(response.actions)
+        ? response.actions.filter((action: unknown): action is string => typeof action === 'string')
+        : [];
+
+      const suggestions = Array.isArray(response.suggestions)
+        ? response.suggestions.filter((suggestion: unknown): suggestion is string => typeof suggestion === 'string')
+        : [];
+
+      return {
+        content: response.message,
+        type: 'assistant',
+        insights: insights,
+        actions: actions,
+        suggestions: suggestions
+      };
+    } catch (error) {
+      console.error('Error in validateAndEnhanceDashboardResponse:', error);
+      throw error;
     }
-
-    const insights = Array.isArray(response.insights) 
-      ? response.insights.filter((insight: unknown): insight is string => typeof insight === 'string')
-      : [];
-    
-    const actions = Array.isArray(response.actions)
-      ? response.actions.filter((action: unknown): action is string => typeof action === 'string')
-      : [];
-
-    const suggestions = Array.isArray(response.suggestions)
-      ? response.suggestions.filter((suggestion: unknown): suggestion is string => typeof suggestion === 'string')
-      : [];
-
-    return {
-      content: response.message,
-      type: 'assistant',
-      insights: insights,
-      actions: actions,
-      suggestions: suggestions
-    };
   }
 
   private getSessionId(productId: string, orderData: Partial<OrderData>): string {
@@ -265,15 +408,20 @@ export class AIManager {
   }
 
   private addToHistory(sessionId: string, message: MessageHistory): void {
-    const history = this.getMessageHistory(sessionId);
-    history.push(message);
-    this.messageHistory.set(sessionId, history.slice(-10));
+    try {
+      const history = this.getMessageHistory(sessionId);
+      const updatedHistory = [...history, message].slice(-5); 
+      this.messageHistory.set(sessionId, updatedHistory);
+    } catch (error) {
+      console.error('Error adding to history:', error);
+      this.messageHistory.set(sessionId, [message]);
+    }
   }
 
   private calculateBuyingIntent(history: MessageHistory[]): number {
     const buyingIntentKeywords = [
       "acheter", "commander", "prix", "payer",
-      "livraison", "intéressé", "prendre"
+      "livraison", "intéressé", "prendre", "cadeau"
     ];
 
     return Math.min(1, history

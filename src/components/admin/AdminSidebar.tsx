@@ -1,13 +1,15 @@
+// src/components/admin/AdminSidebar.tsx
 'use client';
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import useConversations from '@/hooks/useConversations';
+import useConversations from '@/hooks/useConversation';
 import { useTheme } from '@/core/theme/AdminThemeProvider';
 import { useAuth } from '@/components/admin/AuthProvider';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import useOrders from '@/hooks/useOrders';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -102,6 +104,7 @@ export default function AdminSidebar() {
   const { theme, setTheme, actualTheme } = useTheme();
   const { user, isLoading, signOut } = useAuth();
   const activeConversations = useConversations();
+  const pendingOrders = useOrders();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (href: string) => pathname === href;
@@ -109,6 +112,9 @@ export default function AdminSidebar() {
   const navigationItems = PRINCIPAL.map(item => {
     if (item.label === 'Conversations') {
       return { ...item, count: activeConversations };
+    }
+    if (item.label === 'Commandes') {
+      return { ...item, count: pendingOrders };
     }
     return item;
   });

@@ -138,3 +138,41 @@
 }
 2025-01-16T01:07:49.466Z - 💬 Ajout du message dans le chat... 
 2025-01-16T01:07:49.579Z - ❌ Erreur lors de l'ajout du message: {}
+2025-02-01T21:31:30.015Z - 🎯 Webhook Bictorys reçu 
+2025-02-01T21:31:30.023Z - 📦 Payload webhook reçu: {
+  "id": "8dcd632a-0acb-4ac6-af91-79a17a24849e",
+  "merchantId": "d3a9e113-8562-4417-90fb-c28d2c1aa40b",
+  "type": "payment",
+  "customerId": null,
+  "customerObject": {
+    "id": null,
+    "name": null,
+    "phone": null,
+    "email": null,
+    "address": null,
+    "city": null,
+    "postalCode": null,
+    "country": null,
+    "locale": "en-US",
+    "createdAt": null,
+    "updatedAt": null
+  },
+  "pspName": "wave_money",
+  "paymentMeans": null,
+  "paymentChannel": "Online",
+  "amount": 17000,
+  "merchantFees": 340,
+  "customerFees": 0,
+  "transactionFeeAmountHT": null,
+  "transactionFeeAmountTax": null,
+  "currency": "XOF",
+  "paymentReference": null,
+  "merchantReference": null,
+  "orderType": "flat",
+  "orderId": null,
+  "orderDetails": null,
+  "status": "succeeded",
+  "originIp": null,
+  "timestamp": "2025-02-01 21:30:55.644358"
+}
+2025-02-01T21:31:30.024Z - ❌ Payload invalide 

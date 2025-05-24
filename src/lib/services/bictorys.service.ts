@@ -1,8 +1,8 @@
 // src/lib/services/bictorys.service.ts
 import { supabase } from '@/lib/supabase';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import { errorService } from './error.service';
-import { API_CONFIG } from '@/lib/config/api';
+import { PAYMENT_CONFIG, validatePaymentConfig } from '@/lib/config/payment.config';
 import type {
   IBictorysService,
   BictorysPaymentParams,
@@ -15,37 +15,50 @@ import type {
 } from '@/types/payment';
 
 export class BictorysService implements IBictorysService {
-  private axiosInstance: AxiosInstance;
-  private readonly config: {
-    API_URL: string;
-    API_KEY: string | undefined;
-    WEBHOOK_SECRET: string | undefined;
-    ENV: 'test' | 'live';
-  };
+  private readonly axiosInstance: AxiosInstance;
+  private readonly mode: 'test' | 'live';
+  private readonly apiBaseUrl: string;
 
   constructor() {
-    this.config = {
-      API_URL: API_CONFIG.bictorys.baseUrl,
-      API_KEY: API_CONFIG.bictorys.apiKey,
-      WEBHOOK_SECRET: process.env.BICTORYS_WEBHOOK_SECRET,
-      ENV: process.env.NODE_ENV === 'production' ? 'live' : 'test'
-    };
+    try {
+      validatePaymentConfig(typeof window === 'undefined');
 
-    if (!this.config.API_KEY) {
-      console.error('Configuration manquante - API_KEY:', this.config.API_KEY);
-      throw new Error('NEXT_PUBLIC_BICTORYS_API_KEY is not configured');
-    }
-
-    this.axiosInstance = axios.create({
-      baseURL: this.config.API_URL,
-      headers: {
-        'X-Api-Key': this.config.API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+      if (!PAYMENT_CONFIG.bictorys.publicKey) {
+        throw new Error('BICTORYS_API_KEY is not configured');
       }
-    });
 
-    this.setupInterceptors();
+      // Utiliser le proxy pour les appels API côté client
+      this.apiBaseUrl = typeof window === 'undefined'
+        ? PAYMENT_CONFIG.bictorys.apiUrl!
+        : '/api/bictorys';
+
+      this.axiosInstance = axios.create({
+        baseURL: this.apiBaseUrl,
+        headers: {
+          'X-Api-Key': PAYMENT_CONFIG.bictorys.publicKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      this.mode = PAYMENT_CONFIG.mode;
+      this.setupInterceptors();
+    } catch (error) {
+      console.error('BictorysService initialization error:', error);
+      
+      this.axiosInstance = axios.create();
+      this.mode = 'test';
+      this.apiBaseUrl = '';
+      
+      if (typeof window === 'undefined') {
+        throw error;
+      }
+    }
+  }
+
+  getApiUrl(): string {
+    return this.apiBaseUrl;
   }
 
   private setupInterceptors(): void {
@@ -71,97 +84,110 @@ export class BictorysService implements IBictorysService {
           message: error.message,
           config: error.config
         });
-        return Promise.reject(error);
+        return Promise.reject(this.formatAxiosError(error));
       }
     );
   }
 
-  private async checkApiHealth(): Promise<void> {
-    try {
-      console.log('Checking Bictorys API health...');
-      const response = await this.axiosInstance.get('/health');
-      console.log('API Health response:', response.data);
-    } catch (error) {
-      console.error('API Health check failed:', error);
-      throw new Error('Service de paiement temporairement indisponible');
+  private formatAxiosError(error: AxiosError): Error {
+    let message = 'Une erreur est survenue';
+    let code = 'UNKNOWN_ERROR';
+    let shouldRetry = false;
+
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data as any;
+
+      switch (status) {
+        case 400:
+          message = data.message || 'Requête invalide';
+          code = 'INVALID_REQUEST';
+          break;
+        case 401:
+          message = 'Clé API invalide';
+          code = 'INVALID_API_KEY';
+          break;
+        case 403:
+          message = 'Accès refusé';
+          code = 'ACCESS_DENIED';
+          break;
+        case 404:
+          message = 'Service temporairement indisponible';
+          code = 'SERVICE_UNAVAILABLE';
+          shouldRetry = true;
+          break;
+        default:
+          message = data.message || 'Erreur serveur';
+          code = 'SERVER_ERROR';
+          shouldRetry = true;
+      }
+    } else if (error.request) {
+      if (error.code === 'ECONNABORTED') {
+        message = 'Le service met trop de temps à répondre';
+        code = 'TIMEOUT';
+        shouldRetry = true;
+      } else {
+        message = 'Problème de connexion';
+        code = 'NETWORK_ERROR';
+        shouldRetry = true;
+      }
     }
+
+    return new Error(JSON.stringify({
+      userMessage: message,
+      errorCode: code,
+      shouldRetry,
+      technicalDetails: {
+        originalError: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      }
+    }));
   }
 
   async createPaymentSession(params: BictorysPaymentParams): Promise<BictorysPaymentSession> {
     try {
-      if (!params.customerPhone) {
-        throw new Error('Le numéro de téléphone est requis');
-      }
-
-      await this.checkApiHealth();
-
-      const reference = this.generateReference(params.orderId);
-
       const paymentConfig = {
         amount: params.amount,
         currency: params.currency || 'XOF',
-        payment_type: params.provider,
-        paymentReference: reference,
-        successRedirectUrl: `${window.location.origin}/payment/success`,
-        errorRedirectUrl: `${window.location.origin}/payment/error`,
-        callbackUrl: `${window.location.origin}/api/webhooks/bictorys`,
-        country: params.customerCountry || 'SN',
+        provider: params.provider,
+        merchantReference: params.merchantReference,
+        successRedirectUrl: params.successRedirectUrl,
+        errorRedirectUrl: params.errorRedirectUrl,
+        callbackUrl: params.callbackUrl,
         customer: {
-          name: params.customerName || '',
-          phone: params.customerPhone.replace(/\s/g, ''),
-          email: params.customerEmail,
-          city: params.customerCity || '',
-          country: params.customerCountry || 'SN'
-        },
-        metadata: {
-          orderId: params.orderId,
-          environment: this.config.ENV,
-          provider: params.provider,
-          initiatedAt: new Date().toISOString()
+          name: params.customer.name,
+          phone: params.customer.phone.replace(/\s/g, ''),
+          email: params.customer.email || '',
+          city: params.customer.city,
+          country: params.customer.country
         }
       };
-
-      console.log('Initiating payment with config:', paymentConfig);
-
+  
       const response = await this.axiosInstance.post<BictorysPaymentResponse>(
         '/pay/v1/charges',
         paymentConfig
       );
-
-      if (!response.data) {
+  
+      if (!response.data || !response.data.link) {
         throw new Error('Réponse invalide du service de paiement');
       }
-
-      await this.saveTransaction({
-        orderId: params.orderId,
-        reference,
-        provider: this.mapProviderToMain(params.provider),
-        amount: params.amount,
-        currency: params.currency,
-        response: response.data
-      });
-
+  
       return {
-        iframeUrl: response.data.link || response.data.paymentUrl || '',
-        transactionId: response.data.transactionId || response.data.id || ''
+        iframeUrl: response.data.link,
+        transactionId: response.data.chargeId,
+        opToken: response.data.opToken
       };
     } catch (error) {
-      const errorResponse = await this.handleError(error, {
-        orderId: params.orderId,
-        paymentMethod: this.mapProviderToMain(params.provider),
-        amount: params.amount,
-        currency: params.currency
-      });
-      throw new Error(JSON.stringify(errorResponse));
+      // L'erreur est déjà formatée par l'intercepteur
+      throw error;
     }
   }
 
-  async handleWebhook(
-    payload: BictorysWebhookPayload,
-    signature: string
-  ): Promise<{ success: boolean; transaction: PaymentTransaction }> {
+  async handleWebhook(payload: BictorysWebhookPayload, signature: string): Promise<{ success: boolean; transaction: PaymentTransaction }> {
     try {
-      if (signature !== this.config.WEBHOOK_SECRET) {
+      // Vérification de la signature selon la documentation Bictorys
+      if (signature !== PAYMENT_CONFIG.bictorys.webhookSecret) {
         throw new Error('Invalid webhook signature');
       }
 
@@ -184,6 +210,7 @@ export class BictorysService implements IBictorysService {
           metadata: {
             ...transaction.metadata,
             webhookPayload: payload,
+            mode: this.mode,
             updatedAt: new Date().toISOString()
           }
         })
@@ -193,6 +220,7 @@ export class BictorysService implements IBictorysService {
 
       if (updateError) throw updateError;
 
+      // Mise à jour du statut de la commande si le paiement est réussi
       if (status === 'completed') {
         await supabase
           .from('orders')
@@ -210,10 +238,6 @@ export class BictorysService implements IBictorysService {
     }
   }
 
-  private generateReference(orderId: number): string {
-    return `TR_${Date.now()}_${orderId}`;
-  }
-
   private mapPaymentStatus(status: string): string {
     const statusMap: Record<string, string> = {
       'succeeded': 'completed',
@@ -225,63 +249,6 @@ export class BictorysService implements IBictorysService {
       'authorized': 'pending'
     };
     return statusMap[status.toLowerCase()] || 'pending';
-  }
-
-  private mapProviderToMain(provider: BictorysProvider): PaymentProvider {
-    const providerMap: Record<BictorysProvider, PaymentProvider> = {
-      'wave_money': 'WAVE',
-      'orange_money': 'ORANGE_MONEY',
-      'card': 'STRIPE'
-    };
-    return providerMap[provider];
-  }
-
-  private async saveTransaction(params: {
-    orderId: number;
-    reference: string;
-    provider: PaymentProvider;
-    amount: number;
-    currency: string;
-    response: BictorysPaymentResponse;
-  }): Promise<void> {
-    const { error } = await supabase
-      .from('payment_transactions')
-      .insert([{
-        order_id: params.orderId,
-        provider: params.provider,
-        amount: params.amount,
-        currency: params.currency,
-        status: 'pending',
-        reference: params.reference,
-        metadata: {
-          bictorysResponse: params.response,
-          initiatedAt: new Date().toISOString()
-        }
-      }]);
-
-    if (error) {
-      console.error('Erreur lors de l\'enregistrement de la transaction:', error);
-      throw error;
-    }
-  }
-
-  private async handleError(error: any, context: {
-    orderId: number;
-    paymentMethod: PaymentProvider;
-    amount: number;
-    currency: string;
-  }): Promise<any> {
-    return await errorService.handlePaymentError(
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        orderId: context.orderId,
-        paymentMethod: context.paymentMethod,
-        additionalData: {
-          amount: context.amount,
-          currency: context.currency
-        }
-      }
-    );
   }
 }
 

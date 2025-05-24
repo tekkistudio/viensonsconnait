@@ -141,6 +141,7 @@ export const PRODUCTS_INFO: Record<string, ProductInfo> = {
     topics: string[];
     howToPlay?: string;
     testimonials?: string;
+    compareAtPrice?: number;
   }
   
   export type ProductId = keyof typeof PRODUCTS_INFO;

@@ -1,6 +1,6 @@
 // src/hooks/useMessageRedirect.ts
 import { useEffect } from 'react';
-import type { ChatMessage } from '@/features/product/types/chat';
+import type { ChatMessage } from '@/types/chat';
 
 export const useMessageRedirect = (messages: ChatMessage[]) => {
   useEffect(() => {

@@ -105,6 +105,7 @@ export function MobileAppSection() {
                   className="h-[50px] w-auto"
                 />
               </a>
+              {/*
               <a
                 href="#"
                 className="flex-shrink-0 transition-transform hover:-translate-y-1"
@@ -119,6 +120,7 @@ export function MobileAppSection() {
                   className="h-[50px] w-auto"
                 />
               </a>
+              */}
             </div>
           </motion.div>
 

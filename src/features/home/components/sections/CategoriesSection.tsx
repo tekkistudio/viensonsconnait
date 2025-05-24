@@ -20,14 +20,14 @@ const categories = [
     icon: <Heart className="w-6 h-6" />,
     title: "Pour les Couples",
     description: "Apprenez à mieux vous connaître, mariés ou pas encore, et solidifiez vos liens",
-    href: "/couples",
+    href: "/nos-jeux?category=couples",
     color: "brand-pink"
   },
   {
     icon: <Users className="w-6 h-6" />,
     title: "Pour les Familles",
     description: "Renforcez les liens avec vos Parents ou Enfants grâce à des échanges significatifs",
-    href: "/products/famille",
+    href: "/products/familles",
     color: "brand-blue"
   },
   {

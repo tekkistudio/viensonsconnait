@@ -1,138 +1,73 @@
-// src/app/api/webhook/bictorys/route.ts
+// src/app/api/webhooks/bictorys/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { pusherServer } from '@/lib/pusher';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { notificationService } from '@/lib/services/notification.service';
+import { PAYMENT_CONFIG } from '@/lib/config/payment.config';
 
-// Fonction pour écrire les logs dans un fichier
-async function logToFile(message: string, data?: any) {
-  const logMessage = `${new Date().toISOString()} - ${message} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
-  const logPath = path.join(process.cwd(), 'webhook-logs.txt');
-  await fs.appendFile(logPath, logMessage);
-}
-
-interface WebhookContext {
-  orderId: string;
-  amount: number;
-  currency: string;
-  status: 'succeeded' | 'failed' | 'cancelled' | 'pending';
-  paymentMethod: string;
-  transactionId: string;
-  merchantReference: string;
-  metadata?: Record<string, any>;
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    // 1. Logging initial
-    await logToFile('🎯 Webhook Bictorys reçu');
-    
-    // 2. Vérification de la signature
-    const secretKey = req.headers.get('X-Secret-Key');
-    if (!secretKey || secretKey !== process.env.BICTORYS_WEBHOOK_SECRET) {
-      await logToFile('❌ Signature invalide');
+    // Vérification du secret key dans les headers
+    const secretKey = request.headers.get('X-Secret-Key');
+    if (!secretKey || secretKey !== PAYMENT_CONFIG.bictorys.webhookSecret) {
       return NextResponse.json(
-        { error: 'Invalid signature' },
+        { error: 'Invalid webhook signature' },
         { status: 401 }
       );
     }
-    
-    // 3. Récupération et validation du payload
-    const payload = await req.json();
-    await logToFile('📦 Payload webhook reçu:', payload);
 
+    const payload = await request.json();
+    
+    // Validation du payload
     if (!payload.merchantReference || !payload.status) {
-      await logToFile('❌ Payload invalide');
       return NextResponse.json(
         { error: 'Invalid payload' },
         { status: 400 }
       );
     }
 
-    // 4. Récupération de la transaction
-    const { data: transaction, error: transactionError } = await supabase
-      .from('payment_transactions')
-      .select('*, orders(*)')
-      .eq('reference', payload.merchantReference)
-      .single();
+    const orderId = payload.merchantReference;
 
-    if (transactionError || !transaction) {
-      await logToFile('❌ Transaction non trouvée:', payload.merchantReference);
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      );
-    }
-
-    // 5. Mise à jour du statut
-    const status = payload.status === 'succeeded' ? 'COMPLETED' 
-                 : payload.status === 'failed' ? 'FAILED' 
-                 : payload.status.toUpperCase();
-
-    await logToFile('🔄 Mise à jour statut:', { status });
-
+    // Mise à jour de la transaction
     const { error: updateError } = await supabase
       .from('payment_transactions')
       .update({
-        status,
+        status: payload.status.toUpperCase(),
         metadata: {
-          ...transaction.metadata,
           webhookPayload: payload,
           updatedAt: new Date().toISOString()
         }
       })
-      .eq('reference', payload.merchantReference);
+      .eq('order_id', orderId);
 
-    if (updateError) {
-      await logToFile('❌ Erreur mise à jour transaction:', updateError);
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
-    // 6. Si paiement réussi, mettre à jour la commande
-    if (status === 'COMPLETED') {
+    // Si le paiement est réussi
+    if (payload.status === 'succeeded') {
+      // Mise à jour du statut de la commande
       await supabase
         .from('orders')
         .update({
           status: 'PAID',
           updated_at: new Date().toISOString()
         })
-        .eq('id', transaction.order_id);
+        .eq('id', orderId);
 
-      // Notification Pusher
+      // Notification via Pusher
       await pusherServer.trigger(
-        `order_${transaction.order_id}`,
+        `order_${orderId}`,
         'payment_status',
         {
           status: 'success',
-          orderId: transaction.order_id,
-          amount: payload.amount,
           transactionId: payload.id
         }
       );
-
-      // Notification email si email disponible
-      if (transaction.orders?.customer_email) {
-        await notificationService.sendNotification({
-          type: 'PAYMENT_RECEIVED',
-          orderId: transaction.order_id,
-          recipientEmail: transaction.orders.customer_email
-        });
-      }
     }
 
-    await logToFile('✅ Webhook traité avec succès');
-    
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ received: true });
   } catch (error) {
-    await logToFile('❌ Erreur webhook:', error);
-    
+    console.error('Webhook error:', error);
     return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : 'Webhook processing failed',
-        details: error instanceof Error ? error.stack : undefined
-      },
+      { error: 'Webhook processing failed' },
       { status: 500 }
     );
   }
