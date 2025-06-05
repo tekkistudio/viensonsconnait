@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION MOBILE COMPLÈTE CORRIGÉE
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -47,7 +47,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   });
   const [rating, setRating] = useState(product.stats?.satisfaction || 5);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [welcomeMessageSent, setWelcomeMessageSent] = useState(false); // ✅ AJOUT: Flag pour éviter les doublons
+  const [welcomeMessageSent, setWelcomeMessageSent] = useState(false);
 
   const store = useChatStore();
   
@@ -94,7 +94,6 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
       try {
         console.log('📱 Initializing mobile chat session:', { productId: product.id, storeId });
         
-        // ✅ PROTECTION: Vérifier si le chat est déjà initialisé
         const currentMessages = useChatStore.getState().messages;
         if (currentMessages.length > 0) {
           console.log('📝 Mobile chat already has messages, skipping welcome message');
@@ -103,7 +102,6 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           return;
         }
 
-        // ✅ PROTECTION: Vérifier si c'est déjà en cours d'initialisation
         if (isInitialized) {
           console.log('📝 Mobile chat already initializing, skipping');
           return;
@@ -111,18 +109,15 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
 
         setIsInitialized(true);
 
-        // Initialiser la session
         if (initializeSession) {
           initializeSession(product.id, storeId);
         }
         
-        // ✅ DÉLAI PLUS COURT: Attendre un petit moment pour l'initialisation
         setTimeout(() => {
           if (!isMounted || welcomeMessageSent) return;
           
           const latestMessages = useChatStore.getState().messages;
           
-          // ✅ VÉRIFICATION: Ne créer le message que s'il n'y en a vraiment aucun
           if (latestMessages.length === 0) {
             const welcomeMessage: ChatMessageType = {
               type: 'assistant',
@@ -164,7 +159,7 @@ Que souhaitez-vous faire ?`,
           } else {
             setWelcomeMessageSent(true);
           }
-        }, 300); // ✅ Délai réduit à 300ms
+        }, 300);
         
       } catch (error) {
         console.error('❌ Error initializing mobile chat:', error);
@@ -180,7 +175,7 @@ Que souhaitez-vous faire ?`,
         cleanup();
       }
     };
-  }, [product.id, storeId, welcomeMessageSent, isInitialized]); // ✅ Ajouter welcomeMessageSent aux dépendances
+  }, [product.id, storeId, welcomeMessageSent, isInitialized]);
 
   useEffect(() => {
     setHideHeaderGroup(true);
@@ -242,7 +237,7 @@ Que souhaitez-vous faire ?`,
   // ✅ FONCTION DYNAMIQUE: Service de contenu dynamique
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
 
-  // ✅ FONCTION DYNAMIQUE: Récupérer les données produit de la base
+  // ✅ CORRECTION TYPESCRIPT: Ajouter 'target' au type
   const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
       return await dynamicContentService.getProductInfo(product.id, infoType);
@@ -396,10 +391,8 @@ Qu'est-ce qui vous intéresse le plus ?`,
         });
         
         deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
-        // ✅ CORRECTION: Retirer Orange Money
         deliveryContent += `💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       } else {
-        // Fallback si erreur de récupération
         deliveryContent += `📍 **Zones couvertes :**\n• Dakar : Gratuit\n• Autres villes du Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       }
       
@@ -501,7 +494,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
     }
   };
 
-  // Fonction sendMessage corrigée
+  // ✅ CORRECTION TYPESCRIPT: Fonction sendMessage corrigée
   const sendMessage = async (content: string) => {
     try {
       console.log('📱 Processing mobile message:', { content, sessionId, isExpressMode, currentStep });
@@ -543,10 +536,36 @@ Qu'est-ce qui vous intéresse le plus ?`,
         
       } else if (isExpressMode && currentStep?.includes('express')) {
         console.log('🔄 Processing mobile express step:', currentStep);
-        response = await optimizedService.processUserInput(sessionId, content, currentStep);
+        response = await optimizedService.processUserInput(
+          sessionId, 
+          content, 
+          currentStep || 'initial' // ✅ CORRECTION TYPESCRIPT: Valeur par défaut
+        );
         
       } else {
-        response = await handleStandardMessages(content);
+        // ✅ CORRECTION MAJEURE: Distinguer boutons vs messages libres
+        const isStandardButton = [
+          'Poser une question', 'Comment ça marche', 'C\'est pour qui',
+          'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
+        ].some(btn => content.includes(btn));
+        
+        if (isStandardButton) {
+          // Message de bouton standard
+          response = await handleStandardMessages(content);
+        } else {
+          // ✅ NOUVEAU: Message libre - utiliser l'IA
+          console.log('🤖 Free text message detected, using AI');
+          try {
+            response = await optimizedService.processUserInput(
+              sessionId, 
+              content, 
+              currentStep || 'initial' // ✅ CORRECTION TYPESCRIPT: Valeur par défaut
+            );
+          } catch (error) {
+            console.error('❌ Error with AI response:', error);
+            response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+          }
+        }
       }
       
       // Délai d'attente pour l'animation

@@ -1,517 +1,400 @@
-// src/lib/services/PhoneService.ts - VERSION COMPLÈTE CORRIGÉE
-import { countries } from '@/lib/data/countries';
-
-export interface PhoneValidationResult {
-  isValid: boolean;
-  error?: string;
-  suggestion?: string;
-}
-
-export interface FormattedPhone {
-  formatted: string;
-  international: string;
-  local: string;
-  country?: string;
-  isValid: boolean;
-  error?: string;
-  suggestion?: string; // ✅ AJOUTÉ pour corriger l'erreur TypeScript
-}
+// src/lib/services/PhoneService.ts 
+import type { 
+  PhoneValidationResult, 
+  FormattedPhone 
+} from '@/types/chat';
 
 export class PhoneService {
   private static instance: PhoneService;
-  
-  // ✅ Patterns pour les pays supportés (depuis CountrySelector)
-  private readonly countryPatterns: Record<string, {
-    pattern: RegExp;
-    format: (phone: string) => string;
-    countryCode: string;
-    minLength: number;
-    maxLength: number;
-  }> = {
-    // Zone FCFA - Afrique de l'Ouest
-    'SN': {
-      pattern: /^(\+221|221|0)?[7][0-8]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+221',
-      minLength: 9,
-      maxLength: 12
-    },
-    'CI': {
-      pattern: /^(\+225|225|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+225',
-      minLength: 8,
-      maxLength: 11
-    },
-    'BJ': {
-      pattern: /^(\+229|229|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+229',
-      minLength: 8,
-      maxLength: 11
-    },
-    'BF': {
-      pattern: /^(\+226|226|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+226',
-      minLength: 8,
-      maxLength: 11
-    },
-    'ML': {
-      pattern: /^(\+223|223|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+223',
-      minLength: 8,
-      maxLength: 11
-    },
-    'NE': {
-      pattern: /^(\+227|227|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+227',
-      minLength: 8,
-      maxLength: 11
-    },
-    'TG': {
-      pattern: /^(\+228|228|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+228',
-      minLength: 8,
-      maxLength: 11
-    },
-    'GW': {
-      pattern: /^(\+245|245|0)?[0-9]\d{6}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{2})(\d{2})/, '$1 $2 $3'),
-      countryCode: '+245',
-      minLength: 7,
-      maxLength: 10
-    },
 
-    // Zone FCFA - Afrique Centrale
-    'CM': {
-      pattern: /^(\+237|237|0)?[6-9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5'),
-      countryCode: '+237',
-      minLength: 9,
-      maxLength: 12
-    },
-    'GA': {
-      pattern: /^(\+241|241|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+241',
-      minLength: 8,
-      maxLength: 11
-    },
-    'CG': {
-      pattern: /^(\+242|242|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+242',
-      minLength: 8,
-      maxLength: 11
-    },
-    'TD': {
-      pattern: /^(\+235|235|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+235',
-      minLength: 8,
-      maxLength: 11
-    },
-    'CF': {
-      pattern: /^(\+236|236|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4'),
-      countryCode: '+236',
-      minLength: 8,
-      maxLength: 11
-    },
-    'GQ': {
-      pattern: /^(\+240|240|0)?[0-9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+240',
-      minLength: 9,
-      maxLength: 12
-    },
+  // ✅ PATTERNS ÉTENDUS: Support pour tous les pays du CountrySelector
+  private readonly phonePatterns: Record<string, RegExp> = {
+    // Afrique de l'Ouest - Zone FCFA
+    'SN': /^(\+221|221|0)?([7][0-9]{8}|[3][0-9]{7})$/, // Sénégal
+    'CI': /^(\+225|225|0)?([0-9]{8,10})$/, // Côte d'Ivoire
+    'BJ': /^(\+229|229)?([0-9]{8})$/, // Bénin
+    'BF': /^(\+226|226)?([0-9]{8})$/, // Burkina Faso
+    'ML': /^(\+223|223)?([0-9]{8})$/, // Mali
+    'NE': /^(\+227|227)?([0-9]{8})$/, // Niger
+    'TG': /^(\+228|228)?([0-9]{8})$/, // Togo
+    'GW': /^(\+245|245)?([0-9]{7})$/, // Guinée-Bissau
+
+    // Afrique Centrale - Zone FCFA
+    'CM': /^(\+237|237)?([0-9]{8,9})$/, // Cameroun
+    'GA': /^(\+241|241)?([0-9]{7,8})$/, // Gabon
+    'CG': /^(\+242|242)?([0-9]{7,9})$/, // Congo
+    'TD': /^(\+235|235)?([0-9]{8})$/, // Tchad
+    'CF': /^(\+236|236)?([0-9]{8})$/, // République Centrafricaine
+    'GQ': /^(\+240|240)?([0-9]{9})$/, // Guinée Équatoriale
 
     // Afrique de l'Ouest (hors FCFA)
-    'NG': {
-      pattern: /^(\+234|234|0)?[7-9]\d{9}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3'),
-      countryCode: '+234',
-      minLength: 10,
-      maxLength: 13
-    },
-    'GH': {
-      pattern: /^(\+233|233|0)?[2-5]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{4})/, '$1 $2 $3'),
-      countryCode: '+233',
-      minLength: 9,
-      maxLength: 12
-    },
-    'LR': {
-      pattern: /^(\+231|231|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+231',
-      minLength: 8,
-      maxLength: 11
-    },
-    'SL': {
-      pattern: /^(\+232|232|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+232',
-      minLength: 8,
-      maxLength: 11
-    },
-    'GM': {
-      pattern: /^(\+220|220|0)?[0-9]\d{6}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{2})(\d{2})/, '$1 $2 $3'),
-      countryCode: '+220',
-      minLength: 7,
-      maxLength: 10
-    },
-    'GN': {
-      pattern: /^(\+224|224|0)?[0-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+224',
-      minLength: 8,
-      maxLength: 11
-    },
-    'CV': {
-      pattern: /^(\+238|238|0)?[0-9]\d{6}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{2})(\d{2})/, '$1 $2 $3'),
-      countryCode: '+238',
-      minLength: 7,
-      maxLength: 10
-    },
+    'NG': /^(\+234|234|0)?([0-9]{10})$/, // Nigeria
+    'GH': /^(\+233|233|0)?([0-9]{9})$/, // Ghana
+    'LR': /^(\+231|231)?([0-9]{8})$/, // Liberia
+    'SL': /^(\+232|232)?([0-9]{8})$/, // Sierra Leone
+    'GM': /^(\+220|220)?([0-9]{7})$/, // Gambie
+    'GN': /^(\+224|224)?([0-9]{8,9})$/, // Guinée
+    'CV': /^(\+238|238)?([0-9]{7})$/, // Cap-Vert
 
     // Afrique du Nord
-    'MA': {
-      pattern: /^(\+212|212|0)?[5-7]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5'),
-      countryCode: '+212',
-      minLength: 9,
-      maxLength: 12
-    },
-    'DZ': {
-      pattern: /^(\+213|213|0)?[5-7]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5'),
-      countryCode: '+213',
-      minLength: 9,
-      maxLength: 12
-    },
-    'TN': {
-      pattern: /^(\+216|216|0)?[2-9]\d{7}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+216',
-      minLength: 8,
-      maxLength: 11
-    },
-    'LY': {
-      pattern: /^(\+218|218|0)?[9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{4})/, '$1 $2 $3'),
-      countryCode: '+218',
-      minLength: 9,
-      maxLength: 12
-    },
-    'EG': {
-      pattern: /^(\+20|20|0)?[1][0-9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{4})(\d{4})/, '$1 $2 $3'),
-      countryCode: '+20',
-      minLength: 10,
-      maxLength: 13
-    },
-    'SD': {
-      pattern: /^(\+249|249|0)?[9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{3})(\d{4})/, '$1 $2 $3'),
-      countryCode: '+249',
-      minLength: 9,
-      maxLength: 12
-    },
+    'MA': /^(\+212|212|0)?([0-9]{9})$/, // Maroc
+    'DZ': /^(\+213|213|0)?([0-9]{9})$/, // Algérie
+    'TN': /^(\+216|216)?([0-9]{8})$/, // Tunisie
+    'LY': /^(\+218|218)?([0-9]{9})$/, // Libye
+    'EG': /^(\+20|20|0)?([0-9]{10})$/, // Égypte
+    'SD': /^(\+249|249)?([0-9]{9})$/, // Soudan
 
-    // Europe (pour les clients en voyage/expatriés)
-    'FR': {
-      pattern: /^(\+33|33|0)?[1-9]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5'),
-      countryCode: '+33',
-      minLength: 10,
-      maxLength: 12
-    },
-    'DE': {
-      pattern: /^(\+49|49|0)?[1-9]\d{9,11}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{4,6})/, '$1 $2 $3'),
-      countryCode: '+49',
-      minLength: 10,
-      maxLength: 14
-    },
-    'IT': {
-      pattern: /^(\+39|39|0)?[3]\d{8,9}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{3,4})/, '$1 $2 $3'),
-      countryCode: '+39',
-      minLength: 9,
-      maxLength: 12
-    },
-    'GB': {
-      pattern: /^(\+44|44|0)?[7]\d{9}$/,
-      format: (phone: string) => phone.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+44',
-      minLength: 10,
-      maxLength: 13
-    },
-    'ES': {
-      pattern: /^(\+34|34)?[6-7]\d{8}$/,
-      format: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3'),
-      countryCode: '+34',
-      minLength: 9,
-      maxLength: 12
-    }
+    // Europe
+    'FR': /^(\+33|33|0)?([0-9]{9})$/, // France
+    'DE': /^(\+49|49|0)?([0-9]{10,11})$/, // Allemagne
+    'IT': /^(\+39|39)?([0-9]{9,10})$/, // Italie
+    'GB': /^(\+44|44|0)?([0-9]{10})$/, // Royaume-Uni
+    'ES': /^(\+34|34)?([0-9]{9})$/, // Espagne
+  };
+
+  // ✅ INDICATIFS PAYS ÉTENDUS
+  private readonly countryCodes: Record<string, string> = {
+    // Afrique de l'Ouest - Zone FCFA
+    'SN': '+221', 'CI': '+225', 'BJ': '+229', 'BF': '+226', 
+    'ML': '+223', 'NE': '+227', 'TG': '+228', 'GW': '+245',
+    
+    // Afrique Centrale - Zone FCFA
+    'CM': '+237', 'GA': '+241', 'CG': '+242', 'TD': '+235', 
+    'CF': '+236', 'GQ': '+240',
+    
+    // Afrique de l'Ouest (hors FCFA)
+    'NG': '+234', 'GH': '+233', 'LR': '+231', 'SL': '+232', 
+    'GM': '+220', 'GN': '+224', 'CV': '+238',
+    
+    // Afrique du Nord
+    'MA': '+212', 'DZ': '+213', 'TN': '+216', 'LY': '+218', 
+    'EG': '+20', 'SD': '+249',
+    
+    // Europe
+    'FR': '+33', 'DE': '+49', 'IT': '+39', 'GB': '+44', 'ES': '+34'
   };
 
   private constructor() {}
 
   public static getInstance(): PhoneService {
-    if (!this.instance) {
-      this.instance = new PhoneService();
+    if (!PhoneService.instance) {
+      PhoneService.instance = new PhoneService();
     }
-    return this.instance;
+    return PhoneService.instance;
   }
 
-  // ✅ Détection automatique du pays
-  public detectCountryFromPhone(phone: string): string | null {
-    const cleanPhone = this.cleanPhoneNumber(phone);
-    
-    // Vérifier chaque pays supporté
-    for (const [countryCode, config] of Object.entries(this.countryPatterns)) {
-      if (config.pattern.test(cleanPhone)) {
-        return countryCode;
-      }
-    }
-    
-    return null;
-  }
-
-  // ✅ Validation intelligente multi-pays
-  public validatePhoneNumber(phone: string, preferredCountry: string = 'SN'): PhoneValidationResult {
-    if (!phone || typeof phone !== 'string') {
+  // ✅ MÉTHODE PRINCIPALE: Validation avec détection automatique du pays
+  public validatePhoneNumber(phone: string, countryHint?: string): PhoneValidationResult {
+    if (!phone || phone.trim().length === 0) {
       return {
         isValid: false,
         error: 'Numéro de téléphone requis'
       };
     }
 
-    const cleanPhone = this.cleanPhoneNumber(phone);
-    
-    if (cleanPhone.length < 7) {
-      return {
-        isValid: false,
-        error: 'Numéro trop court',
-        suggestion: 'Entrez un numéro complet (exemple: +221 77 123 45 67)'
-      };
-    }
+    const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
 
-    // 1. Essayer d'abord avec le pays préféré
-    if (this.countryPatterns[preferredCountry]) {
-      const config = this.countryPatterns[preferredCountry];
-      if (config.pattern.test(cleanPhone)) {
-        return { isValid: true };
+    // 1. Essayer d'abord avec le pays suggéré
+    if (countryHint && this.phonePatterns[countryHint]) {
+      const result = this.validateForCountry(cleanPhone, countryHint);
+      if (result.isValid) {
+        return result;
       }
     }
 
-    // 2. Détecter automatiquement le pays
+    // 2. Détection automatique du pays par l'indicatif
     const detectedCountry = this.detectCountryFromPhone(cleanPhone);
     if (detectedCountry) {
-      return { isValid: true };
+      const result = this.validateForCountry(cleanPhone, detectedCountry);
+      if (result.isValid) {
+        return result;
+      }
     }
 
-    // 3. Pattern générique international pour autres pays
-    const internationalPattern = /^(\+\d{1,3})?\d{7,15}$/;
-    if (internationalPattern.test(cleanPhone)) {
-      return { 
-        isValid: true,
-        suggestion: 'Numéro international accepté. Vérifiez que le format est correct.'
-      };
+    // 3. Essayer tous les patterns (fallback)
+    for (const [country, pattern] of Object.entries(this.phonePatterns)) {
+      if (pattern.test(cleanPhone)) {
+        return {
+          isValid: true,
+          error: undefined
+        };
+      }
     }
 
     return {
       isValid: false,
-      error: 'Format de numéro non reconnu. Utilisez le format international (+XXX) ou local.',
-      suggestion: 'Exemples : +221 77 123 45 67, +225 07 12 34 56 78, +33 6 12 34 56 78'
+      error: 'Format de numéro non reconnu. Utilisez le format international (+XXX XXXXXXXXX)'
     };
   }
 
-  // ✅ Formatage multi-pays
-  public formatPhoneWithCountry(phone: string, countryCode?: string): FormattedPhone {
-    const cleanPhone = this.cleanPhoneNumber(phone);
-    
-    // Détecter le pays si non spécifié
-    if (!countryCode) {
-      countryCode = this.detectCountryFromPhone(cleanPhone) || 'SN';
-    }
-
-    const config = this.countryPatterns[countryCode];
-    
-    if (!config) {
-      // Formatage générique pour pays non supportés
-      return this.formatGenericInternational(cleanPhone);
-    }
-
-    try {
-      // Extraire le numéro local (sans indicatif pays)
-      const localNumber = this.extractLocalNumber(cleanPhone, config.countryCode);
-      
-      // Vérifier la validité
-      const fullNumber = config.countryCode.replace('+', '') + localNumber;
-      if (!config.pattern.test(fullNumber)) {
-        return {
-          formatted: phone,
-          international: phone,
-          local: phone,
-          country: countryCode,
-          isValid: false,
-          error: `Format invalide pour ${this.getCountryName(countryCode)}`
-        };
-      }
-
-      // Formater selon les règles du pays
-      const formatted = config.format(localNumber);
-      const international = `${config.countryCode} ${formatted}`;
-
+  // ✅ VALIDATION SPÉCIFIQUE PAR PAYS
+  private validateForCountry(phone: string, country: string): PhoneValidationResult {
+    const pattern = this.phonePatterns[country];
+    if (!pattern) {
       return {
-        formatted: formatted,
-        international: international,
-        local: localNumber,
-        country: countryCode,
-        isValid: true
+        isValid: false,
+        error: `Pays non supporté: ${country}`
       };
+    }
 
-    } catch (error) {
+    if (pattern.test(phone)) {
+      return {
+        isValid: true,
+        error: undefined
+      };
+    }
+
+    const countryCode = this.countryCodes[country];
+    return {
+      isValid: false,
+      error: `Format invalide pour ${country}. Exemple: ${countryCode} XX XX XX XX`
+    };
+  }
+
+  // ✅ DÉTECTION AUTOMATIQUE DU PAYS
+  private detectCountryFromPhone(phone: string): string | null {
+    // Essayer les indicatifs les plus longs d'abord
+    const sortedCodes = Object.entries(this.countryCodes)
+      .sort(([,a], [,b]) => b.length - a.length);
+
+    for (const [country, code] of sortedCodes) {
+      const numericCode = code.replace('+', '');
+      if (phone.startsWith('+' + numericCode) || phone.startsWith(numericCode)) {
+        return country;
+      }
+    }
+
+    // Pour le Sénégal, détecter les numéros locaux commençant par 7 ou 3
+    if (/^[73]/.test(phone) && phone.length >= 8) {
+      return 'SN';
+    }
+
+    return null;
+  }
+
+  // ✅ FORMATAGE AVEC DÉTECTION DE PAYS
+  public formatPhoneWithCountry(phone: string, countryHint?: string): FormattedPhone {
+    const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
+    
+    // Détection du pays
+    let detectedCountry = countryHint || this.detectCountryFromPhone(cleanPhone);
+    
+    if (!detectedCountry) {
       return {
         formatted: phone,
         international: phone,
         local: phone,
-        country: countryCode,
         isValid: false,
-        error: 'Erreur de formatage'
+        error: 'Pays non détecté'
       };
     }
+
+    return this.formatForSpecificCountry(cleanPhone, detectedCountry);
   }
 
-  // ✅ Formatage générique international
-  private formatGenericInternational(phone: string): FormattedPhone {
-    const cleanPhone = this.cleanPhoneNumber(phone);
-    
-    // Si le numéro commence par +, on l'accepte tel quel
-    if (phone.startsWith('+')) {
+  // ✅ FORMATAGE SPÉCIFIQUE PAR PAYS
+  private formatForSpecificCountry(phone: string, country: string): FormattedPhone {
+    let cleaned = phone;
+    const countryCode = this.countryCodes[country];
+
+    if (!countryCode) {
       return {
         formatted: phone,
         international: phone,
-        local: phone.substring(phone.indexOf(' ') + 1) || phone,
-        isValid: true,
-        suggestion: 'Format international accepté'
+        local: phone,
+        isValid: false,
+        error: 'Pays non supporté'
       };
     }
 
-    // Sinon, essayer de deviner le format
-    if (cleanPhone.length >= 10) {
-      return {
-        formatted: cleanPhone,
-        international: '+' + cleanPhone,
-        local: cleanPhone,
-        isValid: true,
-        suggestion: 'Format international accepté'
-      };
+    // Nettoyer le numéro selon le pays
+    const numericCode = countryCode.replace('+', '');
+    
+    // Supprimer l'indicatif pays s'il est présent
+    if (cleaned.startsWith('+' + numericCode)) {
+      cleaned = cleaned.substring(numericCode.length + 1);
+    } else if (cleaned.startsWith(numericCode)) {
+      cleaned = cleaned.substring(numericCode.length);
     }
 
-    return {
-      formatted: phone,
-      international: phone,
-      local: phone,
-      isValid: false,
-      error: 'Format non reconnu'
-    };
+    // Formatage spécifique par pays
+    switch (country) {
+      case 'SN': // Sénégal
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 5)} ${cleaned.substring(5, 7)} ${cleaned.substring(7)}`,
+          international: `+221${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'SN'
+        };
+
+      case 'CI': // Côte d'Ivoire
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6, 8)} ${cleaned.substring(8)}`,
+          international: `+225${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'CI'
+        };
+
+      case 'BJ': // Bénin
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+229${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'BJ'
+        };
+
+      case 'BF': // Burkina Faso
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+226${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'BF'
+        };
+
+      case 'ML': // Mali
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+223${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'ML'
+        };
+
+      case 'NE': // Niger
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+227${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'NE'
+        };
+
+      case 'TG': // Togo
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+228${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'TG'
+        };
+
+      case 'CM': // Cameroun
+        return {
+          formatted: `${cleaned.substring(0, 1)} ${cleaned.substring(1, 3)} ${cleaned.substring(3, 5)} ${cleaned.substring(5, 7)} ${cleaned.substring(7)}`,
+          international: `+237${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'CM'
+        };
+
+      case 'GA': // Gabon
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 4)} ${cleaned.substring(4, 6)} ${cleaned.substring(6)}`,
+          international: `+241${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'GA'
+        };
+
+      case 'NG': // Nigeria
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 3)} ${cleaned.substring(3, 6)} ${cleaned.substring(6)}`,
+          international: `+234${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'NG'
+        };
+
+      case 'GH': // Ghana
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 5)} ${cleaned.substring(5)}`,
+          international: `+233${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'GH'
+        };
+
+      case 'MA': // Maroc
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 1)} ${cleaned.substring(1, 3)} ${cleaned.substring(3, 5)} ${cleaned.substring(5, 7)} ${cleaned.substring(7)}`,
+          international: `+212${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'MA'
+        };
+
+      case 'DZ': // Algérie
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 1)} ${cleaned.substring(1, 3)} ${cleaned.substring(3, 5)} ${cleaned.substring(5, 7)} ${cleaned.substring(7)}`,
+          international: `+213${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'DZ'
+        };
+
+      case 'TN': // Tunisie
+        return {
+          formatted: `${cleaned.substring(0, 2)} ${cleaned.substring(2, 5)} ${cleaned.substring(5)}`,
+          international: `+216${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: 'TN'
+        };
+
+      case 'FR': // France
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        return {
+          formatted: `${cleaned.substring(0, 1)} ${cleaned.substring(1, 3)} ${cleaned.substring(3, 5)} ${cleaned.substring(5, 7)} ${cleaned.substring(7)}`,
+          international: `+33${cleaned}`,
+          local: `0${cleaned}`,
+          isValid: true,
+          country: 'FR'
+        };
+
+      default:
+        // Format générique pour les autres pays
+        return {
+          formatted: cleaned,
+          international: `${countryCode}${cleaned}`,
+          local: cleaned,
+          isValid: true,
+          country: country
+        };
+    }
   }
 
-  // ✅ Extraire numéro local
-  private extractLocalNumber(phone: string, countryCode: string): string {
-    const cleanPhone = this.cleanPhoneNumber(phone);
-    const codeWithoutPlus = countryCode.replace('+', '');
-    
-    // Supprimer l'indicatif pays s'il existe
-    if (cleanPhone.startsWith(codeWithoutPlus)) {
-      return cleanPhone.substring(codeWithoutPlus.length);
-    }
-    
-    if (cleanPhone.startsWith(countryCode)) {
-      return cleanPhone.substring(countryCode.length);
-    }
-    
-    // Pour la France, gérer le 0 initial
-    if (countryCode === '+33' && cleanPhone.startsWith('0')) {
-      return cleanPhone.substring(1);
-    }
-    
-    return cleanPhone;
+  // ✅ MÉTHODES UTILITAIRES
+  public getSupportedCountries(): string[] {
+    return Object.keys(this.phonePatterns);
   }
 
-  // ✅ Nom du pays
-  private getCountryName(countryCode: string): string {
-    const country = countries.find(c => c.code === countryCode);
-    return country?.name || countryCode;
+  public getCountryCode(country: string): string | undefined {
+    return this.countryCodes[country];
   }
 
-  // ✅ Nettoyage du numéro
-  private cleanPhoneNumber(phone: string): string {
-    return phone.replace(/[\s\-\(\)\.]/g, '');
+  public isValidPhoneFormat(phone: string): boolean {
+    return this.validatePhoneNumber(phone).isValid;
   }
 
-  // ✅ Liste des pays supportés
-  public getSupportedCountries(): Array<{code: string, name: string, example: string}> {
-    return Object.entries(this.countryPatterns).map(([code, config]) => ({
-      code,
-      name: this.getCountryName(code),
-      example: `${config.countryCode} XX XX XX XX`
-    }));
+  // ✅ MÉTHODE POUR FORMATER UN NUMÉRO SIMPLE
+  public formatPhone(phone: string): string {
+    const result = this.formatPhoneWithCountry(phone);
+    return result.isValid ? result.formatted : phone;
   }
 
-  // ✅ Validation avec suggestions
-  public validateWithSuggestions(phone: string, countryCode?: string): {
-    isValid: boolean;
-    formatted?: FormattedPhone;
-    suggestions: string[];
-    error?: string;
-  } {
-    const suggestions: string[] = [];
-    
-    // Validation de base
-    const validation = this.validatePhoneNumber(phone, countryCode);
-    
-    if (validation.isValid) {
-      const formatted = this.formatPhoneWithCountry(phone, countryCode);
-      return {
-        isValid: true,
-        formatted,
-        suggestions: []
-      };
-    }
-
-    // Générer des suggestions
-    if (phone.length > 0) {
-      const cleanPhone = this.cleanPhoneNumber(phone);
-      
-      // Suggestions basées sur la longueur
-      if (cleanPhone.length < 8) {
-        suggestions.push('Le numéro semble trop court. Vérifiez qu\'il est complet.');
-      }
-      
-      // Suggestions de format par pays populaires
-      suggestions.push(
-        'Sénégal: +221 77 123 45 67',
-        'Côte d\'Ivoire: +225 07 12 34 56',
-        'France: +33 6 12 34 56 78',
-        'Format international: +XXX XXXXXXXXX'
-      );
-    }
-
-    return {
-      isValid: false,
-      suggestions,
-      error: validation.error
-    };
+  // ✅ MÉTHODE POUR OBTENIR LE FORMAT INTERNATIONAL
+  public getInternationalFormat(phone: string): string {
+    const result = this.formatPhoneWithCountry(phone);
+    return result.isValid ? result.international : phone;
   }
 }

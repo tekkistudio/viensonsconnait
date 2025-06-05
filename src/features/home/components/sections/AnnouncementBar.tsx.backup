@@ -3,7 +3,7 @@
 
 import { Phone, MessageSquare, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useTheme } from "@/core/theme/ThemeProvider";
+import { useTheme } from "../../../../core/theme/ThemeProvider";
 
 interface AnnouncementBarProps {
   text: string;

@@ -33,6 +33,6 @@
     ".next/types/**/*.ts",
     "src/tests/**/*.ts",
     "scripts/**/*.ts"
-, "src/lib/supabase-config.ts.old", "next.config.js"  ],
+, "src/lib/supabase-config.ts.old", "next.config.js", "src/features/home/components/sections/AnnouncementBar.tsx.backup"  ],
   "exclude": ["node_modules"]
 }

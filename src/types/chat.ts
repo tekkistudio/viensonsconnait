@@ -468,8 +468,10 @@ export interface FormattedPhone {
   formatted: string;
   international: string;
   local: string;
+  country?: string; 
   isValid: boolean;
   error?: string;
+  suggestion?: string;
 }
 
 // ==========================================

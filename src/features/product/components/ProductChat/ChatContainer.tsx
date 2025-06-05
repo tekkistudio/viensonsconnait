@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION DESKTOP COMPLÈTE
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -9,7 +9,7 @@ import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal'
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
-import DynamicContentService from '@/lib/services/DynamicContentService'; // ✅ AJOUT
+import DynamicContentService from '@/lib/services/DynamicContentService';
 import ChatMessage from './components/ChatMessage';
 import ChatChoices from './components/ChatChoices';
 import TypingIndicator from './components/TypingIndicator';
@@ -38,13 +38,12 @@ const ChatContainer = ({
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
-  const [dynamicContentService] = useState(() => DynamicContentService.getInstance()); // ✅ AJOUT
+  const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
   const [isInitialized, setIsInitialized] = useState(false);
-  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false); // ✅ AJOUT
+  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
 
   const store = useChatStore();
   
-  // ✅ Extraction sécurisée du store
   const {
     messages = [],
     orderData = {},
@@ -78,8 +77,8 @@ const ChatContainer = ({
     }
   } = store;
 
-  // ✅ FONCTION: Service de contenu dynamique
-  const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials') => {
+  // ✅ FONCTION CORRIGÉE: Service de contenu dynamique avec type 'target'
+  const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
       return await dynamicContentService.getProductInfo(product.id, infoType);
     } catch (error) {
@@ -100,32 +99,30 @@ const ChatContainer = ({
 
   // ✅ Initialisation du chat avec protection contre les multiples appels
   useEffect(() => {
-  if (!product?.id || welcomeMessageAdded) return;
+    if (!product?.id || welcomeMessageAdded) return;
 
-  const initializeChat = async () => {
-    try {
-      console.log('🖥️ Initializing desktop chat session:', { productId: product.id, storeId });
-      
-      // ✅ PROTECTION: Vérifier si déjà initialisé
-      const currentMessages = useChatStore.getState().messages;
-      if (currentMessages.length > 0) {
-        console.log('📝 Desktop chat already has messages, skipping initialization');
-        setIsInitialized(true);
-        return;
-      }
-
-      if (initializeSession) {
-        initializeSession(product.id, storeId);
-        setIsInitialized(true);
+    const initializeChat = async () => {
+      try {
+        console.log('🖥️ Initializing desktop chat session:', { productId: product.id, storeId });
         
-        // ✅ CORRECTION: Délai plus court et vérification
-        setTimeout(() => {
-          const latestMessages = useChatStore.getState().messages;
+        const currentMessages = useChatStore.getState().messages;
+        if (currentMessages.length > 0) {
+          console.log('📝 Desktop chat already has messages, skipping initialization');
+          setIsInitialized(true);
+          return;
+        }
+
+        if (initializeSession) {
+          initializeSession(product.id, storeId);
+          setIsInitialized(true);
           
-          if (latestMessages.length === 0 && !welcomeMessageAdded) {
-            const welcomeMessage: ChatMessageType = {
-              type: 'assistant',
-              content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
+          setTimeout(() => {
+            const latestMessages = useChatStore.getState().messages;
+            
+            if (latestMessages.length === 0 && !welcomeMessageAdded) {
+              const welcomeMessage: ChatMessageType = {
+                type: 'assistant',
+                content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
 
 Je vois que vous vous intéressez au jeu **${product.name}** !
 
@@ -135,43 +132,43 @@ Je vois que vous vous intéressez au jeu **${product.name}** !
 • **Vous conseiller** sur l'utilisation
 
 Que souhaitez-vous faire ?`,
-              choices: [
-                '⚡ Commander rapidement',
-                '❓ Poser une question',
-                '📦 Infos livraison',
-                '💬 En savoir plus'
-              ],
-              assistant: {
-                name: 'Rose',
-                title: 'Assistante VOSC',
-                avatar: undefined
-              },
-              metadata: {
-                nextStep: 'initial_engagement' as ConversationStep,
-                productId: product.id,
-                flags: { 
-                  isWelcome: true,
-                  preventAIIntervention: true
-                }
-              },
-              timestamp: new Date().toISOString()
-            };
-            
-            console.log('📝 Adding welcome message to desktop chat');
-            addMessage(welcomeMessage);
-            setWelcomeMessageAdded(true);
-          }
-        }, 500); // ✅ Délai réduit à 500ms
+                choices: [
+                  '⚡ Commander rapidement',
+                  '❓ Poser une question',
+                  '📦 Infos livraison',
+                  '💬 En savoir plus'
+                ],
+                assistant: {
+                  name: 'Rose',
+                  title: 'Assistante VOSC',
+                  avatar: undefined
+                },
+                metadata: {
+                  nextStep: 'initial_engagement' as ConversationStep,
+                  productId: product.id,
+                  flags: { 
+                    isWelcome: true,
+                    preventAIIntervention: true
+                  }
+                },
+                timestamp: new Date().toISOString()
+              };
+              
+              console.log('📝 Adding welcome message to desktop chat');
+              addMessage(welcomeMessage);
+              setWelcomeMessageAdded(true);
+            }
+          }, 500);
+        }
+        
+      } catch (err) {
+        console.error('❌ Error initializing desktop chat:', err);
+        setIsInitialized(true);
       }
-      
-    } catch (err) {
-      console.error('❌ Error initializing desktop chat:', err);
-      setIsInitialized(true);
-    }
-  };
+    };
 
-  initializeChat();
-}, [product.id, storeId, welcomeMessageAdded]);
+    initializeChat();
+  }, [product.id, storeId, welcomeMessageAdded]);
 
   // ✅ Auto-scroll optimisé
   useEffect(() => {
@@ -187,7 +184,7 @@ Que souhaitez-vous faire ?`,
     }
   }, [messages, showTyping]);
 
-  // ✅ FONCTION: Gérer les messages standards avec données dynamiques
+  // ✅ FONCTION CORRIGÉE: Gérer les messages standards avec données dynamiques
   const handleStandardMessages = async (content: string): Promise<ChatMessageType> => {
     if (content.includes('Poser une question') || content.includes('❓')) {
       return {
@@ -219,41 +216,33 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ GESTION SPÉCIFIQUE: Questions détaillées avec vraies données
+    // ✅ CORRECTION: Questions détaillées avec vraies données
     if (content.includes('Comment ça marche') || content.includes('Comment ça fonctionne')) {
-    const usageInfo = await getProductInfoFromDatabase('usage');
-    return {
-      type: 'assistant',
-      content: usageInfo,
-      choices: [
-        '⚡ Commander maintenant',
-        '💝 Quels bénéfices ?',
-        '⭐ Voir les avis'
-      ],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante VOSC'
-      },
-      metadata: {
-        nextStep: 'product_usage' as ConversationStep
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-    if (content.includes('C\'est pour qui') || content.includes('Pour qui')) {
+      const usageInfo = await getProductInfoFromDatabase('usage');
       return {
         type: 'assistant',
-        content: `👥 **Le jeu ${product.name} est parfait pour :**
+        content: usageInfo,
+        choices: [
+          '⚡ Commander maintenant',
+          '💝 Quels bénéfices ?',
+          '⭐ Voir les avis'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'product_usage' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
 
-• Les couples mariés de tous âges
-• Ceux qui veulent améliorer leur communication
-• Les partenaires qui souhaitent se redécouvrir
-• Tous ceux qui cherchent à renforcer leur complicité
-
-💕 **Recommandé par nos clients** qui ont vu une amélioration notable dans leur relation !
-
-Souhaitez-vous voir les témoignages ou commander ?`,
+    if (content.includes('C\'est pour qui') || content.includes('Pour qui')) {
+      const targetInfo = await getProductInfoFromDatabase('target');
+      return {
+        type: 'assistant',
+        content: targetInfo,
         choices: [
           '⚡ Commander maintenant',
           '⭐ Voir les témoignages',
@@ -328,10 +317,9 @@ Souhaitez-vous voir les témoignages ou commander ?`,
         });
         
         deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
-        deliveryContent += `💰 **Paiement :**\n• ${deliveryInfo.methods.join('\n• ')}\n\n`;
+        deliveryContent += `💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       } else {
-        // Fallback si erreur de récupération
-        deliveryContent += `📍 **Zones couvertes :**\n• Dakar : 1 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave, Orange Money\n• Carte bancaire\n• Paiement à la livraison\n\n`;
+        deliveryContent += `📍 **Zones principales :**\n• Dakar : Gratuit\n• Autres villes Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       }
       
       deliveryContent += `Voulez-vous commander maintenant ?`;
@@ -342,7 +330,7 @@ Souhaitez-vous voir les témoignages ou commander ?`,
         choices: [
           '⚡ Commander maintenant',
           '📞 Autres questions',
-          '🏠 Changer d\'adresse'
+          '🏠 Ma zone de livraison'
         ],
         assistant: {
           name: 'Rose',
@@ -437,7 +425,7 @@ Souhaitez-vous voir les témoignages ou commander ?`,
     }
   };
 
-  // ✅ FONCTION PRINCIPALE: sendMessage pour desktop
+  // ✅ FONCTION PRINCIPALE CORRIGÉE: sendMessage pour desktop
   const sendMessage = async (content: string) => {
     try {
       console.log('🖥️ Processing desktop message:', { content, sessionId, isExpressMode, currentStep });
@@ -495,7 +483,7 @@ Souhaitez-vous voir les témoignages ou commander ?`,
           response = await optimizedService.processUserInput(
             sessionId,
             content,
-            currentStep
+            currentStep || 'initial' // ✅ CORRECTION TypeScript
           );
         } catch (error) {
           console.error('❌ Error processing express step:', error);
@@ -503,8 +491,29 @@ Souhaitez-vous voir les témoignages ou commander ?`,
         }
         
       } else {
-        // ✅ CORRECTION: Utiliser handleStandardMessages pour desktop
-        response = await handleStandardMessages(content);
+        // ✅ CORRECTION MAJEURE: Distinguer boutons vs messages libres
+        const isStandardButton = [
+          'Poser une question', 'Comment ça marche', 'C\'est pour qui',
+          'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
+        ].some(btn => content.includes(btn));
+        
+        if (isStandardButton) {
+          // Message de bouton standard
+          response = await handleStandardMessages(content);
+        } else {
+          // ✅ NOUVEAU: Message libre - utiliser l'IA
+          console.log('🤖 Free text message detected, using AI');
+          try {
+            response = await optimizedService.processUserInput(
+              sessionId, 
+              content, 
+              currentStep || 'initial' // ✅ CORRECTION TypeScript
+            );
+          } catch (error) {
+            console.error('❌ Error with AI response:', error);
+            response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+          }
+        }
       }
       
       console.log('✅ Desktop response generated:', response);

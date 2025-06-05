@@ -359,122 +359,132 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
 
   // ✅ NOUVELLE MÉTHODE: Gérer la sélection de quantité
   private async handleExpressQuantity(
-    sessionId: string,
-    input: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('🔢 Processing express quantity selection:', { sessionId, input });
+  sessionId: string,
+  input: string,
+  orderState: OrderState
+): Promise<ChatMessage> {
+  console.log('🔢 Processing express quantity selection:', { sessionId, input });
 
-    try {
-      let quantity = 1;
+  try {
+    let quantity = 1;
 
-      // Parser la quantité depuis l'input
-      if (input.includes('1 exemplaire')) {
-        quantity = 1;
-      } else if (input.includes('2 exemplaires')) {
-        quantity = 2;
-      } else if (input.includes('3 exemplaires')) {
-        quantity = 3;
-      } else if (input.includes('Autre quantité')) {
-        return {
-          type: 'assistant',
-          content: `🔢 **Quelle quantité souhaitez-vous ?**
+    // Parser la quantité depuis l'input
+    if (input.includes('1 exemplaire')) {
+      quantity = 1;
+    } else if (input.includes('2 exemplaires')) {
+      quantity = 2;
+    } else if (input.includes('3 exemplaires')) {
+      quantity = 3;
+    } else if (input.includes('Autre quantité')) {
+      return {
+        type: 'assistant',
+        content: `🔢 **Quelle quantité souhaitez-vous ?**
 
 Veuillez indiquer le nombre d'exemplaires (entre 1 et ${orderState.metadata?.maxQuantity || 10}) :
 
 Exemple : "5" ou "5 exemplaires"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_custom_quantity' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        // Essayer de parser un nombre depuis l'input
-        const numberMatch = input.match(/(\d+)/);
-        if (numberMatch) {
-          quantity = parseInt(numberMatch[1]);
-        }
-      }
-
-      // Validation de la quantité
-      if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
-        return {
-          type: 'assistant',
-          content: `❌ **Quantité invalide**
-
-Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaires :`,
-          choices: [
-            '1 exemplaire',
-            '2 exemplaires', 
-            '3 exemplaires',
-            '🔢 Autre quantité'
-          ],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_quantity' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Mettre à jour la quantité
-      orderState.data.quantity = quantity;
-      orderState.step = 'contact'; // Passer à l'étape contact
-      this.orderStates.set(sessionId, orderState);
-      await this.updateSessionInDatabase(sessionId, orderState);
-
-      // ✅ CORRECTION: Récupérer toutes les infos produit nécessaires
-      const { data: product } = await supabase
-        .from('products')
-        .select('id, name, price')  // ✅ CORRECTION: Inclure l'ID
-        .eq('id', orderState.data.productId)
-        .single();
-
-      const totalPrice = (product?.price || 0) * quantity;
-
-      return {
-        type: 'assistant',
-        content: `✅ **Quantité confirmée : ${quantity} exemplaire${quantity > 1 ? 's' : ''}**
-
-      🎯 **${product?.name || 'Produit'}**
-      💰 ${totalPrice.toLocaleString()} FCFA (${quantity} × ${(product?.price || 0).toLocaleString()} FCFA)
-
-      Sur quel numéro devons-nous vous joindre pour la livraison ?
-
-      💡 *Formats acceptés : +221 77 123 45 67, 77 123 45 67*`,
         choices: [],
         assistant: this.getBotInfo(),
         metadata: {
-          nextStep: 'express_contact' as ConversationStep,
-          orderData: { 
-            session_id: sessionId,
-            product_id: product?.id,  // ✅ CORRECTION: ID disponible maintenant
-            quantity: quantity,
-            items: [{
-              productId: product?.id || '',  // ✅ CORRECTION: ID disponible
-              name: product?.name || '',
-              quantity: quantity,
-              price: product?.price || 0,
-              totalPrice: totalPrice
-            }]
-          },
-          flags: { 
-            expressMode: true,
-            quantitySelected: true
-          }
+          nextStep: 'express_custom_quantity' as ConversationStep,
+          flags: { expressMode: true }
         },
         timestamp: new Date().toISOString()
       };
-
-    } catch (error) {
-      console.error('❌ Error in handleExpressQuantity:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
+    } else {
+      // Essayer de parser un nombre depuis l'input
+      const numberMatch = input.match(/(\d+)/);
+      if (numberMatch) {
+        quantity = parseInt(numberMatch[1]);
+      }
     }
+
+    // Validation de la quantité
+    if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
+      return {
+        type: 'assistant',
+        content: `❌ **Quantité invalide**
+
+Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaires :`,
+        choices: [
+          '1 exemplaire',
+          '2 exemplaires', 
+          '3 exemplaires',
+          '🔢 Autre quantité'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_quantity' as ConversationStep,
+          flags: { expressMode: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ CORRECTION: Mettre à jour la quantité et recalculer tous les montants
+    orderState.data.quantity = quantity;
+    orderState.step = 'contact'; // Passer à l'étape contact
+    this.orderStates.set(sessionId, orderState);
+    await this.updateSessionInDatabase(sessionId, orderState);
+
+    // ✅ CORRECTION: Récupérer toutes les infos produit nécessaires
+    const { data: product } = await supabase
+      .from('products')
+      .select('id, name, price')
+      .eq('id', orderState.data.productId)
+      .single();
+
+    if (!product) {
+      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
+    }
+
+    // ✅ CORRECTION: Calculer tous les montants correctement
+    const itemPrice = product.price;
+    const subtotal = itemPrice * quantity;
+    const deliveryCost = 0; // Sera calculé à l'étape suivante
+    const totalAmount = subtotal + deliveryCost;
+
+    return {
+      type: 'assistant',
+      content: `✅ **Quantité confirmée : ${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+
+🎯 **${product.name}**
+💰 ${totalAmount.toLocaleString()} FCFA (${quantity} × ${itemPrice.toLocaleString()} FCFA)
+
+Sur quel numéro devons-nous vous joindre pour la livraison ?
+
+💡 *Formats acceptés : +221 77 123 45 67, 77 123 45 67*`,
+      choices: [],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'express_contact' as ConversationStep,
+        orderData: { 
+          session_id: sessionId,
+          product_id: product.id,
+          quantity: quantity,
+          subtotal: subtotal,
+          total_amount: totalAmount,
+          items: [{
+            productId: product.id,
+            name: product.name,
+            quantity: quantity,
+            price: itemPrice,
+            totalPrice: subtotal
+          }]
+        },
+        flags: { 
+          expressMode: true,
+          quantitySelected: true
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ Error in handleExpressQuantity:', error);
+    return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
   }
+}
 
   /**
    * ✅ MÉTHODE AMÉLIORÉE: Validation téléphone avec support international
