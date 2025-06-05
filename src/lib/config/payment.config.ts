@@ -1,7 +1,7 @@
 // src/lib/config/payment.config.ts
 export const PAYMENT_CONFIG = {
     stripe: {
-      publicKey: process.env.NEXT_PUBLIC_STRIPE_KEY,
+      publicKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
       secretKey: process.env.STRIPE_SECRET_KEY,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
       apiVersion: '2024-12-18.acacia' as const
@@ -20,7 +20,7 @@ export const PAYMENT_CONFIG = {
     const missingKeys: string[] = [];
   
     // Vérifications communes (côté client et serveur)
-    if (!PAYMENT_CONFIG.stripe.publicKey) missingKeys.push('NEXT_PUBLIC_STRIPE_KEY');
+    if (!PAYMENT_CONFIG.stripe.publicKey) missingKeys.push('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
     if (!PAYMENT_CONFIG.bictorys.publicKey) missingKeys.push('NEXT_PUBLIC_BICTORYS_API_KEY');
     if (!PAYMENT_CONFIG.bictorys.apiUrl) missingKeys.push('NEXT_PUBLIC_BICTORYS_API_URL');
   

@@ -18,7 +18,7 @@ interface StripeSessionOptions {
   
     constructor() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const publicKey = process.env.NEXT_PUBLIC_STRIPE_KEY;
+      const publicKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   
       if (!apiUrl || !publicKey) {
         throw new Error('Stripe configuration manquante');

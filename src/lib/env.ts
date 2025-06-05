@@ -21,7 +21,7 @@ function validateServerEnv() {
 function validateClientEnv() {
   const required = [
     'NEXT_PUBLIC_BICTORYS_API_KEY',
-    'NEXT_PUBLIC_STRIPE_KEY',
+    'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     'NEXT_PUBLIC_API_URL'
   ];
 

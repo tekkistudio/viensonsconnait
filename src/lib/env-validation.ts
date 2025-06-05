@@ -49,4 +49,4 @@ export function validateEnvironment() {
 }
 
 // Export pour compatibilité avec l'ancien code
-export const NEXT_PUBLIC_STRIPE_KEY = ENV_CONFIG.STRIPE_PUBLISHABLE_KEY;
+export const NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = ENV_CONFIG.STRIPE_PUBLISHABLE_KEY;

@@ -19,7 +19,7 @@ export const config = {
   stripe: {
     publicKey: process.env.NODE_ENV === 'production' 
       ? process.env.NEXT_PUBLIC_STRIPE_LIVE_KEY 
-      : process.env.NEXT_PUBLIC_STRIPE_KEY,
+      : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     secretKey: isServer 
       ? (process.env.NODE_ENV === 'production'
         ? process.env.STRIPE_LIVE_SECRET_KEY
