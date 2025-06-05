@@ -1,7 +1,7 @@
-// src/app/chat/payment-success/page.tsx - VERSION CORRIGÉE AVEC SUSPENSE
+// src/app/chat/payment-success/page.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useChatStore } from '@/stores/chatStore';
 import type { ChatMessage, ConversationStep } from '@/types/chat';
@@ -45,7 +45,7 @@ Que souhaitez-vous faire maintenant ?`,
           },
           metadata: {
             nextStep: 'order_complete' as ConversationStep,
-            orderId, // ✅ CORRECTION: orderId peut être undefined
+            orderId,
             flags: { 
               orderCompleted: true,
               paymentSuccessful: true
@@ -131,13 +131,13 @@ Que souhaitez-vous faire maintenant ?`,
   );
 }
 
-// Composant de chargement pour Suspense
+// Composant de chargement
 function PaymentSuccessLoading() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93] mx-auto mb-4" />
-        <p className="text-gray-600">Chargement...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4" />
+        <p className="text-gray-600">Traitement du paiement...</p>
       </div>
     </div>
   );
