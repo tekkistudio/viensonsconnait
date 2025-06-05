@@ -1,7 +1,6 @@
-// src/types/order.ts
+// src/types/order.ts - Version Complète Corrigée
 
 import { z } from 'zod';
-
 import type { ChatMessage, ConversationStep, MessageFlags } from '@/types/chat';
 
 export type PaymentProvider = 'WAVE' | 'ORANGE_MONEY' | 'STRIPE' | 'CASH';
@@ -67,7 +66,7 @@ export interface OrderFormValues {
   notes?: string;
 }
 
-export interface OrderData {
+export interface BaseOrderData {
   id?: string;
   session_id: string;
   items: OrderItem[];
@@ -79,19 +78,20 @@ export interface OrderData {
   email?: string;
   payment_method?: PaymentProvider;
   order_details: string;
-  notes?: string;
-  status: OrderStatus;
-  paymentStatus: 'pending' | 'processing' | 'completed' | 'failed';
   total_amount: number;
   delivery_cost: number;
-  metadata: OrderMetadata & {
-    notes?: string;
-  };
-  // Champs optionnels pour le chat
+  metadata: OrderMetadata;
+  subtotal: number;
+}
+
+export interface OrderData extends BaseOrderData {
+  status: OrderStatus;
+  paymentStatus: PaymentStatus; // ✅ Type corrigé
+  subtotal: number;
   currentItem?: OrderItem;
-  formStep?: string;
   quantity?: number;
   buyingIntent?: number;
+  conversationContext?: string;
   mentionedTopics?: string[];
   concerns?: string[];
   interests?: string[];
@@ -118,7 +118,6 @@ export const orderFormSchema = z.object({
   items: z.array(orderItemSchema),
   notes: z.string().optional()
 });
-
 
 export interface ExtendedOrderMetadata extends OrderMetadata {
   customerInfo?: {
@@ -151,49 +150,30 @@ export interface AbandonedCartMetadata {
   updatedAt: string;
   conversationHistory: ChatMessage[];
   
-  // Ajouter cette propriété
   progressHistory?: Array<{
     step: string;
     timestamp: string;
   }>;
 }
 
-export interface BaseOrderData {
-  id?: string;
-  session_id: string;
-  items: OrderItem[];
+export interface AbandonedCart {
+  id: string;
+  product_id: string;
   first_name: string;
   last_name: string;
+  email?: string;
+  phone: string;
   city: string;
   address: string;
-  phone: string;
-  email?: string;
-  payment_method?: PaymentProvider;
-  order_details: string;
-  total_amount: number;
-  delivery_cost: number;
-  metadata: ExtendedOrderMetadata;
-  subtotal: number;
-}
-
-export interface OrderData extends BaseOrderData {
-  status: OrderStatus;
-  subtotal: number;
-  currentItem?: OrderItem;
-  quantity?: number;
-  buyingIntent?: number;
-  conversationContext?: string;
-  mentionedTopics?: string[];
-  concerns?: string[];
-  interests?: string[];
+  cart_stage: string;
+  last_active_at: string;
+  converted_to_order: boolean;
+  metadata: AbandonedCartMetadata;
 }
 
 // Interface pour la vue des commandes
 export interface OrderView {
-  // Données de base de la commande
   readonly order: OrderData;
-  
-  // Propriétés calculées/dérivées
   readonly customer: {
     readonly firstName: string;
     readonly lastName: string;
@@ -203,7 +183,6 @@ export interface OrderView {
     readonly city: string;
     readonly postalCode?: string;
   };
-  
   readonly subtotal: number;
   readonly deliveryStatus: DeliveryStatus;
   readonly paymentStatus: PaymentStatus;
@@ -227,38 +206,11 @@ export function createOrderView(order: OrderData): OrderView {
     },
     subtotal: order.total_amount - order.delivery_cost,
     deliveryStatus: order.metadata?.deliveryStatus || 'pending',
-    paymentStatus: order.metadata?.paymentStatus || 'pending',
+    paymentStatus: order.paymentStatus, // ✅ Utilise le type correct
     paymentMethod: order.payment_method,
     totalAmount: order.total_amount,
     deliveryCost: order.delivery_cost
   };
-}
-
-// Update OrderData interface to use ExtendedOrderMetadata
-export interface OrderData extends BaseOrderData {
-  status: OrderStatus;
-  currentItem?: OrderItem;
-  quantity?: number;
-  buyingIntent?: number;
-  mentionedTopics?: string[];
-  concerns?: string[];
-  interests?: string[];
-}
-
-// Add AbandonedCart interface
-export interface AbandonedCart {
-  id: string;
-  product_id: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone: string;
-  city: string;
-  address: string;
-  cart_stage: string;
-  last_active_at: string;
-  converted_to_order: boolean;
-  metadata: AbandonedCartMetadata;
 }
 
 export interface OrderSummary {

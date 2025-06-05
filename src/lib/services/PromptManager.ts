@@ -1,8 +1,6 @@
 // src/lib/services/PromptManager.ts
 import { supabase } from '@/lib/supabase';
-import { ProductId } from "@/types/chat";
-import { ConversationStep } from "@/types/chat";
-import { PageContext } from "@/types/assistant";
+import type { ConversationStep } from "@/types/chat";
 
 export class PromptManager {
   private static instance: PromptManager;
@@ -16,112 +14,8 @@ export class PromptManager {
     return PromptManager.instance;
   }
 
-  private analyzeTrend(chartData: any[]): string {
-    try {
-      if (!chartData || chartData.length < 2) return 'Pas assez de données';
-
-      const values = chartData.map(d => d.value);
-      const firstValue = values[0];
-      const lastValue = values[values.length - 1];
-      const growth = ((lastValue - firstValue) / firstValue) * 100;
-
-      // Calculer la tendance linéaire
-      const trend = values.reduce((sum, value) => sum + value, 0) / values.length;
-      const recentAvg = values.slice(-3).reduce((sum, value) => sum + value, 0) / 3;
-
-      if (growth > 20) return 'Forte croissance';
-      if (growth > 5) return 'Croissance modérée';
-      if (growth < -20) return 'Forte baisse';
-      if (growth < -5) return 'Baisse modérée';
-      return 'Stable';
-    } catch (error) {
-      console.error('Error analyzing trend:', error);
-      return 'Analyse impossible';
-    }
-  }
-
-  private detectSeasonality(chartData: any[]): string[] {
-    try {
-      if (!chartData || chartData.length < 7) return ['Pas assez de données'];
-
-      const patterns: string[] = [];
-      const values = chartData.map(d => d.value);
-      
-      // Détecter les pics de vente
-      const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-      const peakDays = values
-        .map((val, idx) => ({ val, idx }))
-        .filter(({val}) => val > avg * 1.5)
-        .map(({idx}) => chartData[idx].date);
-
-      if (peakDays.length > 0) {
-        patterns.push(`Pics de vente : ${peakDays.join(', ')}`);
-      }
-
-      // Détecter les tendances hebdomadaires
-      const weekdayAvg = new Array(7).fill(0);
-      const weekdayCounts = new Array(7).fill(0);
-      
-      chartData.forEach(day => {
-        const date = new Date(day.date);
-        const weekday = date.getDay();
-        weekdayAvg[weekday] += day.value;
-        weekdayCounts[weekday]++;
-      });
-
-      const bestDay = weekdayAvg.reduce((max, val, idx) => 
-        val/weekdayCounts[idx] > max.val ? {val: val/weekdayCounts[idx], day: idx} : max,
-        {val: 0, day: 0}
-      );
-
-      const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-      patterns.push(`Meilleur jour : ${days[bestDay.day]}`);
-
-      return patterns;
-    } catch (error) {
-      console.error('Error detecting seasonality:', error);
-      return ['Analyse impossible'];
-    }
-  }
-
-  private generateInsights(data: any): string[] {
-    try {
-      const insights: string[] = [];
-
-      // Analyse des ventes
-      if (data.revenue) {
-        if (data.revenue.growth > 0) {
-          insights.push(`Croissance des ventes de ${data.revenue.growth.toFixed(1)}% par rapport à la période précédente`);
-        } else {
-          insights.push('Baisse des ventes - Actions recommandées');
-        }
-      }
-
-      // Analyse des conversions
-      if (data.performance?.conversionRate) {
-        const convRate = data.performance.conversionRate;
-        if (convRate < 2) {
-          insights.push('Taux de conversion faible - Optimisation nécessaire');
-        } else if (convRate > 5) {
-          insights.push('Excellent taux de conversion - Maintenir les bonnes pratiques');
-        }
-      }
-
-      // Analyse géographique
-      if (data.performance?.topLocations?.length) {
-        const topCity = data.performance.topLocations[0];
-        insights.push(`${topCity.name} est votre meilleure ville avec ${topCity.orders} commandes`);
-      }
-
-      return insights;
-    } catch (error) {
-      console.error('Error generating insights:', error);
-      return ['Erreur lors de la génération des insights'];
-    }
-  }
-
   async generateProductPrompt(
-    productId: ProductId,
+    productId: string,
     buyingIntentScore: number,
     currentStep: ConversationStep,
     userHistory: { message: string; response: string }[] = []
@@ -139,7 +33,17 @@ export class PromptManager {
       }
 
       // Extraire les avantages des variables du chatbot
-      const benefits = productInfo.chatbot_variables?.benefits || [];
+      let benefits = [];
+      if (productInfo.chatbot_variables) {
+        try {
+          const chatbotVars = typeof productInfo.chatbot_variables === 'string' 
+            ? JSON.parse(productInfo.chatbot_variables) 
+            : productInfo.chatbot_variables;
+          benefits = chatbotVars.benefits || [];
+        } catch (e) {
+          console.warn('Could not parse chatbot_variables:', e);
+        }
+      }
 
       const contextualPrompt = this.getContextualPrompt(currentStep, buyingIntentScore);
       const historyContext = this.formatConversationHistory(userHistory);
@@ -170,17 +74,17 @@ RÈGLES DE COMMUNICATION :
 
 PRODUIT ACTUEL :
 Nom : ${productInfo.name}
-Description : ${productInfo.description}
+Description : ${productInfo.description || 'Description non disponible'}
 Prix : ${productInfo.price.toLocaleString()} FCFA
-Avantages clés : ${benefits.join("\n")}
-Règles du jeu : ${productInfo.game_rules || 'Non spécifiées'}
+Avantages clés : ${benefits.length > 0 ? benefits.join(", ") : 'Renforcement des relations'}
+Règles du jeu : ${productInfo.game_rules || 'Règles disponibles avec le produit'}
 
 SPÉCIFICITÉS MARCHÉ :
 - Les clients veulent comprendre la valeur avant d'acheter
 - La confiance se construit via une conversation naturelle
 - Les témoignages et exemples concrets sont cruciaux
 - Le prix doit être justifié par des bénéfices tangibles
-- Les paiements mobiles (Wave, Orange Money) sont préférés
+- Les paiements mobiles (Wave) sont préférés
 
 STRUCTURE DES RÉPONSES :
 1. Validation rapide du besoin
@@ -213,7 +117,7 @@ FORMAT JSON ATTENDU :
   }
 
   generateDashboardPrompt(
-    context: PageContext,
+    context: any,
     previousMessages: { content: string; type: 'user' | 'assistant' }[] = []
   ): string {
     return `Tu es un Assistant Business expert en e-commerce africain. Ton rôle est d'aider les marchands à comprendre leurs données et optimiser leurs performances de manière simple et actionnable.
@@ -233,24 +137,16 @@ RÈGLES DE COMMUNICATION :
 5. Être encourageant et constructif
 
 DONNÉES ACTUELLES :
-Page : ${context.page}
-Métriques : ${JSON.stringify(context.data, null, 2)}
+Page : ${context.page || 'dashboard'}
+Métriques : ${JSON.stringify(context.data || {}, null, 2)}
 Historique : ${this.formatDashboardHistory(previousMessages)}
-
-SPÉCIFICITÉS MARCHÉ :
-- Budget marketing souvent limité
-- Importance des réseaux sociaux et WhatsApp
-- Préférence pour les solutions gratuites ou peu coûteuses
-- Besoin d'actions simples et rapides à mettre en place
-- Focus sur le mobile et les paiements locaux
 
 FORMAT DE RÉPONSE :
 {
   "message": "Analyse claire avec des exemples concrets",
   "insights": ["3 observations clés en langage simple"],
   "actions": ["2-3 actions concrètes et peu coûteuses"],
-  "metrics_explained": "Explication simple des métriques importantes",
-  "next_steps": "Suggestion de focus pour la semaine à venir"
+  "suggestions": ["Suggestions pour améliorer les performances"]
 }`;
   }
 
@@ -275,7 +171,8 @@ FORMAT DE RÉPONSE :
           ? `${commonPrompts.closing} Suggère le passage à l'achat de manière naturelle.`
           : `${commonPrompts.discovery} Montre de l'intérêt pour ses besoins.`;
 
-      case 'contact_info':
+      case 'express_contact':
+      case 'collect_phone':
         return "Collecte les informations tout en maintenant l'enthousiasme et la confiance. Explique l'utilité de chaque information demandée.";
 
       case 'payment_method':
@@ -286,26 +183,6 @@ FORMAT DE RÉPONSE :
           ? `${commonPrompts.closing} Focus sur la finalisation de la vente.`
           : `${commonPrompts.value} Continue de construire l'intérêt et la confiance.`;
     }
-  }
-
-  generateEnhancedContext(data: any) {
-    return {
-      currentPerformance: {
-        sales: data.revenue.total,
-        growth: data.revenue.growth,
-        conversion: data.performance.conversionRate
-      },
-      historicalTrends: {
-        salesTrend: this.analyzeTrend(data.revenue.chartData),
-        seasonalPatterns: this.detectSeasonality(data.revenue.chartData)
-      },
-      marketContext: {
-        topProducts: data.performance.topProducts,
-        customerSegments: data.performance.customerSegments,
-        geographicInsights: data.performance.topLocations
-      },
-      actionableInsights: this.generateInsights(data)
-    };
   }
 
   private formatConversationHistory(history: { message: string; response: string }[]): string {

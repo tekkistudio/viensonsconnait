@@ -1,7 +1,5 @@
 // src/lib/services/ProfileAnalyzer.ts
 
-import type { ProductId } from '@/types/chat';
-
 export interface ProfileAnalysisResult {
   intent?: number;
   topics?: string[];
@@ -9,7 +7,7 @@ export interface ProfileAnalysisResult {
   interests?: string[];
   relationshipStatus?: string[];
   pricePreference?: 'economic' | 'standard' | 'premium';
-  recommendedProducts?: ProductId[];
+  recommendedProducts?: string[];
 }
 
 export class ProfileAnalyzer {
@@ -32,7 +30,7 @@ export class ProfileAnalyzer {
     'sécurité', 'confiance', 'garantie', 'retour'
   ];
 
-  private readonly productMappings: Record<string, ProductId[]> = {
+  private readonly productMappings: Record<string, string[]> = {
     married: ['maries', 'couples'],
     dating: ['couples', 'stvalentin'],
     family: ['famille', 'amis'],
@@ -110,8 +108,8 @@ export class ProfileAnalyzer {
   private async getProductRecommendations(
     status: string[],
     interests: string[]
-  ): Promise<ProductId[]> {
-    const recommendations: ProductId[] = [];
+  ): Promise<string[]> {
+    const recommendations: string[] = [];
     
     status.forEach(stat => {
       const mappedProducts = this.productMappings[stat] || [];

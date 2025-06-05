@@ -1,408 +1,768 @@
-// src/stores/chatStore.ts
+// src/stores/chatStore.ts - VERSION AMÉLIORÉE POUR QUESTIONS LIBRES
 import { create } from 'zustand';
-import { ChatService } from '@/services/ChatService';
-import { generateUUID } from '@/utils/uuid';
-import type { 
-  ChatMessage, 
-  OrderData,
-  ChatState,
-  ConversationStep,
-  ChatOrderData
-} from '@/types/chat';
-import type { OrderItem, PaymentProvider } from '@/types/order';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import type { ChatMessage, ConversationStep, ChatOrderData } from '@/types/chat';
+import type { PaymentProvider } from '@/types/order';
+import { v4 as uuidv4 } from 'uuid';
 
-const calculateSubtotal = (items: OrderItem[]): number => {
-  return items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-};
+// ✅ INTERFACES COMPLÈTES AMÉLIORÉES
+interface PaymentState {
+  selectedMethod: PaymentProvider | null;
+  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
+  transactionId?: string;
+  error: string | null;
+  clientSecret: string | null;
+}
 
-const calculateTotalAmount = (subtotal: number, deliveryCost: number): number => {
-  return subtotal + deliveryCost;
-};
-
-
-// Définition explicite des types pour le state
 interface PaymentModalState {
   isOpen: boolean;
   iframeUrl: string;
   provider?: PaymentProvider;
 }
 
-interface PaymentState {
-  selectedMethod: PaymentProvider | null;
-  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
-  error: string | null;
-  clientSecret: string | null;
-  transactionId?: string;
+// ✅ NOUVEAU: Interface pour le contexte de conversation
+interface ConversationContext {
+  userIntent: 'browsing' | 'interested' | 'considering' | 'ready_to_buy' | 'post_purchase';
+  mentionedTopics: string[];
+  concerns: string[];
+  interests: string[];
+  lastUserMessage?: string;
+  messageCount: number;
+  freeTextEnabled: boolean; // ✅ NOUVEAU: Flag pour questions libres
 }
 
-interface ChatStore {
-  // State
-  messages: ChatMessage[];
-  orderData: OrderData;
+// ✅ NOUVEAU: Interface pour les statistiques de session
+interface SessionStats {
+  startTime: string;
+  lastActivity: string;
+  totalMessages: number;
+  userMessages: number;
+  assistantMessages: number;
+  averageResponseTime?: number;
+  sessionDuration: number; // en millisecondes
+  wasRestored: boolean; // ✅ NOUVEAU: Indique si la session a été restaurée
+}
+
+interface ChatState {
+  // État principal
   sessionId: string;
-  formStep: ConversationStep;
+  messages: ChatMessage[];
   isTyping: boolean;
-  showCheckout: boolean;
+  currentStep: ConversationStep | null;
+  
+  // État de commande
+  orderData: Partial<ChatOrderData>;
+  isExpressMode: boolean;
+  
+  // États de paiement
   payment: PaymentState;
   paymentModal: PaymentModalState;
-  // Nouveau state pour le mode (express ou standard)
-  mode: 'standard' | 'express';
+  
+  // ✅ NOUVEAU: Contexte de conversation élargi
+  conversationContext: ConversationContext;
+  
+  // ✅ NOUVEAU: Statistiques de session
+  sessionStats: SessionStats;
+  
+  // Métadonnées
+  productId: string | null;
+  storeId: string | null;
+  startedAt: string;
+  lastActivity: string;
+  
+  // Flags d'état
+  flags: {
+    hasError: boolean;
+    stockReserved: boolean;
+    orderCompleted: boolean;
+    paymentInitiated: boolean;
+    isInitialized: boolean;
+    canAcceptFreeText: boolean; // ✅ NOUVEAU: Accepte les questions libres
+    showSessionRestored: boolean; // ✅ NOUVEAU: Afficher indicateur de session restaurée
+  };
 
-  // Actions
-  initialize: (productId: string, storeId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  // Actions principales
+  initializeSession: (productId?: string, storeId?: string) => void;
   addMessage: (message: ChatMessage) => void;
-  updateOrderData: (data: Partial<OrderData>) => void;
-  setTyping: (isTyping: boolean) => void;
-  initiatePayment: (method: PaymentProvider) => Promise<void>;
-  setPaymentModal: (data: {
-    isOpen: boolean;
-    iframeUrl?: string;
-    provider?: PaymentProvider;
-  }) => void;
-  setPaymentStatus: (status: {
-    status: PaymentState['status'];
-    transactionId?: string;
-    error?: string | null;
-  }) => void;
-  resetPayment: () => void;
+  updateTypingStatus: (isTyping: boolean) => void;
+  setCurrentStep: (step: ConversationStep | null) => void;
+  updateOrderData: (data: Partial<ChatOrderData>) => void;
+  setExpressMode: (isExpress: boolean) => void;
+  updateFlags: (flags: Partial<ChatState['flags']>) => void;
+  
+  // ✅ NOUVEAU: Actions pour contexte de conversation
+  updateConversationContext: (context: Partial<ConversationContext>) => void;
+  addUserConcern: (concern: string) => void;
+  addUserInterest: (interest: string) => void;
+  updateUserIntent: (intent: ConversationContext['userIntent']) => void;
+  
+  // Actions de paiement
+  setPaymentModal: (modal: PaymentModalState) => void;
+  updatePaymentStatus: (payment: Partial<PaymentState>) => void;
+  
+  // ✅ NOUVEAU: Actions de session avancées
+  restoreSession: () => void;
+  getSessionAge: () => number;
+  shouldShowContinueMessage: () => boolean;
+  dismissSessionRestored: () => void;
+  
+  // Actions utilitaires
+  clearSession: () => void;
   cleanup: () => void;
-  // Nouvelle action pour définir le mode
-  setMode: (mode: 'standard' | 'express') => void;
+  getLastMessage: () => ChatMessage | null;
+  getLastMetadata: () => ChatMessage['metadata'] | null;
+  getUserMessages: () => ChatMessage[];
+  getAssistantMessages: () => ChatMessage[];
+  resetError: () => void;
+  updateActivity: () => void;
 }
 
-const initialState = {
-  messages: [],
-  orderData: {
-    session_id: '',
-    status: 'pending' as const,
-    paymentStatus: 'pending' as const,
-    items: [],
-    first_name: '',
-    last_name: '',
-    city: '',
-    address: '',
-    phone: '',
-    payment_method: undefined,
-    order_details: '',
-    total_amount: 0,
-    delivery_cost: 0,
-    subtotal: 0,
-    metadata: {
-      source: 'chatbot',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      conversationHistory: [],
-      storeId: '',
-      productId: '',
-      conversationId: ''
-    }
-  } as ChatOrderData,
-  sessionId: '',
-  formStep: 'initial' as ConversationStep,
-  isTyping: false,
-  showCheckout: false,
-  payment: {
-    selectedMethod: null,
-    status: 'idle' as const,
-    error: null,
-    clientSecret: null
-  },
-  paymentModal: {
-    isOpen: false,
-    iframeUrl: '',
-    provider: undefined
-  },
-  // Mode par défaut (standard)
-  mode: 'standard' as const
-};
+// ✅ CONSTANTES POUR LA GESTION DE SESSION
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 heures
+const CONTINUE_MESSAGE_THRESHOLD = 10 * 60 * 1000; // 10 minutes
+const MAX_STORED_MESSAGES = 100; // Limite de messages stockés
 
-export const useChatStore = create<ChatStore>((set, get) => {
-  const chatService = ChatService.create();
-
-  return {
-    ...initialState,
-
-    initialize: async (productId: string, storeId: string) => {
-      try {
-        if (!productId || !storeId) {
-          throw new Error('Product ID and Store ID are required');
-        }
-    
-        set(initialState);
-    
-        const { sessionId, initialMessage } = await chatService.initializeConversation(
-          productId,
-          storeId
-        );
-    
-        if (!sessionId || !initialMessage) {
-          throw new Error('Failed to initialize chat');
-        }
-    
-        const newOrderData: OrderData = {
-          ...initialState.orderData,
-          session_id: sessionId, // L'ID sera maintenant un UUID valide
-          items: [{
-            productId,
-            name: initialMessage.metadata?.productContext ? 
-              JSON.parse(initialMessage.metadata.productContext).productName : '',
-            quantity: 1,
-            price: 0,
-            totalPrice: 0
-          }],
-          metadata: {
-            ...initialState.orderData.metadata,
-            storeId,
-            productId,
-            conversationId: sessionId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        };
-    
-        set({ 
-          sessionId,
-          messages: [initialMessage],
-          orderData: newOrderData,
-          mode: 'standard'
-        });
-      } catch (error) {
-        console.error('Error initializing chat:', error);
-        set(state => ({
-          messages: [...state.messages, {
-            type: 'assistant',
-            content: "Une erreur est survenue lors de l'initialisation du chat.",
-            timestamp: new Date().toISOString()
-          }]
-        }));
-        throw error;
-      }
-    },
-
-    sendMessage: async (content: string) => {
-      const state = get();
-      set({ isTyping: true });
-    
-      try {
-        if (!state.sessionId) {
-          throw new Error('Session not initialized');
-        }
-    
-        // Créer le nouveau message
-        const userMessage: ChatMessage = {
-          type: 'user',
-          content,
-          timestamp: new Date().toISOString()
-        };
-    
-        // Mettre à jour l'état avec le nouveau message
-        set(state => ({
-          messages: [...state.messages, userMessage]
-        }));
-    
-        // Log pour déboguer
-        console.log(`Sending user message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}" to session ${state.sessionId}`);
-    
-        // Appel au service de chat
-        try {
-          const response = await chatService.handleUserMessage(
-            state.sessionId,
-            content,
-            state.formStep,
-            state.orderData
-          );
-    
-          // Vérifier si nous avons une réponse valide
-          if (!response || response.length === 0) {
-            console.warn('Empty response from chat service');
-            throw new Error('No response received from chat service');
-          }
-    
-          // Extraire les informations de progression à partir de la réponse
-          const nextStep = response[0]?.metadata?.nextStep;
-          const updatedOrderData = response[0]?.metadata?.orderData;
-    
-          // Mettre à jour l'état avec la réponse
-          set(state => ({
-            messages: [...state.messages, ...response],
-            formStep: nextStep || state.formStep,
-            orderData: {
-              ...state.orderData,
-              ...(updatedOrderData || {})
-            }
-          }));
-    
-          // Log pour déboguer
-          console.log(`Received ${response.length} response messages, next step: ${nextStep}`);
-        } catch (chatError) {
-          console.error('Error from chat service:', chatError);
-          throw chatError; // Re-throw pour être capturé par le bloc catch externe
-        }
-      } catch (error) {
-        console.error('Error sending message:', error);
-        
-        // Ajouter un message d'erreur convivial
-        set(state => ({
-          messages: [...state.messages, {
-            type: 'assistant',
-            content: "Je suis désolée, une erreur est survenue. Veuillez réessayer.",
-            choices: ["Recommencer", "Contacter le support"],
-            timestamp: new Date().toISOString()
-          }]
-        }));
-      } finally {
-        set({ isTyping: false });
-      }
-    },
-
-    addMessage: (message: ChatMessage) => {
-      set(state => ({
-        messages: [...state.messages, message]
-      }));
-    },
-
-    updateOrderData: (data: Partial<OrderData>) => {
-      set(state => ({
-        orderData: { 
-          ...state.orderData,
-          ...data,
-          metadata: {
-            ...state.orderData.metadata,
-            ...(data.metadata || {}),
-            updatedAt: new Date().toISOString()
-          }
-        }
-      }));
-    },
-
-    setTyping: (isTyping: boolean) => {
-      set({ isTyping });
-    },
-
-    initiatePayment: async (method: PaymentProvider) => {
-      const state = get();
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      // État initial
+      sessionId: uuidv4(),
+      messages: [],
+      isTyping: false,
+      currentStep: null,
+      orderData: {},
+      isExpressMode: false,
       
-      set(state => ({
-        payment: {
-          ...state.payment,
-          selectedMethod: method,
-          status: 'processing',
-          error: null
-        }
-      }));
+      // États de paiement initialisés
+      payment: {
+        selectedMethod: null,
+        status: 'idle',
+        error: null,
+        clientSecret: null
+      },
+      paymentModal: {
+        isOpen: false,
+        iframeUrl: '',
+        provider: undefined
+      },
+      
+      // ✅ NOUVEAU: Contexte de conversation initial
+      conversationContext: {
+        userIntent: 'browsing',
+        mentionedTopics: [],
+        concerns: [],
+        interests: [],
+        messageCount: 0,
+        freeTextEnabled: true
+      },
+      
+      // ✅ NOUVEAU: Statistiques de session initiales
+      sessionStats: {
+        startTime: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        totalMessages: 0,
+        userMessages: 0,
+        assistantMessages: 0,
+        sessionDuration: 0,
+        wasRestored: false
+      },
+      
+      productId: null,
+      storeId: null,
+      startedAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      flags: {
+        hasError: false,
+        stockReserved: false,
+        orderCompleted: false,
+        paymentInitiated: false,
+        isInitialized: false,
+        canAcceptFreeText: true, // ✅ NOUVEAU: Activé par défaut
+        showSessionRestored: false
+      },
 
-      try {
-        const response = await fetch('/api/payments/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            method,
-            amount: state.orderData.total_amount,
-            orderId: state.orderData.session_id,
-            customerInfo: {
-              name: `${state.orderData.first_name} ${state.orderData.last_name}`,
-              phone: state.orderData.phone,
-              city: state.orderData.city
-            }
-          }),
-        });
-
-        const data = await response.json();
+      // ✅ AMÉLIORATION: Initialisation avec détection de session existante
+      initializeSession: (productId?: string, storeId?: string) => {
+        const state = get();
+        const now = new Date().toISOString();
         
-        if (!response.ok) {
-          throw new Error(data.error || 'Payment initialization failed');
+        // Vérifier si une session existe déjà
+        const existingSession = state.messages.length > 0;
+        const sessionAge = Date.now() - new Date(state.sessionStats.startTime).getTime();
+        
+        // ✅ NOUVEAU: Gestion intelligente de la reprise de session
+        if (existingSession && sessionAge < SESSION_TIMEOUT) {
+          console.log('📱 Session existante détectée, restauration...', {
+            sessionAge: Math.floor(sessionAge / 1000 / 60), // en minutes
+            messageCount: state.messages.length
+          });
+          
+          set({
+            productId: productId || state.productId,
+            storeId: storeId || state.storeId,
+            lastActivity: now,
+            sessionStats: {
+              ...state.sessionStats,
+              wasRestored: true,
+              lastActivity: now
+            },
+            flags: {
+              ...state.flags,
+              isInitialized: true,
+              showSessionRestored: sessionAge > CONTINUE_MESSAGE_THRESHOLD
+            }
+          });
+          
+          return;
         }
-
-        set(state => ({
+        
+        // ✅ Session expirée ou nouvelle session
+        if (sessionAge >= SESSION_TIMEOUT) {
+          console.log('⏰ Session expirée, création d\'une nouvelle session');
+        }
+        
+        const newSessionId = uuidv4();
+        console.log(`🆕 Initializing new chat session: ${newSessionId}`);
+        
+        set({
+          sessionId: newSessionId,
+          messages: [],
+          isTyping: false,
+          currentStep: null,
+          orderData: {},
+          isExpressMode: false,
+          productId: productId || null,
+          storeId: storeId || null,
+          startedAt: now,
+          lastActivity: now,
+          conversationContext: {
+            userIntent: 'browsing',
+            mentionedTopics: [],
+            concerns: [],
+            interests: [],
+            messageCount: 0,
+            freeTextEnabled: true
+          },
+          sessionStats: {
+            startTime: now,
+            lastActivity: now,
+            totalMessages: 0,
+            userMessages: 0,
+            assistantMessages: 0,
+            sessionDuration: 0,
+            wasRestored: false
+          },
           payment: {
-            ...state.payment,
-            clientSecret: data.clientSecret || null
+            selectedMethod: null,
+            status: 'idle',
+            error: null,
+            clientSecret: null
           },
           paymentModal: {
-            isOpen: true,
-            iframeUrl: data.paymentUrl || '',
-            provider: method
+            isOpen: false,
+            iframeUrl: '',
+            provider: undefined
+          },
+          flags: {
+            hasError: false,
+            stockReserved: false,
+            orderCompleted: false,
+            paymentInitiated: false,
+            isInitialized: true,
+            canAcceptFreeText: true,
+            showSessionRestored: false
           }
-        }));
+        });
+      },
 
-      } catch (error) {
-        console.error('Payment error:', error);
-        set(state => ({
-          payment: {
-            ...state.payment,
-            status: 'failed',
-            error: error instanceof Error ? error.message : 'Payment failed'
-          }
-        }));
-      }
-    },
-
-    setPaymentModal: (data) => {
-      set(state => ({
-        paymentModal: {
-          ...state.paymentModal,
-          isOpen: data.isOpen,
-          iframeUrl: data.iframeUrl || '',
-          provider: data.provider
+      // ✅ AMÉLIORATION: addMessage avec analyse intelligente
+      addMessage: (message: ChatMessage) => {
+        const state = get();
+        const now = new Date().toISOString();
+        
+        // Éviter les doublons
+        const messageExists = state.messages.some(
+          m => m.timestamp === message.timestamp && m.content === message.content
+        );
+        
+        if (messageExists) {
+          console.log('⚠️ Message already exists, skipping duplicate');
+          return;
         }
-      }));
-    },
 
-    setPaymentStatus: (status) => {
-      set(state => ({
-        payment: {
-          ...state.payment,
-          status: status.status,
-          error: status.error || null,
-          transactionId: status.transactionId
-        }
-      }));
-    },
-
-    resetPayment: () => {
-      set({
-        payment: {
-          selectedMethod: null,
-          status: 'idle',
-          error: null,
-          clientSecret: null
-        },
-        paymentModal: {
-          isOpen: false,
-          iframeUrl: '',
-          provider: undefined
-        }
-      });
-    },
-
-    // Nouvelle action pour définir le mode
-    setMode: (mode: 'standard' | 'express') => {
-      set({ mode });
-      // Mettre à jour les métadonnées pour refléter le mode
-      const currentOrderData = get().orderData;
-      set({
-        orderData: {
-          ...currentOrderData,
-          metadata: {
-            ...currentOrderData.metadata,
-            flags: {
-              ...(currentOrderData.metadata?.flags || {}),
-              mode: mode,
-              expressMode: mode === 'express',
-              standardMode: mode === 'standard'
+        console.log('📝 Adding message:', message.type, message.content.substring(0, 50) + '...');
+        
+        set((currentState) => {
+          const newMessages = [...currentState.messages, message];
+          const limitedMessages = newMessages.slice(-MAX_STORED_MESSAGES);
+          
+          // ✅ NOUVEAU: Mise à jour des statistiques
+          const isUserMessage = message.type === 'user';
+          const newStats = {
+            ...currentState.sessionStats,
+            lastActivity: now,
+            totalMessages: currentState.sessionStats.totalMessages + 1,
+            userMessages: currentState.sessionStats.userMessages + (isUserMessage ? 1 : 0),
+            assistantMessages: currentState.sessionStats.assistantMessages + (isUserMessage ? 0 : 1),
+            sessionDuration: Date.now() - new Date(currentState.sessionStats.startTime).getTime()
+          };
+          
+          // ✅ NOUVEAU: Analyse du contexte conversationnel
+          let updatedContext = { ...currentState.conversationContext };
+          
+          if (isUserMessage) {
+            updatedContext.messageCount += 1;
+            updatedContext.lastUserMessage = message.content;
+            
+            // Analyse automatique des intentions
+            const content = message.content.toLowerCase();
+            
+            // Détection d'intérêts
+            if (content.includes('intéresse') || content.includes('aime')) {
+              updatedContext.userIntent = 'interested';
+            }
+            
+            // Détection d'objections/préoccupations
+            if (content.includes('cher') || content.includes('prix') || content.includes('doute')) {
+              if (!updatedContext.concerns.includes('price_concern')) {
+                updatedContext.concerns.push('price_concern');
+              }
+            }
+            
+            // Détection d'intention d'achat
+            if (content.includes('acheter') || content.includes('commander') || content.includes('prendre')) {
+              updatedContext.userIntent = 'ready_to_buy';
             }
           }
-        }
-      });
-    },
 
-    cleanup: () => {
-      const state = get();
-      if (state.sessionId) {
-        chatService.cleanup(state.sessionId);
+          // ✅ CORRECTION: Créer l'objet updates avec TOUTES les propriétés nécessaires
+          const updates: Partial<ChatState> = {
+            messages: limitedMessages,
+            lastActivity: now,
+            sessionStats: newStats,
+            conversationContext: updatedContext,
+            // ✅ AJOUT: Propriétés manquantes avec valeurs par défaut
+            currentStep: currentState.currentStep,
+            orderData: currentState.orderData,
+            isExpressMode: currentState.isExpressMode,
+            flags: currentState.flags
+          };
+
+          // ✅ CORRECTION: Mise à jour conditionnelle avec assignation correcte
+          if (message.metadata?.nextStep && message.metadata.nextStep !== currentState.currentStep) {
+            updates.currentStep = message.metadata.nextStep;
+          }
+
+          if (message.metadata?.orderData) {
+            updates.orderData = {
+              ...currentState.orderData,
+              ...message.metadata.orderData
+            };
+          }
+
+          if (message.metadata?.flags) {
+            const newFlags = { ...currentState.flags };
+            let flagsChanged = false;
+            
+            if (message.metadata.flags.expressMode !== undefined && 
+                message.metadata.flags.expressMode !== currentState.isExpressMode) {
+              updates.isExpressMode = message.metadata.flags.expressMode;
+            }
+            
+            Object.keys(message.metadata.flags).forEach(key => {
+              if (key in newFlags && newFlags[key as keyof typeof newFlags] !== message.metadata!.flags![key]) {
+                (newFlags as any)[key] = message.metadata!.flags![key];
+                flagsChanged = true;
+              }
+            });
+            
+            if (flagsChanged) {
+              updates.flags = newFlags;
+            }
+          }
+
+          return { ...currentState, ...updates };
+        });
+      },
+
+      // ✅ NOUVEAU: Actions pour le contexte de conversation
+      updateConversationContext: (context: Partial<ConversationContext>) => {
+        set((state) => ({
+          conversationContext: { ...state.conversationContext, ...context },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      addUserConcern: (concern: string) => {
+        set((state) => {
+          const concerns = [...state.conversationContext.concerns];
+          if (!concerns.includes(concern)) {
+            concerns.push(concern);
+          }
+          return {
+            conversationContext: { ...state.conversationContext, concerns },
+            lastActivity: new Date().toISOString()
+          };
+        });
+      },
+
+      addUserInterest: (interest: string) => {
+        set((state) => {
+          const interests = [...state.conversationContext.interests];
+          if (!interests.includes(interest)) {
+            interests.push(interest);
+          }
+          return {
+            conversationContext: { ...state.conversationContext, interests },
+            lastActivity: new Date().toISOString()
+          };
+        });
+      },
+
+      updateUserIntent: (intent: ConversationContext['userIntent']) => {
+        set((state) => ({
+          conversationContext: { ...state.conversationContext, userIntent: intent },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      // ✅ NOUVEAU: Actions de session avancées
+      restoreSession: () => {
+        const state = get();
+        console.log('🔄 Restoring session with context:', state.conversationContext);
+        
+        set({
+          sessionStats: {
+            ...state.sessionStats,
+            wasRestored: true,
+            lastActivity: new Date().toISOString()
+          },
+          flags: {
+            ...state.flags,
+            showSessionRestored: true
+          }
+        });
+      },
+
+      getSessionAge: () => {
+        const state = get();
+        return Date.now() - new Date(state.sessionStats.startTime).getTime();
+      },
+
+      shouldShowContinueMessage: () => {
+        const state = get();
+        const timeSinceLastActivity = Date.now() - new Date(state.sessionStats.lastActivity).getTime();
+        return timeSinceLastActivity > CONTINUE_MESSAGE_THRESHOLD && state.messages.length > 0;
+      },
+
+      dismissSessionRestored: () => {
+        set((state) => ({
+          flags: { ...state.flags, showSessionRestored: false }
+        }));
+      },
+
+      updateTypingStatus: (isTyping: boolean) => {
+        const state = get();
+        if (state.isTyping !== isTyping) {
+          set({
+            isTyping,
+            lastActivity: new Date().toISOString()
+          });
+        }
+      },
+
+      setCurrentStep: (step: ConversationStep | null) => {
+        const state = get();
+        if (state.currentStep !== step) {
+          set({
+            currentStep: step,
+            lastActivity: new Date().toISOString()
+          });
+        }
+      },
+
+      updateOrderData: (data: Partial<ChatOrderData>) => {
+        set((state) => ({
+          orderData: { ...state.orderData, ...data },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      setExpressMode: (isExpress: boolean) => {
+        const state = get();
+        if (state.isExpressMode !== isExpress) {
+          console.log(`🚀 Express mode: ${isExpress ? 'ENABLED' : 'DISABLED'}`);
+          set({
+            isExpressMode: isExpress,
+            lastActivity: new Date().toISOString()
+          });
+        }
+      },
+
+      updateFlags: (flags: Partial<ChatState['flags']>) => {
+        set((state) => ({
+          flags: { ...state.flags, ...flags },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      setPaymentModal: (modal: PaymentModalState) => {
+        set({
+          paymentModal: modal,
+          lastActivity: new Date().toISOString()
+        });
+      },
+
+      updatePaymentStatus: (payment: Partial<PaymentState>) => {
+        set((state) => ({
+          payment: { ...state.payment, ...payment },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      cleanup: () => {
+        console.log('🧹 Cleaning up chat session');
+        set((state) => ({
+          flags: {
+            ...state.flags,
+            isInitialized: false
+          }
+        }));
+      },
+
+      clearSession: () => {
+        const now = new Date().toISOString();
+        console.log('🗑️ Clearing chat session');
+        
+        set({
+          sessionId: uuidv4(),
+          messages: [],
+          isTyping: false,
+          currentStep: null,
+          orderData: {},
+          isExpressMode: false,
+          startedAt: now,
+          lastActivity: now,
+          conversationContext: {
+            userIntent: 'browsing',
+            mentionedTopics: [],
+            concerns: [],
+            interests: [],
+            messageCount: 0,
+            freeTextEnabled: true
+          },
+          sessionStats: {
+            startTime: now,
+            lastActivity: now,
+            totalMessages: 0,
+            userMessages: 0,
+            assistantMessages: 0,
+            sessionDuration: 0,
+            wasRestored: false
+          },
+          payment: {
+            selectedMethod: null,
+            status: 'idle',
+            error: null,
+            clientSecret: null
+          },
+          paymentModal: {
+            isOpen: false,
+            iframeUrl: '',
+            provider: undefined
+          },
+          flags: {
+            hasError: false,
+            stockReserved: false,
+            orderCompleted: false,
+            paymentInitiated: false,
+            isInitialized: false,
+            canAcceptFreeText: true,
+            showSessionRestored: false
+          }
+        });
+      },
+
+      getLastMessage: () => {
+        const state = get();
+        return state.messages.length > 0 
+          ? state.messages[state.messages.length - 1] 
+          : null;
+      },
+
+      getLastMetadata: () => {
+        const lastMessage = get().getLastMessage();
+        return lastMessage?.metadata || null;
+      },
+
+      getUserMessages: () => {
+        const state = get();
+        return state.messages.filter(msg => msg.type === 'user');
+      },
+
+      getAssistantMessages: () => {
+        const state = get();
+        return state.messages.filter(msg => msg.type === 'assistant');
+      },
+
+      resetError: () => {
+        set((state) => ({
+          flags: { ...state.flags, hasError: false },
+          lastActivity: new Date().toISOString()
+        }));
+      },
+
+      updateActivity: () => {
+        set({
+          lastActivity: new Date().toISOString()
+        });
       }
-      set(initialState);
+    }),
+    {
+      name: 'vosc-chat-storage',
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({
+        sessionId: state.sessionId,
+        messages: state.messages.slice(-MAX_STORED_MESSAGES), // ✅ Limite dynamique
+        currentStep: state.currentStep,
+        orderData: state.orderData,
+        isExpressMode: state.isExpressMode,
+        productId: state.productId,
+        storeId: state.storeId,
+        startedAt: state.startedAt,
+        lastActivity: state.lastActivity,
+        conversationContext: state.conversationContext, // ✅ NOUVEAU: Persister le contexte
+        sessionStats: {
+          ...state.sessionStats,
+          wasRestored: false // Reset à la persistance
+        },
+        flags: {
+          ...state.flags,
+          isInitialized: false,
+          showSessionRestored: false
+        },
+        payment: state.payment,
+        paymentModal: {
+          ...state.paymentModal,
+          isOpen: false
+        }
+      }),
+      version: 4, // ✅ Incrémenter pour migration
+      migrate: (persistedState: any, version: number) => {
+        console.log(`🔄 Migrating chat store from version ${version} to 4`);
+        
+        if (version < 4) {
+          return {
+            ...persistedState,
+            conversationContext: {
+              userIntent: 'browsing',
+              mentionedTopics: [],
+              concerns: [],
+              interests: [],
+              messageCount: persistedState.messages?.length || 0,
+              freeTextEnabled: true,
+              ...(persistedState.conversationContext || {})
+            },
+            sessionStats: {
+              startTime: persistedState.startedAt || new Date().toISOString(),
+              lastActivity: persistedState.lastActivity || new Date().toISOString(),
+              totalMessages: persistedState.messages?.length || 0,
+              userMessages: persistedState.messages?.filter((m: any) => m.type === 'user').length || 0,
+              assistantMessages: persistedState.messages?.filter((m: any) => m.type === 'assistant').length || 0,
+              sessionDuration: 0,
+              wasRestored: true,
+              ...(persistedState.sessionStats || {})
+            },
+            flags: {
+              hasError: false,
+              stockReserved: false,
+              orderCompleted: false,
+              paymentInitiated: false,
+              isInitialized: false,
+              canAcceptFreeText: true,
+              showSessionRestored: true,
+              ...(persistedState.flags || {})
+            }
+          };
+        }
+        return persistedState;
+      }
     }
+  )
+);
+
+// ✅ NOUVEAUX HOOKS UTILITAIRES POUR QUESTIONS LIBRES
+export const useChatConversation = () => {
+  const store = useChatStore();
+  
+  return {
+    canAcceptFreeText: store.flags.canAcceptFreeText,
+    userIntent: store.conversationContext.userIntent,
+    concerns: store.conversationContext.concerns,
+    interests: store.conversationContext.interests,
+    messageCount: store.conversationContext.messageCount,
+    lastUserMessage: store.conversationContext.lastUserMessage,
+    updateContext: store.updateConversationContext,
+    addConcern: store.addUserConcern,
+    addInterest: store.addUserInterest,
+    updateIntent: store.updateUserIntent
   };
-});
+};
+
+export const useChatSession = () => {
+  const store = useChatStore();
+  
+  return {
+    sessionId: store.sessionId,
+    isActive: store.messages.length > 0,
+    duration: store.sessionStats.sessionDuration,
+    messageCount: store.sessionStats.totalMessages,
+    lastActivity: store.sessionStats.lastActivity,
+    isInitialized: store.flags.isInitialized,
+    wasRestored: store.sessionStats.wasRestored,
+    shouldShowContinue: store.shouldShowContinueMessage(),
+    showSessionRestored: store.flags.showSessionRestored,
+    dismissRestored: store.dismissSessionRestored
+  };
+};
+
+export const useChatProgress = () => {
+  const store = useChatStore();
+  
+  const progressSteps = [
+    'initial_engagement',
+    'express_contact', 
+    'express_address', 
+    'express_payment', 
+    'order_complete'
+  ];
+  
+  const currentStepIndex = store.currentStep 
+    ? progressSteps.indexOf(store.currentStep)
+    : -1;
+    
+  const progress = currentStepIndex >= 0 
+    ? ((currentStepIndex + 1) / progressSteps.length) * 100 
+    : 0;
+
+  return {
+    currentStep: store.currentStep,
+    progress,
+    stepIndex: currentStepIndex,
+    totalSteps: progressSteps.length,
+    isComplete: store.flags.orderCompleted
+  };
+};
+
+// Sélecteurs optimisés
+export const selectChatMessages = (state: ChatState) => state.messages;
+export const selectIsTyping = (state: ChatState) => state.isTyping;
+export const selectCurrentStep = (state: ChatState) => state.currentStep;
+export const selectOrderData = (state: ChatState) => state.orderData;
+export const selectIsExpressMode = (state: ChatState) => state.isExpressMode;
+export const selectFlags = (state: ChatState) => state.flags;
+export const selectPayment = (state: ChatState) => state.payment;
+export const selectPaymentModal = (state: ChatState) => state.paymentModal;
+export const selectConversationContext = (state: ChatState) => state.conversationContext;
+
+export default useChatStore;

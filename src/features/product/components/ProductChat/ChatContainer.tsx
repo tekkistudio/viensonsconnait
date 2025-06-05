@@ -1,22 +1,23 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION DESKTOP COMPLÈTE
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Send } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal';
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
+import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
+import DynamicContentService from '@/lib/services/DynamicContentService'; // ✅ AJOUT
 import ChatMessage from './components/ChatMessage';
 import ChatChoices from './components/ChatChoices';
 import TypingIndicator from './components/TypingIndicator';
 import ChatHeader from './components/ChatHeader';
+import QuantitySelector from './components/QuantitySelector';
 import type { PaymentProvider } from '@/types/order';
 import type { Product } from '@/types/product';
-import type { ChatMessage as ChatMessageType } from '@/types/chat';
-import QuantitySelector from './components/QuantitySelector';
-import { ChatService } from '@/services/ChatService';
+import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
 
 interface ChatContainerProps {
   product: Product;
@@ -36,125 +37,525 @@ const ChatContainer = ({
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [optimizedService] = useState(() => OptimizedChatService.getInstance());
+  const [dynamicContentService] = useState(() => DynamicContentService.getInstance()); // ✅ AJOUT
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false); // ✅ AJOUT
 
-  const { 
-    messages,
-    orderData,
-    sessionId,
-    isTyping,
-    payment,
-    paymentModal,
-    initialize,
-    sendMessage,
-    initiatePayment,
+  const store = useChatStore();
+  
+  // ✅ Extraction sécurisée du store
+  const {
+    messages = [],
+    orderData = {},
+    sessionId = '',
+    isTyping = false,
+    payment = {
+      status: 'idle' as const,
+      error: null,
+      clientSecret: null,
+      selectedMethod: null
+    },
+    paymentModal = {
+      isOpen: false,
+      iframeUrl: '',
+      provider: undefined
+    },
     addMessage,
-    cleanup,
-    setPaymentModal
-  } = useChatStore();
+    initializeSession,
+    updateTypingStatus,
+    setExpressMode,
+    updateOrderData,
+    setPaymentModal,
+    isExpressMode = false,
+    currentStep = null,
+    flags = {
+      hasError: false,
+      stockReserved: false,
+      orderCompleted: false,
+      paymentInitiated: false,
+      isInitialized: false
+    }
+  } = store;
 
+  // ✅ FONCTION: Service de contenu dynamique
+  const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials') => {
+    try {
+      return await dynamicContentService.getProductInfo(product.id, infoType);
+    } catch (error) {
+      console.error('Error fetching product info:', error);
+      return `Informations sur le **${product.name}** (données par défaut)`;
+    }
+  }, [product.id, product.name, dynamicContentService]);
+
+  // ✅ FONCTION: Récupérer les infos de livraison
+  const getDeliveryInfoFromDatabase = useCallback(async () => {
+    try {
+      return await dynamicContentService.getDeliveryInfo();
+    } catch (error) {
+      console.error('Error fetching delivery info:', error);
+      return null;
+    }
+  }, [dynamicContentService]);
+
+  // ✅ Initialisation du chat avec protection contre les multiples appels
   useEffect(() => {
-    initialize(product.id, storeId).catch(console.error);
-    return () => cleanup();
-  }, [product.id, storeId, initialize, cleanup]);
+  if (!product?.id || welcomeMessageAdded) return;
 
+  const initializeChat = async () => {
+    try {
+      console.log('🖥️ Initializing desktop chat session:', { productId: product.id, storeId });
+      
+      // ✅ PROTECTION: Vérifier si déjà initialisé
+      const currentMessages = useChatStore.getState().messages;
+      if (currentMessages.length > 0) {
+        console.log('📝 Desktop chat already has messages, skipping initialization');
+        setIsInitialized(true);
+        return;
+      }
+
+      if (initializeSession) {
+        initializeSession(product.id, storeId);
+        setIsInitialized(true);
+        
+        // ✅ CORRECTION: Délai plus court et vérification
+        setTimeout(() => {
+          const latestMessages = useChatStore.getState().messages;
+          
+          if (latestMessages.length === 0 && !welcomeMessageAdded) {
+            const welcomeMessage: ChatMessageType = {
+              type: 'assistant',
+              content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
+
+Je vois que vous vous intéressez au jeu **${product.name}** !
+
+✨ Je peux vous aider à :
+• **Commander rapidement** (moins de 60 secondes)
+• **Répondre à vos questions**
+• **Vous conseiller** sur l'utilisation
+
+Que souhaitez-vous faire ?`,
+              choices: [
+                '⚡ Commander rapidement',
+                '❓ Poser une question',
+                '📦 Infos livraison',
+                '💬 En savoir plus'
+              ],
+              assistant: {
+                name: 'Rose',
+                title: 'Assistante VOSC',
+                avatar: undefined
+              },
+              metadata: {
+                nextStep: 'initial_engagement' as ConversationStep,
+                productId: product.id,
+                flags: { 
+                  isWelcome: true,
+                  preventAIIntervention: true
+                }
+              },
+              timestamp: new Date().toISOString()
+            };
+            
+            console.log('📝 Adding welcome message to desktop chat');
+            addMessage(welcomeMessage);
+            setWelcomeMessageAdded(true);
+          }
+        }, 500); // ✅ Délai réduit à 500ms
+      }
+      
+    } catch (err) {
+      console.error('❌ Error initializing desktop chat:', err);
+      setIsInitialized(true);
+    }
+  };
+
+  initializeChat();
+}, [product.id, storeId, welcomeMessageAdded]);
+
+  // ✅ Auto-scroll optimisé
   useEffect(() => {
     if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+      const scrollToBottom = () => {
+        chatRef.current?.scrollTo({
+          top: chatRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      };
+      
+      setTimeout(scrollToBottom, 100);
     }
   }, [messages, showTyping]);
 
+  // ✅ FONCTION: Gérer les messages standards avec données dynamiques
+  const handleStandardMessages = async (content: string): Promise<ChatMessageType> => {
+    if (content.includes('Poser une question') || content.includes('❓')) {
+      return {
+        type: 'assistant',
+        content: `🤔 **Parfait !** Posez-moi toutes vos questions sur le jeu **${product.name}**.
+
+Je peux vous expliquer :
+• Comment ça fonctionne
+• Pour qui c'est adapté
+• Les bénéfices
+• Les témoignages clients
+
+Qu'est-ce qui vous intéresse le plus ?`,
+        choices: [
+          '❓ Comment ça marche ?',
+          '👥 C\'est pour qui ?',
+          '💝 Quels bénéfices ?',
+          '⭐ Avis clients'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'question_mode' as ConversationStep,
+          flags: { questionMode: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ GESTION SPÉCIFIQUE: Questions détaillées avec vraies données
+    if (content.includes('Comment ça marche') || content.includes('Comment ça fonctionne')) {
+    const usageInfo = await getProductInfoFromDatabase('usage');
+    return {
+      type: 'assistant',
+      content: usageInfo,
+      choices: [
+        '⚡ Commander maintenant',
+        '💝 Quels bénéfices ?',
+        '⭐ Voir les avis'
+      ],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante VOSC'
+      },
+      metadata: {
+        nextStep: 'product_usage' as ConversationStep
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+    if (content.includes('C\'est pour qui') || content.includes('Pour qui')) {
+      return {
+        type: 'assistant',
+        content: `👥 **Le jeu ${product.name} est parfait pour :**
+
+• Les couples mariés de tous âges
+• Ceux qui veulent améliorer leur communication
+• Les partenaires qui souhaitent se redécouvrir
+• Tous ceux qui cherchent à renforcer leur complicité
+
+💕 **Recommandé par nos clients** qui ont vu une amélioration notable dans leur relation !
+
+Souhaitez-vous voir les témoignages ou commander ?`,
+        choices: [
+          '⚡ Commander maintenant',
+          '⭐ Voir les témoignages',
+          '💝 Quels bénéfices ?'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'target_audience' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (content.includes('Quels bénéfices') || content.includes('bénéfices')) {
+      const benefitsInfo = await getProductInfoFromDatabase('benefits');
+      return {
+        type: 'assistant',
+        content: benefitsInfo,
+        choices: [
+          '⚡ Commander maintenant',
+          '❓ Comment ça marche ?',
+          '⭐ Voir les avis'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'product_benefits' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (content.includes('Avis clients') || content.includes('⭐')) {
+      const testimonialsInfo = await getProductInfoFromDatabase('testimonials');
+      return {
+        type: 'assistant',
+        content: testimonialsInfo,
+        choices: [
+          '⚡ Commander maintenant',
+          '❓ Comment ça marche ?',
+          '💝 Quels bénéfices ?'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'testimonials_view' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ CORRECTION: Infos livraison dynamiques avec vraies données
+    if (content.includes('Infos livraison') || content.includes('📦')) {
+      const deliveryInfo = await getDeliveryInfoFromDatabase();
+      
+      let deliveryContent = `🚚 **Informations de livraison**\n\n`;
+      
+      if (deliveryInfo && deliveryInfo.zones.length > 0) {
+        deliveryContent += `📍 **Zones couvertes :**\n`;
+        deliveryInfo.zones.forEach(zone => {
+          if (zone.active) {
+            const cityName = zone.city || zone.name;
+            deliveryContent += `• ${cityName} : ${zone.cost.toLocaleString()} FCFA\n`;
+          }
+        });
+        
+        deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
+        deliveryContent += `💰 **Paiement :**\n• ${deliveryInfo.methods.join('\n• ')}\n\n`;
+      } else {
+        // Fallback si erreur de récupération
+        deliveryContent += `📍 **Zones couvertes :**\n• Dakar : 1 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave, Orange Money\n• Carte bancaire\n• Paiement à la livraison\n\n`;
+      }
+      
+      deliveryContent += `Voulez-vous commander maintenant ?`;
+
+      return {
+        type: 'assistant',
+        content: deliveryContent,
+        choices: [
+          '⚡ Commander maintenant',
+          '📞 Autres questions',
+          '🏠 Changer d\'adresse'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'delivery_info' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ CORRECTION: En savoir plus dynamique avec vraies données
+    if (content.includes('En savoir plus') || content.includes('💬')) {
+      const descriptionInfo = await getProductInfoFromDatabase('description');
+      return {
+        type: 'assistant',
+        content: descriptionInfo,
+        choices: [
+          '⚡ Commander maintenant',
+          '❓ Comment ça marche ?',
+          '⭐ Voir les avis'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'product_info' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // Réponse par défaut
+    return {
+      type: 'assistant',
+      content: `Merci pour votre message ! Comment puis-je vous aider davantage avec le jeu **${product.name}** ?`,
+      choices: [
+        '⚡ Commander rapidement',
+        '❓ Poser une question',
+        '📦 Infos livraison'
+      ],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante VOSC'
+      },
+      metadata: {
+        nextStep: 'initial_engagement' as ConversationStep
+      },
+      timestamp: new Date().toISOString()
+    };
+  };
+
+  // ✅ FONCTION UTILITAIRE: Créer un message d'erreur
+  const createErrorResponse = (errorText: string): ChatMessageType => ({
+    type: 'assistant',
+    content: `😔 ${errorText}`,
+    choices: ['🔄 Réessayer', '📞 Contacter le support'],
+    assistant: {
+      name: 'Rose',
+      title: 'Assistante VOSC'
+    },
+    metadata: {
+      nextStep: 'error_recovery' as ConversationStep,
+      flags: { hasError: true }
+    },
+    timestamp: new Date().toISOString()
+  });
+
+  // ✅ FONCTION: Gestion de l'envoi de message
   const handleSubmit = async (contentOrEvent: string | React.MouseEvent<HTMLButtonElement>) => {
     const content = typeof contentOrEvent === 'string' 
       ? contentOrEvent 
       : inputMessage.trim();
   
-    if (!content) return;
+    if (!content || isProcessing) return;
+    
+    console.log('📤 Submitting message:', content);
     
     setInputMessage('');
     setIsProcessing(true);
-    setShowTyping(true);
+    updateTypingStatus(true);
     
     try {
       await sendMessage(content);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
     } finally {
-      setShowTyping(false);
+      updateTypingStatus(false);
       setIsProcessing(false);
     }
   };
 
+  // ✅ FONCTION PRINCIPALE: sendMessage pour desktop
+  const sendMessage = async (content: string) => {
+    try {
+      console.log('🖥️ Processing desktop message:', { content, sessionId, isExpressMode, currentStep });
+      
+      // Ajouter le message utilisateur immédiatement
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          flags: {
+            isButtonChoice: true,
+            preventAIIntervention: true
+          }
+        }
+      };
+      
+      addMessage(userMessage);
+
+      // Petite pause pour l'animation
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      let response: ChatMessageType;
+      
+      // Logique de traitement des messages
+      if (content.includes('Commander rapidement') || content.includes('⚡')) {
+        console.log('🚀 Starting desktop express purchase flow');
+        
+        try {
+          response = await optimizedService.startExpressPurchase(sessionId, product.id);
+          setExpressMode(true);
+          
+          // Mettre à jour les données de commande
+          updateOrderData({
+            session_id: sessionId,
+            product_id: product.id,
+            items: [{
+              productId: product.id,
+              name: product.name,
+              quantity: 1,
+              price: product.price,
+              totalPrice: product.price
+            }]
+          });
+          
+        } catch (error) {
+          console.error('❌ Error starting express purchase:', error);
+          response = createErrorResponse('Erreur lors du démarrage de la commande express');
+        }
+        
+      } else if (isExpressMode && currentStep?.includes('express')) {
+        console.log('🔄 Processing desktop express step:', currentStep);
+        
+        try {
+          response = await optimizedService.processUserInput(
+            sessionId,
+            content,
+            currentStep
+          );
+        } catch (error) {
+          console.error('❌ Error processing express step:', error);
+          response = createErrorResponse('Erreur lors du traitement de votre demande');
+        }
+        
+      } else {
+        // ✅ CORRECTION: Utiliser handleStandardMessages pour desktop
+        response = await handleStandardMessages(content);
+      }
+      
+      console.log('✅ Desktop response generated:', response);
+      addMessage(response);
+      
+      // Mettre à jour l'état si nécessaire
+      if (response.metadata?.orderData) {
+        updateOrderData(response.metadata.orderData);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error in desktop sendMessage:', err);
+      
+      const errorMessage = createErrorResponse('Une erreur est survenue. Veuillez réessayer.');
+      addMessage(errorMessage);
+    }
+  };
+
+  // ✅ FONCTION: Gestion des touches clavier
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const content = inputMessage.trim();
-      if (content) {
+      if (content && !isProcessing) {
         handleSubmit(content);
       }
     }
   };
 
+  // ✅ FONCTION: Gestion des choix avec debounce
   const handleChoiceSelect = async (choice: string) => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      console.log('⏳ Processing in progress, ignoring choice');
+      return;
+    }
   
-    // Marquer qu'on est en traitement
+    console.log('🔘 Desktop choice selected:', choice);
     setIsProcessing(true);
-    setShowTyping(true);
+    updateTypingStatus(true);
     
     try {
-      // Créer explicitement un message utilisateur avec des flags pour éviter l'intervention IA
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content: choice,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          flags: {
-            inPurchaseFlow: true,
-            preventAIIntervention: true,
-            isButtonChoice: true // Nouveau flag pour indiquer que c'est un choix de bouton
-          }
-        }
-      };
-      
-      // Ajouter le message manuellement
-      useChatStore.getState().addMessage(userMessage);
-      
-      // Attendre un peu pour l'animation
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Si c'est un des choix spécifiques pour ajouter des produits, forcer le bon handler
-      if (['Oui, je veux bien', 'Non, juste celui-là'].includes(choice)) {
-        // Obtenir la session ID
-        const sessionId = useChatStore.getState().sessionId;
-        const currentStep = useChatStore.getState().formStep;
-        
-        // Appeler directement le service
-        const chatService = ChatService.create();
-        const response = await chatService.handleAdditionalProducts(
-          sessionId,
-          currentStep as string,
-          choice
-        );
-        
-        if (response) {
-          // Ajouter la réponse au store
-          useChatStore.getState().addMessage(response);
-          setIsProcessing(false);
-          setShowTyping(false);
-          return;
-        }
-      }
-      
-      // Sinon, utiliser sendMessage standard
       await sendMessage(choice);
     } catch (error) {
-      console.error('Error sending choice:', error);
+      console.error('❌ Error sending choice:', error);
     } finally {
-      setShowTyping(false);
+      updateTypingStatus(false);
       setIsProcessing(false);
     }
   };
 
+  // ✅ FONCTION: Fermeture du modal de paiement
   const handleClosePaymentModal = () => {
     setPaymentModal({ 
       isOpen: false, 
@@ -162,6 +563,20 @@ const ChatContainer = ({
       provider: undefined 
     });
   };
+
+  // Rendu conditionnel si pas initialisé
+  if (!isInitialized) {
+    return (
+      <div className={`flex flex-col ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[600px]'} bg-white rounded-xl overflow-hidden`}>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93] mx-auto mb-4" />
+            <p className="text-gray-600">Initialisation du chat...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const chatContent = (
     <div className={`flex flex-col ${
@@ -180,41 +595,48 @@ const ChatContainer = ({
         className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4"
       >
         <AnimatePresence mode="popLayout">
-        {messages.map((message, index) => (
-          <motion.div
-            key={`${message.type}-${index}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChatMessage
-              message={message}
-              isTyping={false}
-            />
-            {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-              <div className="mt-4">
-                <QuantitySelector
-                  quantity={1}
-                  onQuantityChange={(qty: number) => {
-                    if (message.metadata?.handleQuantityChange) {
-                      message.metadata.handleQuantityChange(qty);
-                    }
-                  }}
-                  onConfirm={async (qty: number) => {
-                    if (message.metadata?.handleQuantitySubmit) {
-                      await message.metadata.handleQuantitySubmit(qty);
-                      message.metadata.quantityHandled = true;
-                    }
+          {messages.map((message, index) => (
+            <motion.div
+              key={`${message.type}-${index}-${message.timestamp}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChatMessage
+                message={message}
+                isTyping={false}
+                onChoiceSelect={handleChoiceSelect}
+              />
+              
+              {/* Gestion sécurisée du sélecteur de quantité */}
+              {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+                <div className="mt-4">
+                  <QuantitySelector
+                    quantity={1}
+                    onQuantityChange={(qty: number) => {
+                      if (message.metadata?.handleQuantityChange) {
+                        message.metadata.handleQuantityChange(qty);
+                      }
+                    }}
+                    onConfirm={async (qty: number) => {
+                      if (message.metadata?.handleQuantitySubmit) {
+                        await message.metadata.handleQuantitySubmit(qty);
+                        if (message.metadata) {
+                          message.metadata.quantityHandled = true;
+                        }
+                      }
                       handleSubmit(qty.toString());
-                  }}
-                  maxQuantity={message.metadata?.maxQuantity || 10}
-                />
-              </div>
-            )}
-          </motion.div>
-        ))}
-          {showTyping && (
+                    }}
+                    maxQuantity={message.metadata?.maxQuantity || 10}
+                  />
+                </div>
+              )}
+            </motion.div>
+          ))}
+          
+          {/* Indicateur de frappe avec animation */}
+          {(showTyping || isTyping) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -227,6 +649,7 @@ const ChatContainer = ({
         </AnimatePresence>
       </div>
 
+      {/* Zone de saisie avec validation */}
       <div className="bg-white border-t px-4 py-3">
         <div className="relative flex items-center">
           <input
@@ -235,14 +658,16 @@ const ChatContainer = ({
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Tapez votre message..."
-            className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none"
+            className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isProcessing}
+            maxLength={500}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <button
               type="button"
               className="p-2 text-gray-400 cursor-not-allowed"
               disabled
+              title="Reconnaissance vocale (bientôt disponible)"
             >
               <Mic className="w-5 h-5" />
             </button>
@@ -250,33 +675,39 @@ const ChatContainer = ({
               type="button"
               onClick={handleSubmit}
               disabled={!inputMessage.trim() || isProcessing}
-              className={`p-2 ${
+              className={`p-2 transition-colors ${
                 inputMessage.trim() && !isProcessing
                   ? 'text-[#FF7E93] hover:text-[#132D5D]' 
-                  : 'text-gray-400'
-              } transition-colors`}
+                  : 'text-gray-400 cursor-not-allowed'
+              }`}
+              title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}
             >
-              <Send className="w-5 h-5" />
+              {isProcessing ? (
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-[#FF7E93] rounded-full animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
       </div>
 
+      {/* Modals de paiement avec toutes les props obligatoires */}
       <BictorysPaymentModal
-        isOpen={paymentModal.isOpen}
+        isOpen={paymentModal?.isOpen || false}
         onClose={handleClosePaymentModal}
-        amount={orderData.totalAmount || 0}
+        amount={orderData?.totalAmount || 0}
         currency="XOF"
-        orderId={parseInt(orderData.session_id || Date.now().toString())}
+        orderId={parseInt(orderData?.session_id || Date.now().toString())}
         customerInfo={{
-          name: `${orderData.first_name} ${orderData.last_name}`,
-          phone: orderData.phone,
-          email: orderData.email,
-          city: orderData.city
+          name: `${orderData?.first_name || ''} ${orderData?.last_name || ''}`.trim() || 'Client',
+          phone: orderData?.phone || '',
+          email: orderData?.email || '',
+          city: orderData?.city || ''
         }}
       />
-
-      {payment.status === 'processing' && payment.clientSecret && (
+      
+      {payment?.status === 'processing' && payment?.clientSecret && (
         <StripePaymentModal
           isOpen={stripeModalOpen}
           onClose={() => setStripeModalOpen(false)}
@@ -293,10 +724,10 @@ const ChatContainer = ({
         sessionId: sessionId,
         storeId,
         customerInfo: {
-          firstName: orderData.first_name,
-          lastName: orderData.last_name,
-          city: orderData.city,
-          email: orderData.email
+          firstName: orderData?.first_name || '',
+          lastName: orderData?.last_name || '',
+          city: orderData?.city || '',
+          email: orderData?.email || ''
         }
       }}
     >

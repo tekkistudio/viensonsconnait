@@ -1,39 +1,15 @@
-// src/types/chat.ts
-import { PRODUCTS_INFO } from "@/config/products";
-import type { PaymentProvider, CustomerInfo } from '@/types/payment';
-import type { 
-  OrderData as BaseOrderData,
-  OrderStatus as BaseOrderStatus,
-  OrderMetadata as BaseOrderMetadata,
-  OrderItem as BaseOrderItem,
-  ProductRecommendation as BaseProductRecommendation,
-  ProductRecommendation
-} from './order';
+// src/types/chat.ts - TYPES CORRIGÉS POUR ÉVITER LES ERREURS
 import { ReactNode } from 'react';
 
-// Product Types
-export type ProductId = keyof typeof PRODUCTS_INFO;
+// ==========================================
+// TYPES DE BASE
+// ==========================================
 
-export type ProductCategory = 
-  | 'romance'
-  | 'family'
-  | 'friendship'
-  | 'professional'
-  | 'personal_growth';
-
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  imageUrl: string;
-  description?: string;
-}
-
-// Message Types
 export type MessageType = 
   | 'assistant' 
   | 'user' 
   | 'user-choices'
+  | 'system'
   | 'wave-button'
   | 'om-button'
   | 'cod-button'
@@ -46,13 +22,521 @@ export type MessageType =
   | 'redirect'
   | 'order-summary';
 
-export type PaymentMethodMessageType = 
-  | 'wave-button'
-  | 'om-button'
-  | 'cod-button'
-  | 'mobile-money'
-  | 'card'
-  | 'cash';
+export type PaymentProvider = 
+  | 'WAVE' 
+  | 'ORANGE_MONEY' 
+  | 'STRIPE' 
+  | 'CASH';
+
+export type PaymentStatus = 
+  | 'pending' 
+  | 'processing' 
+  | 'completed' 
+  | 'failed' 
+  | 'cancelled' 
+  | 'success';
+
+// ==========================================
+// CONVERSATION STEPS - VERSION COMPLÈTE
+// ==========================================
+
+export type ConversationStep = 
+  // ✅ ÉTAPES PRINCIPALES DU SYSTÈME
+  | 'initial'
+  | 'initial_engagement'
+  | 'mode_selection'
+  | 'generic_response'
+  | 'error_recovery'
+  | 'fallback_response'
+  
+  // ✅ ÉTAPES DE DÉCOUVERTE ET INFORMATION
+  | 'description'
+  | 'product_info'
+  | 'product_info_detailed'
+  | 'product_info_persuasive'
+  | 'product_usage'
+  | 'product_benefits'
+  | 'product_question'
+  | 'target_audience'
+  | 'game_rules'
+  | 'usage_explained'
+  | 'benefits_presented'
+  | 'question_mode'
+  | 'question_answered'
+  | 'information_gathering'
+  
+  // ✅ ÉTAPES DE TÉMOIGNAGES ET SOCIAL PROOF
+  | 'testimonials'
+  | 'testimonials_view'
+  | 'testimonials_shown'
+  | 'testimonials_request'
+  | 'social_proof_shown'
+  
+  // ✅ ÉTAPES DE PRIX ET OBJECTIONS
+  | 'price_question'
+  | 'price_explained'
+  | 'price_justification'
+  | 'objection'
+  | 'objection_handling'
+  | 'objection_handled'
+  | 'objection_addressed'
+  | 'objection_general'
+  | 'doubt_addressed'
+  
+  // ✅ ÉTAPES DE LIVRAISON
+  | 'delivery_info'
+  | 'delivery_info_shown'
+  | 'delivery_question'
+  
+  // ✅ ÉTAPES DE PERSUASION ET CONVERSION
+  | 'warm_welcome'
+  | 'greeting'
+  | 'greeting_response'
+  | 'high_interest'
+  | 'conversion_focus'
+  | 'persuasion_attempt'
+  | 'trust_building'
+  | 'purchase_intent'
+  
+  // ✅ ÉTAPES FLOW EXPRESS
+  | 'express_contact'
+  | 'express_name'
+  | 'express_phone'
+  | 'express_city'
+  | 'express_address'
+  | 'express_quantity'
+  | 'express_custom_quantity'
+  | 'express_payment'
+  | 'express_order'
+  | 'express_summary'
+  | 'express_modify'
+  | 'express_error'
+  
+  // ✅ ÉTAPES DE COLLECTE D'INFORMATIONS STANDARD
+  | 'collect_quantity'
+  | 'collect_name'
+  | 'collect_phone'
+  | 'collect_city'
+  | 'collect_address'
+  | 'collect_email'
+  | 'collect_email_opt'
+  | 'collect_has_email'
+  | 'process_email_response'
+  | 'collect_note_text'
+  | 'check_existing'
+  | 'confirm_address'
+  | 'update_address'
+  | 'confirm_existing_info'
+  | 'process_quantity'
+  | 'contact_info'
+  
+  // ✅ ÉTAPES DE GESTION DU PANIER ET PRODUITS
+  | 'cart_management'
+  | 'empty_cart'
+  | 'empty_cart_options'
+  | 'cart_summary_actions'
+  | 'product_navigation_choice'
+  | 'recommend_products'
+  | 'select_product'
+  | 'select_additional_product'
+  | 'additional_quantity'
+  | 'add_product_choice'
+  | 'add_other_products'
+  | 'add_product'
+  | 'add_product_to_order'
+  | 'product_added'
+  | 'product_selection'
+  | 'product_unavailable'
+  | 'choose_flow'
+  
+  // ✅ ÉTAPES DE NOTES ET FINALISATION
+  | 'add_notes'
+  | 'save_note'
+  | 'order_summary'
+  | 'show_order_summary'
+  | 'confirm_order_summary'
+  | 'modify_order'
+  | 'finalize_order'
+  | 'finalize_current_order'
+  | 'fresh_start'
+  
+  // ✅ ÉTAPES DE PAIEMENT
+  | 'payment_method'
+  | 'payment_processing'
+  | 'payment_complete'
+  | 'payment_error'
+  
+  // ✅ ÉTAPES POST-ACHAT
+  | 'order_complete'
+  | 'post_purchase'
+  | 'post_purchase_options'
+  | 'order_tracking'
+  
+  // ✅ ÉTAPES DE SUPPORT ET SERVICE CLIENT
+  | 'customer_service'
+  | 'customer_support'
+  | 'general_support'
+  | 'support_request'
+  | 'contact_options'
+  | 'address_change_request'
+  
+  // ✅ ÉTAPES DE CRÉATION DE COMPTE
+  | 'create_account'
+  | 'create_account_email'
+  | 'create_account_password'
+  
+  // ✅ ÉTAPES DE GESTION DES STOCKS
+  | 'out_of_stock'
+  | 'stock_unavailable'
+  
+  // ✅ ÉTAPES GÉNÉRIQUES ET UTILITAIRES
+  | 'generic';
+
+// ==========================================
+// INTERFACES PRINCIPALES
+// ==========================================
+
+export interface ChatAssistant {
+  name: string;
+  title: string;
+  avatar?: string;
+}
+
+export interface ChatOrderItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  totalPrice: number;
+  image?: string | null;
+}
+
+// ==========================================
+// FLAGS ET MÉTADONNÉES
+// ==========================================
+
+export interface MessageFlags {
+  // Flags du nouveau système
+  expressMode?: boolean;
+  preventAIIntervention?: boolean;
+  customerExists?: boolean;
+  addressValidated?: boolean;
+  stockReserved?: boolean;
+  paymentInitiated?: boolean;
+  orderCompleted?: boolean;
+  hasError?: boolean;
+  outOfStock?: boolean;
+  isWelcome?: boolean;
+  cityPreselected?: string;
+  
+  // Flags de l'ancien système
+  inPurchaseFlow?: boolean;
+  quantitySelectorDisplayed?: boolean;
+  messageHandled?: boolean;
+  emailHandled?: boolean;
+  quantityHandled?: boolean;
+  recommendationsShown?: boolean;
+  recommendationsSkipped?: boolean;
+  emailConfirmed?: boolean;
+  addressConfirmed?: boolean;
+  orderConfirmed?: boolean;
+  paymentConfirmed?: boolean;
+  accountCreationSkipped?: boolean;
+  existingCustomerFound?: boolean;
+  newCustomer?: boolean;
+  accountCreated?: boolean;
+  emailRequested?: boolean;
+  surveyCompleted?: boolean;
+  isButtonChoice?: boolean;
+  isPurchaseInitiation?: boolean;
+  isQuantitySelection?: boolean;
+  choiceType?: string;
+  standardMode?: boolean;
+  flowChoice?: boolean;
+  flowChosen?: boolean;
+  nameCollected?: boolean;
+  phoneCollected?: boolean;
+  cityCollected?: boolean;
+  addressCollected?: boolean;
+  modificationRequested?: boolean;
+  
+  [key: string]: boolean | string | undefined; 
+}
+
+// ==========================================
+// MÉTADONNÉES POUR LES COMMANDES
+// ==========================================
+
+export interface OrderMetadata {
+  source: string;
+  storeId: string;
+  productId: string;
+  conversationId: string;
+  createdAt: string;
+  updatedAt: string;
+  conversationHistory: any[];
+  flags?: MessageFlags;
+  [key: string]: any;
+}
+
+// ==========================================
+// DONNÉES DE COMMANDE UNIFIÉES
+// ==========================================
+
+export interface ChatOrderData {
+  session_id: string;
+  product_id?: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  city: string;
+  address: string;
+  email?: string;
+  payment_method?: PaymentProvider;
+  subtotal?: number;
+  subtotal_amount?: number; // Compatibilité ancien système
+  delivery_cost?: number;
+  total_amount?: number;
+  totalAmount?: number; // Compatibilité ancien système
+  status: 'pending' | 'confirmed' | 'cancelled';
+  payment_status?: PaymentStatus;
+  paymentStatus?: PaymentStatus; // Compatibilité ancien système
+  items: ChatOrderItem[];
+  metadata?: OrderMetadata;
+  // Propriétés de l'ancien système
+  formStep?: ConversationStep;
+  currentItem?: ChatOrderItem;
+  contactInfo?: string;
+  paymentMethod?: PaymentProvider;
+  deliveryCost?: number;
+  buyingIntent?: number;
+  quantity?: number;
+  preferences?: UserPreferences;
+  mentionedTopics?: string[];
+  concerns?: string[];
+  interests?: string[];
+  recommendations?: any[];
+  summary?: any;
+  notes?: string;
+  order_details?: string;
+  chatMetadata?: {
+    lastMessageId?: string;
+    lastInteraction?: string;
+  };
+}
+
+// Alias pour compatibilité
+export type OrderData = ChatOrderData;
+
+// ==========================================
+// MÉTADONNÉES DES MESSAGES
+// ==========================================
+
+export interface ChatMessageMetadata {
+  // Propriétés du nouveau système
+  nextStep?: ConversationStep;
+  orderData?: Partial<ChatOrderData>;
+  paymentUrl?: string;
+  orderId?: string;
+  productId?: string;
+  paymentAmount?: number;
+  paymentMethod?: string;
+  flags?: MessageFlags;
+  analytics?: {
+    stepStartTime?: string;
+    userIntent?: string;
+    confidence?: number;
+  };
+  
+  // Propriétés de l'ancien système
+  recommendations?: string[] | any[];
+  intent?: number;
+  error?: string;
+  productContext?: string;
+  isButtonAction?: boolean;
+  actionType?: string;
+  paymentStatus?: PaymentStatus;
+  transactionId?: string;
+  paymentInfo?: any;
+  paymentType?: PaymentProvider;
+  paymentProvider?: PaymentProvider;
+  clientSecret?: string;
+  paymentData?: {
+    provider: PaymentProvider;
+    transactionId: string;
+    amount?: number;
+    currency: string;
+  };
+  amount?: number;
+  orderSummary?: any;
+  orderIndex?: number;
+  summary?: any;
+  cartId?: string;
+  messageHandled?: boolean;
+  formStep?: ConversationStep;
+  action?: 'redirect' | 'payment' | 'confirmation';
+  redirectUrl?: string;
+  externalUrl?: {
+    type: 'whatsapp' | 'email' | 'payment' | 'other';
+    url: string;
+    description?: string;
+  };
+  lastCheck?: string;
+  hasEmail?: 'yes' | 'no';
+  emailCollected?: boolean;
+  emailConfirmed?: boolean;
+  showQuantitySelector?: boolean;
+  maxQuantity?: number;
+  quantity?: number;
+  selectedProductId?: string;
+  quantityHandled?: boolean;
+  handleQuantityChange?: (qty: number) => Promise<ChatMessage | void>;
+  handleQuantitySubmit?: (qty: number) => Promise<void>;
+  userPreferences?: UserPreferences;
+  buyingIntent?: number;
+  
+  // ✅ AJOUT: Propriétés manquantes
+  originalMessage?: string;
+  [key: string]: any; // Pour permettre d'autres propriétés dynamiques
+}
+
+// Alias pour compatibilité
+export type MessageMetadata = ChatMessageMetadata;
+
+// ==========================================
+// MESSAGE PRINCIPAL - ✅ CORRECTION DU TYPE CONTENT
+// ==========================================
+
+export interface ChatMessage {
+  id?: string;
+  type: MessageType;
+  content: string; // ✅ CHANGÉ: Seulement string au lieu de ReactNode
+  choices?: string[];
+  assistant?: ChatAssistant;
+  metadata?: ChatMessageMetadata;
+  paymentUrl?: string;
+  timestamp: string;
+}
+
+// ==========================================
+// ÉTATS ET CONTEXTES
+// ==========================================
+
+export interface PaymentState {
+  selectedMethod: PaymentProvider | null;
+  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
+  transactionId?: string;
+  error: string | null;
+  clientSecret: string | null;
+}
+
+export interface PaymentModalState {
+  isOpen: boolean;
+  iframeUrl: string;
+  provider?: PaymentProvider;
+}
+
+export interface ChatState {
+  messages: ChatMessage[];
+  orderData: ChatOrderData;
+  sessionId: string;
+  formStep: ConversationStep;
+  isTyping: boolean;
+  showCheckout: boolean;
+  payment: PaymentState;
+  paymentModal: PaymentModalState;
+  mode: 'standard' | 'express';
+}
+
+// ==========================================
+// VALIDATION ET SERVICES
+// ==========================================
+
+export interface StepValidation {
+  isValid: boolean;
+  nextStep?: ConversationStep;
+  error?: string;
+  metadata?: any;
+}
+
+export interface PhoneValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export interface FormattedPhone {
+  formatted: string;
+  international: string;
+  local: string;
+  isValid: boolean;
+  error?: string;
+}
+
+// ==========================================
+// RÉPONSES IA
+// ==========================================
+
+export interface AIResponse {
+  content: string;
+  type: 'assistant' | 'user';
+  choices?: string[];
+  nextStep?: ConversationStep;
+  recommendations?: any[];
+  buyingIntent?: number;
+  error?: string;
+  insights?: string[];
+  actions?: string[];
+  suggestions?: string[];
+  shouldPersonalize?: boolean;
+}
+
+// ==========================================
+// TYPES UTILITAIRES
+// ==========================================
+
+export interface UserPreferences {
+  categories?: string[];
+  priceRange?: [number, number];
+  relationshipType?: string;
+  groupSize?: number;
+  interests?: string[];
+  concerns?: string[];
+}
+
+// ==========================================
+// ACTIONS DU CHAT
+// ==========================================
+
+export type ChatAction =
+  | { type: 'ADD_MESSAGE'; payload: ChatMessage }
+  | { type: 'SET_TYPING'; payload: boolean }
+  | { type: 'UPDATE_ORDER_DATA'; payload: Partial<ChatOrderData> }
+  | { type: 'ADD_PRODUCT_TO_ORDER'; payload: ChatOrderItem }
+  | { type: 'REMOVE_PRODUCT_FROM_ORDER'; payload: string }
+  | { type: 'UPDATE_PRODUCT_QUANTITY'; payload: { productId: string; quantity: number } }
+  | { type: 'SET_FORM_STEP'; payload: ConversationStep }
+  | { type: 'SET_SHOW_CHECKOUT'; payload: boolean }
+  | { type: 'SET_CURRENT_PRODUCT_CONTEXT'; payload: string }
+  | { type: 'SET_ERROR'; payload: string | undefined }
+  | { type: 'SET_PAYMENT_MODAL'; payload: PaymentModalState }
+  | { type: 'SELECT_PAYMENT_METHOD'; payload: PaymentProvider }
+  | { type: 'RESET_ORDER' }
+  | { type: 'UPDATE_USER_PREFERENCES'; payload: UserPreferences }
+  | { type: 'SET_PAYMENT_STATUS'; payload: SetPaymentStatusPayload }
+  | { type: 'SET_ORDER_SUMMARY'; payload: any }
+  | { type: 'RESET_PAYMENT' }
+  | { type: 'SET_MODE'; payload: 'standard' | 'express' }
+  | { type: 'INITIALIZE_CHAT'; payload: ChatState };
+
+export interface SetPaymentStatusPayload {
+  status: PaymentState['status'];
+  transactionId?: string;
+  error: string | null;
+}
+
+// ==========================================
+// EXPORTS COMPATIBILITÉ (Types de l'ancien système)
+// ==========================================
 
 export interface BaseMessageContent {
   text: string;
@@ -75,21 +559,6 @@ export interface PaymentMessage {
     timestamp?: string;
     [key: string]: any;
   };
-}
-
-export interface ChatMessage {
-  id?: string;
-  type: MessageType;
-  content: string | ReactNode | BaseMessageContent;
-  choices?: string[];
-  assistant?: {
-    name: string;
-    title: string;
-    avatar?: string;
-  };
-  metadata?: MessageMetadata;
-  paymentUrl?: string;
-  timestamp?: string;
 }
 
 export interface SavedMessage {
@@ -116,288 +585,31 @@ export interface CustomerMessage {
   metadata?: Record<string, any>;
 }
 
-export interface MessageFlags {
-  quantitySelectorDisplayed?: boolean;
-  messageHandled?: boolean;
-  emailHandled?: boolean;
-  quantityHandled?: boolean;
+// Types de produit et catégories
+export type ProductCategory = 
+  | 'romance'
+  | 'family'
+  | 'friendship'
+  | 'professional'
+  | 'personal_growth';
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  description?: string;
 }
 
-export interface AIResponse {
-  content: string;
-  type: MessageType;
-  choices?: string[];
-  error?: string;
-  buyingIntent?: number;
-  shouldPersonalize?: boolean;
-  recommendations?: ProductRecommendation[];
-  nextStep?: ConversationStep;
-  redirectUrl?: string;
-  paymentUrl?: string;
-  orderId?: string;
-  total?: PaymentTotal;
-  insights?: string[];
-  actions?: string[];
-  suggestions?: string[];
-  metadata?: MessageMetadata;
-}
+// ==========================================
+// FONCTION UTILITAIRE
+// ==========================================
 
-// Conversation and Order Types
-export type ConversationStep = 
-  // Étapes initiales d'exploration
-  | 'initial'
-  | 'description' 
-  | 'testimonials'
-  | 'game_rules'
-  
-  // Étapes de collecte d'informations client
-  | 'collect_quantity'
-  | 'collect_name'
-  | 'collect_phone'
-  | 'check_existing'      // Ajouté pour vérifier si client existant
-  | 'collect_city'
-  | 'collect_address'
-  | 'collect_email_opt'   // Ajouté pour demander si veut fournir email
-  | 'collect_email'
-  | 'collect_has_email'   // Compatible avec ancien flow
-  | 'process_email_response'
-  
-  // Étapes de recommandation et ajout produits
-  | 'recommend_products'  // Ajouté pour gérer recommandations
-  | 'select_product'
-  | 'additional_quantity'
-  | 'add_product_choice'
-  | 'add_other_products'
-  | 'add_product'         // Ajouté pour résoudre l'erreur
-  
-  // Étapes notes et résumé
-  | 'add_notes'
-  | 'save_note'
-  | 'order_summary'
-  | 'modify_order'        // Ajouté pour résoudre l'erreur
-  
-  // Étapes de paiement
-  | 'payment_method'
-  | 'payment_processing'
-  | 'payment_complete'
-  | 'payment_error'
-  
-  // Étapes post-achat
-  | 'create_account'      // Ajouté pour création compte
-  | 'create_account_email'
-  | 'create_account_password'
-  | 'post_purchase'       // Ajouté pour étape finale
-  
-  // Étapes complémentaires pour la compatibilité
-  | 'contact_info'
-  | 'confirm_address'
-  | 'update_address'
-  | 'confirm_existing_info'
-  | 'process_quantity'
-  
-  // Étapes du flow express
-  | 'choose_flow'         // Choix entre mode express ou standard
-  | 'express_name'        // Collecte du nom en mode express
-  | 'express_phone'       // Collecte du téléphone en mode express
-  | 'express_address'     // Collecte de l'adresse en mode express
-  | 'express_city'        // Collecte de la ville en mode express
-  | 'express_order' 
-  | 'express_payment'     // Choix du mode de paiement en express
-  | 'express_summary'     // Récapitulatif en mode express
-  | 'express_modify'      // Modification commande en mode express
-  | 'express_error';      // Gestion d'erreur en mode express
-
-export interface StepValidation {
-  isValid: boolean;
-  nextStep: ConversationStep;
-  error?: string;
-  metadata?: {
-    hasEmail?: boolean;
-    [key: string]: any;
-  };
-}
-
-export type EmailResponse = 'yes' | 'no';
-export type PaymentStage = 'init' | 'method' | 'processing' | 'complete' | 'error';
-export type PaymentMethodType = PaymentProvider;
-export type OrderStatus = BaseOrderStatus;
-export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'success';
-
-// Helper function pour getCurrentMessageMetadata
-export interface MessageMetadataHelper {
-  selectedProductId?: string;
-  showQuantitySelector?: boolean;
-  maxQuantity?: number;
-  [key: string]: any;
-}
-
-// Interface pour createResponse
-export interface CreateResponseOptions {
-  products?: ProductRecommendation[];
-  showProductSelector?: boolean;
-  selectedProductId?: string;
-  showQuantitySelector?: boolean;
-  maxQuantity?: number;
-  [key: string]: any;
-}
-
-export interface PaymentTotal {
-  value: number;
-  formatted: string;
-  originalInFCFA: number;
-}
-
-export interface OrderItem extends BaseOrderItem {
-  totalPrice: number;
-}
-
-export interface OrderSummaryData {
-  items: OrderItem[];
-  customerInfo: {
-    firstName: string;
-    lastName: string;
-    country: string;
-    city: string;
-    address: string;
-    phone: string;
-  };
-  subtotal: PaymentTotal;
-  deliveryCost: PaymentTotal;
-  total: PaymentTotal;
-}
-
-export interface PaymentInfo {
-  provider: PaymentMethodType;
-  status: PaymentStatus;
-  transactionId?: string;
-  error?: string;
-}
-
-export interface ProfileAnalysisResult {
-  relationshipStatus: string[];
-  interests: string[];
-  topics: string[];
-  concerns: string[];
-  intent: number;
-  recommendedProducts: string[]; 
-  pricePreference: 'economic' | 'standard' | 'premium';
-  mentionedTopics?: string[]; 
-  productContext?: {
-    lastViewed?: string[];
-    favoriteCategories?: string[];
-  };
-}
-
-// Order and Metadata Types
-export interface OrderMetadata extends BaseOrderMetadata {
-  conversationHistory: ChatMessage[];
-  nextStep?: ConversationStep;
-  buyingIntent?: number;
-  recommendations?: string[];
-}
-
-export interface ChatOrderData extends Omit<BaseOrderData, 'subtotal'> {
-  subtotal: number;
-  paymentStatus: 'pending' | 'processing' | 'completed' | 'failed';
-  formStep?: ConversationStep;
-  currentItem?: OrderItem;
-  items: OrderItem[];
-  contactInfo?: string;
-  paymentMethod?: PaymentMethodType;
-  deliveryCost?: number;
-  totalAmount?: number;
-  buyingIntent?: number;
-  quantity?: number;
-  preferences?: UserPreferences;
-  mentionedTopics?: string[];
-  concerns?: string[];
-  interests?: string[];
-  recommendations?: BaseProductRecommendation[];
-  summary?: OrderSummaryData;
-  notes?: string;
-  chatMetadata?: {
-    lastMessageId?: string;
-    lastInteraction?: string;
-  };
-}
-
-// Et ajoutez cette ligne pour réexporter le type de base
-export type OrderData = ChatOrderData;
-
-export type PartialOrderUpdate = Partial<Omit<OrderData, 'metadata'>> & {
-  metadata?: Partial<OrderMetadata>;
-};
-
-// State Types
-export interface PaymentState {
-  selectedMethod: PaymentMethodType | null;
-  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
-  transactionId?: string;
-  error: string | null;
-  clientSecret: string | null;
-}
-
-export interface PaymentModalState {
-  isOpen: boolean;
-  iframeUrl: string;
-  provider?: PaymentMethodType;
-}
-
-export interface ChatState {
-  messages: ChatMessage[];
-  orderData: OrderData;
-  sessionId: string;
-  formStep: ConversationStep;
-  isTyping: boolean;
-  showCheckout: boolean;
-  payment: PaymentState;
-  paymentModal: PaymentModalState;
-  // Nouveau champ pour le mode (express ou standard)
-  mode: 'standard' | 'express';
-}
-
-export interface MessageFlags {
-  inPurchaseFlow?: boolean;
-  preventAIIntervention?: boolean;
-  quantitySelectorDisplayed?: boolean;
-  messageHandled?: boolean;
-  emailHandled?: boolean;
-  quantityHandled?: boolean;
-  recommendationsShown?: boolean;
-  recommendationsSkipped?: boolean;
-  emailConfirmed?: boolean;
-  addressConfirmed?: boolean;
-  orderConfirmed?: boolean;
-  paymentConfirmed?: boolean;
-  accountCreationSkipped?: boolean;
-  existingCustomerFound?: boolean;
-  newCustomer?: boolean;
-  accountCreated?: boolean;
-  emailRequested?: boolean;
-  surveyCompleted?: boolean;
-  isButtonChoice?: boolean;
-  isPurchaseInitiation?: boolean;
-  isQuantitySelection?: boolean;
-  choiceType?: string;
-  // Flags pour le flow express
-  expressMode?: boolean;
-  standardMode?: boolean;
-  flowChoice?: boolean;
-  flowChosen?: boolean;
-  nameCollected?: boolean;
-  phoneCollected?: boolean;
-  cityCollected?: boolean;
-  addressCollected?: boolean;
-  modificationRequested?: boolean;
-  [key: string]: boolean | string | undefined; 
-}
-
-// Ajouter cette fonction utilitaire pour créer des métadonnées valides
 export function createDefaultOrderMetadata(
   sessionId: string,
   productId: string,
   storeId: string,
-  additionalData: Partial<OrderMetadata> = {}
+  additionalData: Partial<any> = {}
 ): OrderMetadata {
   const timestamp = new Date().toISOString();
   
@@ -414,85 +626,30 @@ export function createDefaultOrderMetadata(
   };
 }
 
-// Metadata and Context Types
-export interface MessageMetadata {
-  // Propriétés existantes de base
-  recommendations?: string[] | BaseProductRecommendation[];
-  intent?: number;
-  error?: string;
-  productContext?: string;
-  orderId?: string;
-  isButtonAction?: boolean;
-  actionType?: string;
-  
-  // Propriétés de paiement
-  paymentStatus?: PaymentStatus;
-  transactionId?: string;
-  paymentInfo?: PaymentInfo;
-  paymentType?: PaymentProvider;
-  paymentProvider?: PaymentProvider;
-  paymentUrl?: string; // Ajouté pour résoudre l'erreur
-  clientSecret?: string; // Ajouté pour résoudre l'erreur
-  paymentData?: {
-    provider: 'WAVE' | 'ORANGE_MONEY' | 'STRIPE' | 'CASH';
-    transactionId: string;
-    amount?: number;
-    currency: string;
-  };
-  amount?: number;
-  
-  // Propriétés de commande
-  orderSummary?: OrderSummaryData;
-  orderData?: Partial<ChatOrderData>;
-  orderIndex?: number;
-  summary?: OrderSummaryData;
-  cartId?: string;
-  
-  // Propriétés de navigation et d'étapes
-  messageHandled?: boolean;
-  formStep?: ConversationStep;
-  nextStep?: ConversationStep;
-  action?: 'redirect' | 'payment' | 'confirmation';
-  redirectUrl?: string;
-  externalUrl?: {
-    type: 'whatsapp' | 'email' | 'payment' | 'other';
-    url: string;
-    description?: string;
-  };
-  lastCheck?: string;
-  flags?: MessageFlags;
-  
-  // Propriétés email
-  hasEmail?: EmailResponse;
-  emailCollected?: boolean;
-  emailConfirmed?: boolean;
-  
-  // Propriétés de quantité et sélecteur
-  showQuantitySelector?: boolean;
-  maxQuantity?: number;
-  quantity?: number;
-  productId?: string;
-  selectedProductId?: string;
-  quantityHandled?: boolean;
-  handleQuantityChange?: (qty: number) => Promise<ChatMessage | void>;
-  handleQuantitySubmit?: (qty: number) => Promise<void>;
-  
-  // Propriétés de préférences et intentions
-  userPreferences?: UserPreferences;
-  buyingIntent?: number;
+// ==========================================
+// FONCTIONS UTILITAIRES POUR VALIDATION DE TYPE
+// ==========================================
+
+export function isStringContent(content: any): content is string {
+  return typeof content === 'string';
 }
 
-export interface UserPreferences {
-  categories?: string[];
-  priceRange?: [number, number];
-  relationshipType?: string;
-  groupSize?: number;
-  interests?: string[];
-  concerns?: string[];
+export function ensureStringContent(content: any): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content === null || content === undefined) {
+    return '';
+  }
+  return String(content);
 }
 
+// Types de produit et identifiants
+export type ProductId = string;
+
+// Types pour les recommandations
 export interface RecommendationContext {
-  currentProductId: ProductId;
+  currentProductId: string;
   buyingIntent: number;
   userPreferences?: {
     categories?: string[];
@@ -506,104 +663,29 @@ export interface RecommendationContext {
     interests: string[];
   };
   orderHistory?: {
-    productIds: ProductId[];
+    productIds: string[];
     totalSpent: number;
     lastPurchaseDate?: string;
   };
 }
 
-// Action Types
-export type ChatAction =
-  | { type: 'ADD_MESSAGE'; payload: ChatMessage }
-  | { type: 'SET_TYPING'; payload: boolean }
-  | { type: 'UPDATE_ORDER_DATA'; payload: Partial<OrderData> }
-  | { type: 'ADD_PRODUCT_TO_ORDER'; payload: OrderItem }
-  | { type: 'REMOVE_PRODUCT_FROM_ORDER'; payload: string }
-  | { type: 'UPDATE_PRODUCT_QUANTITY'; payload: { productId: string; quantity: number } }
-  | { type: 'SET_FORM_STEP'; payload: ConversationStep }
-  | { type: 'SET_SHOW_CHECKOUT'; payload: boolean }
-  | { type: 'SET_CURRENT_PRODUCT_CONTEXT'; payload: string }
-  | { type: 'SET_ERROR'; payload: string | undefined }
-  | { type: 'SET_PAYMENT_MODAL'; payload: PaymentModalState }
-  | { type: 'SELECT_PAYMENT_METHOD'; payload: PaymentMethodType }
-  | { type: 'RESET_ORDER' }
-  | { type: 'UPDATE_USER_PREFERENCES'; payload: UserPreferences }
-  | { type: 'SET_PAYMENT_STATUS'; payload: SetPaymentStatusPayload }
-  | { type: 'SET_ORDER_SUMMARY'; payload: OrderSummaryData }
-  | { type: 'RESET_PAYMENT' }
-  | { type: 'SET_MODE'; payload: 'standard' | 'express' }
-  | { type: 'INITIALIZE_CHAT'; payload: ChatState };
-
-export interface SetPaymentStatusPayload {
-  status: PaymentState['status'];
-  transactionId?: string;
-  error: string | null;
+// Interface pour l'analyse de profil
+export interface ProfileAnalysisResult {
+  relationshipStatus: string[];
+  interests: string[];
+  topics: string[];
+  concerns: string[];
+  intent: number;
+  recommendedProducts: string[];
+  pricePreference: 'standard' | 'economic' | 'premium';
 }
 
-// Props Types
-export interface UseOrderManagementProps {
-  orderData: OrderData;
-  dispatch: React.Dispatch<ChatAction>;
-  addBotResponse: (messages: ChatMessage[]) => Promise<void>;
-}
-
-export interface UsePaymentFlowProps {
-  orderData: OrderData;
-  dispatch: React.Dispatch<ChatAction>;
-  addBotResponse: (messages: ChatMessage[]) => Promise<void>;
-  calculateOrderTotal: () => PaymentTotal;
-}
-
-export interface UseChatMessagesProps {
-  dispatch: React.Dispatch<ChatAction>;
-  formStep: ConversationStep;
-  productId: string;
-}
-
-export interface AIContext {
-  currentStep: ConversationStep;
-  productContext?: string;
-  orderData?: OrderData;
-  total?: PaymentTotal;
-  [key: string]: any;
-}
-
-export interface PaymentInitiationProps {
-  method: PaymentMethodType;
-  customerInfo: CustomerInfo;
-}
-
-export interface ChatContextType {
-  state: ChatState;
-  dispatch: React.Dispatch<ChatAction>;
-  handleUserChoice: (choice: string) => Promise<void>;
-  calculateOrderTotal: () => PaymentTotal;
-  handleQuantityModification: (productId: string, quantity: number) => Promise<boolean>;
-  handleMessage: (message: ChatMessage) => void;
-  handlePaymentInitiation: (method: PaymentMethodType, customerInfo: CustomerInfo) => Promise<void>;
-}
-
-export interface ChatProviderProps {
-  children: ReactNode;
-  product: {
+// Types pour l'assistant de page
+export interface PageContext {
+  page: string;
+  data: any;
+  user?: {
     id: string;
-    name: string;
-    price: number;
-    [key: string]: any;
+    role: string;
   };
 }
-
-// Utility Types
-export interface MessageStructure {
-  welcome: string;
-  description: string;
-  features: string;
-  howToPlay: string;
-  testimonials: string;
-  pricing: (convertPrice: (price: number) => PaymentTotal) => string;
-  sampleQuestions: string;
-}
-
-export type MessagesType = {
-  [K in ProductId]: MessageStructure;
-};

@@ -1,59 +1,34 @@
-// src/features/product/context/ChatContext.tsx
-import React, { createContext, useContext, useCallback } from 'react';
+// src/features/product/context/ChatContext.tsx - VERSION CORRIGÉE
+
+'use client';
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useChatStore } from '@/stores/chatStore';
-import { AIManager } from '@/lib/services/AIManager';
-import type { OrderData as BaseOrderData } from '@/types/order';
-import type { 
-  ChatMessage, 
-  ConversationStep,
-  ChatAction
-} from '@/types/chat';
-import type {
-  OrderData,
-  PaymentProvider,
-  PaymentTotal,
-  CustomerInfo,
-  ProductRecommendation,
-  RecommendationContext
-} from '@/types/order';
+import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
+import type { ChatMessage, ConversationStep } from '@/types/chat';
 import type { Product } from '@/types/product';
 
-type ChatOrderData = Omit<BaseOrderData, 'subtotal'> & {
-  subtotal?: number;
-};
-
-interface ChatContextValue {
+interface ChatContextType {
+  // État du chat
   messages: ChatMessage[];
   isTyping: boolean;
-  orderData: ChatOrderData;  
-  payment: {
-    status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
-    error: string | null;
-    clientSecret: string | null;
-    transactionId?: string;
-  };
-  paymentModal: {
-    isOpen: boolean;
-    iframeUrl: string;
-    provider?: PaymentProvider;
-  };
-  dispatch: (action: ChatAction) => void;
-  sendMessage: (content: string) => Promise<void>;
-  handlePaymentInitiation: (method: PaymentProvider, customerInfo: CustomerInfo) => Promise<void>;
-  setPaymentModal: (data: { 
-    isOpen: boolean; 
-    iframeUrl?: string; 
-    provider?: PaymentProvider 
-  }) => void;
-  calculateOrderTotal: () => PaymentTotal;
-  handleUserChoice: (choice: string) => Promise<void>;
-  handleQuantityChange: (quantity: number) => void;
-  handleQuantityModification: (productId: string, quantity: number) => Promise<boolean>;
-  handleProductSelect?: (product: Product) => void;
-  getProductRecommendations?: (context: RecommendationContext) => Promise<ProductRecommendation[]>;
+  currentStep: ConversationStep | null;
+  isExpressMode: boolean;
+  
+  // Actions
+  sendMessage: (message: string) => Promise<void>;
+  startExpressPurchase: () => Promise<void>;
+  initializeChat: () => Promise<void>;
+  
+  // Données produit
+  product: Product;
+  
+  // Gestion des erreurs
+  error: string | null;
+  clearError: () => void;
 }
 
-const ChatContext = createContext<ChatContextValue | undefined>(undefined);
+const ChatContext = createContext<ChatContextType | null>(null);
 
 interface ChatProviderProps {
   children: React.ReactNode;
@@ -61,228 +36,181 @@ interface ChatProviderProps {
 }
 
 export function ChatProvider({ children, product }: ChatProviderProps) {
-  const store = useChatStore();
-  const {
-    messages,
-    isTyping,
-    orderData,
-    payment,
-    paymentModal,
-    sendMessage: storeSendMessage,
-    initiatePayment,
-    setPaymentModal: storeSetPaymentModal,
-    formStep,
-    updateOrderData
-  } = store;
+  const chatStore = useChatStore();
+  const [error, setError] = useState<string | null>(null);
+  const [optimizedService] = useState(() => OptimizedChatService.getInstance());
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const aiManager = AIManager.getInstance();
-
-  const dispatch = useCallback((action: ChatAction) => {
-    switch (action.type) {
-      case 'ADD_MESSAGE':
-        store.addMessage(action.payload);
-        break;
-      case 'SET_PAYMENT_STATUS':
-        store.setPaymentStatus(action.payload);
-        break;
-      case 'SET_PAYMENT_MODAL':
-        store.setPaymentModal(action.payload);
-        break;
-      case 'UPDATE_ORDER_DATA':
-        store.updateOrderData(action.payload);
-        break;
-      case 'SET_TYPING':
-        store.setTyping(action.payload);
-        break;
-      default:
-        console.warn('Unhandled action type:', action.type);
+  // Initialiser le chat au montage
+  useEffect(() => {
+    if (!isInitialized && product.id) {
+      initializeChat();
+      setIsInitialized(true);
     }
-  }, [store]);
+  }, [product.id, isInitialized]);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const initializeChat = async () => {
     try {
-      // Envoyer d'abord le message utilisateur au store
-      await storeSendMessage(content);
-
-      // Obtenir la réponse de l'IA
-      const aiResponse = await aiManager.handleProductChatbot(
-        { content, type: 'user' },
-        product.id,
-        formStep as ConversationStep,
-        orderData
-      );
-
-      // Mettre à jour le store avec la réponse
-      if (aiResponse.content) {
-        dispatch({
-          type: 'ADD_MESSAGE',
-          payload: {
-            type: 'assistant',
-            content: aiResponse.content,
-            choices: aiResponse.choices,
-            metadata: {
-              nextStep: aiResponse.nextStep,
-              buyingIntent: aiResponse.buyingIntent,
-              recommendations: aiResponse.recommendations,
-              showQuantitySelector: aiResponse.nextStep === 'collect_quantity',
-              maxQuantity: 10
-            }
-          }
-        });
-
-        // Mettre à jour les données de la commande si nécessaire
-        if (aiResponse.nextStep) {
-          dispatch({
-            type: 'UPDATE_ORDER_DATA',
-            payload: { formStep: aiResponse.nextStep }
-          });
-        }
+      setError(null);
+      
+      // Vérifier si le chat est déjà initialisé
+      if (chatStore.messages.length > 0) {
+        console.log('Chat déjà initialisé, pas de nouveau message de bienvenue');
+        return;
       }
-
-    } catch (error) {
-      console.error('Error in sendMessage:', error);
-    }
-  }, [storeSendMessage, aiManager, product.id, formStep, orderData, dispatch]);
-
-  const handlePaymentInitiation = useCallback(async (
-    method: PaymentProvider,
-    customerInfo: CustomerInfo
-  ) => {
-    try {
-      await initiatePayment(method);
-
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          type: 'assistant',
-          content: "💳 Initialisation du paiement...",
-          metadata: {
-            paymentStatus: 'processing'
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Payment initiation error:', error);
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          type: 'assistant',
-          content: "Une erreur est survenue lors de l'initialisation du paiement. Veuillez réessayer.",
-          choices: ["Réessayer", "Choisir un autre mode de paiement"]
-        }
-      });
-    }
-  }, [initiatePayment, dispatch]);
-
-  const calculateOrderTotal = useCallback((): PaymentTotal => {
-    const subtotal = orderData.items.reduce((total: number, item: any) => {
-      return total + (item.price * item.quantity);
-    }, 0);
-
-    const deliveryCost = orderData.city?.toLowerCase() === 'dakar' ? 0 : 3000;
-    const total = subtotal + deliveryCost;
-
-    return {
-      value: total,
-      formatted: `${total.toLocaleString()} FCFA`,
-      originalInFCFA: total
-    };
-  }, [orderData]);
-
-  const handleUserChoice = useCallback(async (choice: string) => {
-    await sendMessage(choice);
-  }, [sendMessage]);
-
-  const handleQuantityChange = useCallback((quantity: number) => {
-    dispatch({
-      type: 'UPDATE_ORDER_DATA',
-      payload: { quantity }
-    });
-  }, [dispatch]);
-
-  const handleQuantityModification = useCallback(async (
-    productId: string,
-    quantity: number
-  ): Promise<boolean> => {
-    if (quantity < 1) return false;
-
-    try {
-      const response = await fetch('/api/products/check-stock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, quantity })
-      });
-
-      const data = await response.json();
-      if (!data.available) {
-        await sendMessage("Désolé, la quantité demandée n'est pas disponible en stock.");
-        return false;
-      }
-
-      dispatch({
-        type: 'UPDATE_ORDER_DATA',
-        payload: {
-          items: orderData.items.map((item: any) => 
-            item.productId === productId 
-              ? { ...item, quantity, totalPrice: item.price * quantity }
-              : item
-          )
-        }
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error modifying quantity:', error);
-      return false;
-    }
-  }, [orderData.items, sendMessage, dispatch]);
-
-  const handleProductSelect = useCallback((product: Product) => {
-    dispatch({
-      type: 'ADD_MESSAGE',
-      payload: {
+      
+      // Initialiser une nouvelle session
+      chatStore.initializeSession(product.id, 'a9563f88-217c-4998-b080-ed39f637ea31');
+      
+      // Message de bienvenue
+      const welcomeMessage: ChatMessage = {
         type: 'assistant',
-        content: `Excellent choix ! J'ajoute ${product.name} à votre commande.`,
+        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez au jeu **${product.name}** !\n\n✨ Je peux vous aider à :\n• **Commander rapidement** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous conseiller** sur l'utilisation\n\nQue souhaitez-vous faire ?`,
+        choices: [
+          '⚡ Commander rapidement',
+          '❓ Poser une question',
+          '📦 Infos livraison',
+          '💬 En savoir plus'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC',
+          avatar: undefined
+        },
         metadata: {
-          showQuantitySelector: true,
-          maxQuantity: 10
-        }
+          nextStep: 'initial_engagement' as ConversationStep,
+          flags: { 
+            isWelcome: true,
+            preventAIIntervention: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      chatStore.addMessage(welcomeMessage);
+      
+    } catch (err) {
+      console.error('Error initializing chat:', err);
+      setError('Erreur lors de l\'initialisation du chat');
+    }
+  };
+
+  const sendMessage = async (message: string) => {
+    try {
+      setError(null);
+      chatStore.updateTypingStatus(true);
+
+      // Ajouter le message utilisateur
+      const userMessage: ChatMessage = {
+        type: 'user',
+        content: message,
+        timestamp: new Date().toISOString()
+      };
+      
+      chatStore.addMessage(userMessage);
+
+      // Déterminer le type de réponse
+      let response: ChatMessage;
+      
+      // Si c'est un choix pour le mode express
+      if (message.includes('Commander rapidement') || message.includes('⚡')) {
+        // ✅ CORRECTION: Utiliser startExpressPurchase au lieu de handleExpressPurchase
+        response = await optimizedService.startExpressPurchase(
+          chatStore.sessionId,
+          product.id
+        );
+        chatStore.setExpressMode(true);
+      } else if (chatStore.isExpressMode && chatStore.currentStep?.includes('express')) {
+        // ✅ CORRECTION: Utiliser processUserInput pour les étapes express
+        response = await optimizedService.processUserInput(
+          chatStore.sessionId,
+          message,
+          chatStore.currentStep
+        );
+      } else {
+        // ✅ CORRECTION: Utiliser processUserInput pour les autres messages
+        response = await optimizedService.processUserInput(
+          chatStore.sessionId,
+          message,
+          chatStore.currentStep || 'initial'
+        );
       }
-    });
-  }, [dispatch]);
 
-  const setPaymentModal = useCallback((data: { 
-    isOpen: boolean; 
-    iframeUrl?: string; 
-    provider?: PaymentProvider 
-  }) => {
-    storeSetPaymentModal(data);
-  }, [storeSetPaymentModal]);
+      // Ajouter la réponse
+      chatStore.addMessage(response);
+      
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Erreur lors de l\'envoi du message');
+      
+      // Message d'erreur de secours
+      const errorMessage: ChatMessage = {
+        type: 'assistant',
+        content: 'Je suis désolée, une erreur est survenue. Veuillez réessayer.',
+        choices: ['Réessayer', 'Contacter le support'],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante VOSC'
+        },
+        metadata: {
+          nextStep: 'error_recovery' as ConversationStep,
+          flags: { hasError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      chatStore.addMessage(errorMessage);
+    } finally {
+      chatStore.updateTypingStatus(false);
+    }
+  };
 
-  const value: ChatContextValue = {
-    messages,
-    isTyping,
-    orderData: {
-      ...orderData,
-      subtotal: orderData.items.reduce((total, item) => 
-        total + (item.price * item.quantity), 0
-      )
-    },
-    payment,
-    paymentModal,
-    dispatch,
+  const startExpressPurchase = async () => {
+    try {
+      setError(null);
+      chatStore.setExpressMode(true);
+      
+      // ✅ CORRECTION: Utiliser startExpressPurchase
+      const response = await optimizedService.startExpressPurchase(
+        chatStore.sessionId,
+        product.id
+      );
+      
+      chatStore.addMessage(response);
+      
+    } catch (err) {
+      console.error('Error starting express purchase:', err);
+      setError('Erreur lors du démarrage de l\'achat express');
+    }
+  };
+
+  const clearError = () => {
+    setError(null);
+    chatStore.resetError();
+  };
+
+  const contextValue: ChatContextType = {
+    // État du chat
+    messages: chatStore.messages,
+    isTyping: chatStore.isTyping,
+    currentStep: chatStore.currentStep,
+    isExpressMode: chatStore.isExpressMode,
+    
+    // Actions
     sendMessage,
-    handlePaymentInitiation,
-    setPaymentModal,
-    calculateOrderTotal,
-    handleUserChoice,
-    handleQuantityChange,
-    handleQuantityModification,
-    handleProductSelect
+    startExpressPurchase,
+    initializeChat,
+    
+    // Données produit
+    product,
+    
+    // Gestion des erreurs
+    error,
+    clearError
   };
 
   return (
-    <ChatContext.Provider value={value}>
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   );
@@ -290,8 +218,10 @@ export function ChatProvider({ children, product }: ChatProviderProps) {
 
 export function useChatContext() {
   const context = useContext(ChatContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useChatContext must be used within a ChatProvider');
   }
   return context;
 }
+
+export default ChatContext;
