@@ -119,22 +119,21 @@ ${orderId ? `**Commande #${orderId}**` : '**Votre commande**'}
 • Vérification du statut en temps réel
 
 📧 **Email de confirmation :**
-Vous recevrez un email avec tous les détails dans les 5 minutes.
+Vous recevrez un message WhatsApp avec tous les détails dans les 5 minutes.
 
 🚚 **Délai de livraison :**
-• Dakar : 24-48h
+• Dakar : 24 - 48h
 • Autres zones : 2-3 jours ouvrables
 
 Autre chose pour vous aider ?`,
         choices: [
-          '📞 WhatsApp (+221 78 136 27 28)',
-          '📧 Problème avec l\'email ?',
+          '💬 WhatsApp (+221 78 136 27 28)',
           '🛍️ Commander d\'autres jeux',
           '❓ Autre question'
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'order_tracking' as ConversationStep,
@@ -157,7 +156,7 @@ Pour changer votre adresse de livraison :
 
 📞 **Contactez-nous rapidement :**
 • WhatsApp : +221 78 136 27 28
-• Email : contact@viensonseconnait.com
+• Email : sav@viensonseconnait.com
 
 ⏰ **Important :**
 • Modification possible avant expédition uniquement
@@ -170,7 +169,6 @@ Si votre commande est déjà en route, nous pouvons coordonner avec le livreur.
 Voulez-vous nous contacter maintenant ?`,
         choices: [
           '📞 WhatsApp (+221 78 136 27 28)',
-          '📧 Envoyer un email',
           '❓ Ma commande est-elle expédiée ?',
           '🔙 Retour au menu'
         ],
@@ -528,7 +526,7 @@ De quoi avez-vous besoin exactement ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'support_request',
@@ -547,12 +545,12 @@ De quoi avez-vous besoin exactement ?`,
       type: 'assistant',
       content: `👋 **Bonjour et bienvenue !**
 
-Je suis **Rose**, votre conseillère pour le **${context.productName}** !
+Je suis **Rose**, votre conseillère pour le jeu **${context.productName}** !
 
 🔥 **Ce jeu est très populaire** - plus de 200 familles l'ont commandé ce mois-ci !
 
 ✨ **Je peux vous aider à :**
-• Découvrir comment il fonctionne
+• Découvrir comment il se joue
 • Comprendre pourquoi il transforme les relations
 • Commander rapidement si ça vous intéresse
 • Répondre à toutes vos questions
@@ -566,7 +564,7 @@ Par quoi commençons-nous ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'warm_welcome',
@@ -600,7 +598,7 @@ Quelle est votre principale préoccupation ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'objection_handling',
@@ -624,7 +622,7 @@ Quelle est votre principale préoccupation ?`,
       }
 
       if (product.game_rules && product.game_rules.trim()) {
-        return `❓ **Comment jouer au ${product.name} :**
+        return `❓ **Comment jouer au jeu ${product.name} :**
 
 ${product.game_rules}
 
@@ -640,7 +638,7 @@ Prêt(e) à vivre cette expérience ?`;
   }
 
   private getDefaultGameRules(productName: string): string {
-    return `❓ **Comment jouer au ${productName} :**
+    return `❓ **Comment jouer au jeu ${productName} :**
 
 📋 **Préparation :**
 • Installez-vous confortablement dans un endroit calme
@@ -677,7 +675,7 @@ Prêt(e) à commencer cette belle aventure ?`;
     if (isQuestion) {
       response = `🤔 **Excellente question !** 
 
-Je vois que vous vous intéressez au jeu **${productName}**. C'est un choix parfait !
+Je vois que vous vous intéressez au jeu **${productName}**. C'est un excellent choix !
 
 ✨ **Je peux vous expliquer :**
 • Comment utiliser le jeu concrètement
@@ -712,7 +710,7 @@ Cela me fait plaisir de répondre à vos questions sur le **${productName}**.
     } else {
       response = `💬 **Merci pour votre message !**
 
-Je vois que vous vous intéressez au **${productName}**. C'est un excellent choix !
+Je vois que vous vous intéressez au jeu **${productName}**. C'est un excellent choix !
 
 Que puis-je vous expliquer pour vous aider dans votre décision ?`;
 
@@ -731,7 +729,7 @@ Que puis-je vous expliquer pour vous aider dans votre décision ?`;
       choices,
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep,
@@ -749,7 +747,7 @@ Que puis-je vous expliquer pour vous aider dans votre décision ?`;
 
 Mais ne vous inquiétez pas ! Je peux toujours vous aider avec :
 
-• Des informations sur le **${context.productName}**
+• Des informations sur le jeu **${context.productName}**
 • Répondre à vos questions
 • Vous accompagner dans votre commande
 • Vous mettre en contact avec notre équipe
@@ -763,7 +761,7 @@ Que puis-je faire pour vous ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'error_recovery',

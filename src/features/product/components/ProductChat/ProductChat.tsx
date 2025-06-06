@@ -118,7 +118,7 @@ export default function ProductChat({
       // Message de bienvenue personnalisé
       const welcomeMessage: ChatMessage = {
         type: 'assistant',
-        content: `👋 Salut ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez au jeu **${productName}** !\n\n✨ Je peux vous aider à :\n• **Commander en express** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous conseiller** sur l'utilisation\n\nQue souhaitez-vous faire ?`,
+        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez au jeu **${productName}** !\n\n C'est excellent ✨ Je peux :\n• Vous aider à **Commander en express** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous expliquer** comment y jouer\n\nQue souhaitez-vous faire ?`,
         choices: [],
         assistant: {
           name: 'Rose',

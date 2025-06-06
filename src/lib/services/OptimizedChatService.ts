@@ -1,4 +1,4 @@
-// src/lib/services/OptimizedChatService.ts
+// src/lib/services/OptimizedChatService.ts - VERSION FINALE COMPLÈTE CORRIGÉE
 import { supabase } from '@/lib/supabase';
 import { PhoneService } from './PhoneService';
 import { OrderService } from './OrderService';
@@ -62,7 +62,7 @@ export class OptimizedChatService {
   /**
    * ✅ MÉTHODE PRINCIPALE: Traiter les messages libres de l'utilisateur avec l'IA
    */
-    async processUserInput(
+  async processUserInput(
     sessionId: string,
     message: string,
     currentStep?: ConversationStep
@@ -79,11 +79,11 @@ export class OptimizedChatService {
       const postPurchaseActions = [
         'Suivre ma commande', 'Nous contacter', 'Autres produits',
         'WhatsApp', 'Contacter le support', 'Voir ma commande',
-        'Changer d\'adresse', 'Autre question', '❓'
+        'Changer d\'adresse', 'Autre question', '❓', '🔍'
       ];
       
       if (postPurchaseActions.some(action => message.includes(action))) {
-        return this.aiResponseHandler.handlePostPurchaseAction(message);
+        return this.handlePostPurchaseActions(sessionId, message);
       }
 
       // ✅ Récupérer les infos produit pour le contexte
@@ -126,6 +126,173 @@ export class OptimizedChatService {
     } catch (error) {
       console.error('❌ Error processing user input:', error);
       return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre message');
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Gérer les actions post-achat avec suivi de commande
+   */
+  private async handlePostPurchaseActions(sessionId: string, message: string): Promise<ChatMessage> {
+    console.log('📦 Handling post-purchase action:', message);
+
+    try {
+      // ✅ SUIVI DE COMMANDE - Nouveau système
+      if (message.includes('Suivre ma commande') || message.includes('🔍')) {
+        return this.handleOrderTracking(sessionId);
+      }
+
+      // ✅ AUTRES PRODUITS - Amélioration
+      if (message.includes('Autres produits') || message.includes('🛍️')) {
+        const orderState = this.orderStates.get(sessionId);
+        if (orderState) {
+          return this.handleAdditionalProducts(sessionId, orderState);
+        }
+      }
+
+      // ✅ Déléguer aux autres actions à l'AIResponseHandler
+      return this.aiResponseHandler.handlePostPurchaseAction(message);
+
+    } catch (error) {
+      console.error('❌ Error handling post-purchase action:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre demande');
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Système de suivi de commande
+   */
+  private async handleOrderTracking(sessionId: string): Promise<ChatMessage> {
+    console.log('🔍 Tracking order for session:', sessionId);
+
+    try {
+      // Récupérer la commande la plus récente pour cette session
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !order) {
+        return {
+          type: 'assistant',
+          content: `🔍 **Suivi de commande**
+
+Aucune commande trouvée pour cette session.
+
+📞 **Pour toute question :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
+
+Comment puis-je vous aider autrement ?`,
+          choices: [
+            '📞 Contacter le support',
+            '🛍️ Passer une nouvelle commande',
+            '🏠 Page d\'accueil'
+          ],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'customer_support' as ConversationStep,
+            externalUrl: {
+              type: 'whatsapp',
+              url: 'https://wa.me/221781362728',
+              description: 'Contacter le support'
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ Décoder les détails de la commande
+      const orderItems = order.order_details ? 
+        (typeof order.order_details === 'string' ? 
+          JSON.parse(order.order_details) : 
+          order.order_details) : [];
+
+      // ✅ Définir les statuts et leurs descriptions
+      const statusDescriptions = {
+        'pending': {
+          emoji: '⏳',
+          title: 'En attente',
+          description: 'Votre commande est en cours de traitement'
+        },
+        'confirmed': {
+          emoji: '✅',
+          title: 'Confirmée',
+          description: 'Commande confirmée, préparation en cours'
+        },
+        'processing': {
+          emoji: '📦',
+          title: 'En préparation',
+          description: 'Votre commande est en cours de préparation'
+        },
+        'shipped': {
+          emoji: '🚚',
+          title: 'Expédiée',
+          description: 'Votre commande est en route vers vous'
+        },
+        'delivered': {
+          emoji: '🎉',
+          title: 'Livrée',
+          description: 'Commande livrée avec succès'
+        },
+        'cancelled': {
+          emoji: '❌',
+          title: 'Annulée',
+          description: 'Commande annulée'
+        }
+      };
+
+      const currentStatus = statusDescriptions[order.status as keyof typeof statusDescriptions] || 
+        statusDescriptions['pending'];
+
+      const paymentStatusText = order.payment_status === 'completed' ? 
+        '✅ Paiement confirmé' : 
+        order.payment_status === 'pending' ? 
+          '⏳ En attente de paiement' : 
+          '❌ Problème de paiement';
+
+      return {
+        type: 'assistant',
+        content: `🔍 **Suivi de votre commande #${order.id}**
+
+${currentStatus.emoji} **Statut : ${currentStatus.title}**
+${currentStatus.description}
+
+📋 **Détails :**
+• Passée le : ${new Date(order.created_at).toLocaleDateString('fr-FR')}
+• Articles : ${orderItems.length > 0 ? orderItems.map((item: any) => `${item.name} x${item.quantity || 1}`).join(', ') : 'Information non disponible'}
+• Total : ${order.total_amount?.toLocaleString() || 'N/A'} FCFA
+• ${paymentStatusText}
+
+📍 **Livraison :**
+${order.address}, ${order.city}
+
+📞 **Questions ? Contactez-nous :**
+WhatsApp : +221 78 136 27 28`,
+        choices: [
+          '📞 WhatsApp (+221 78 136 27 28)',
+          '🏠 Changer d\'adresse',
+          '🛍️ Commander autre chose',
+          '📧 Envoyer par email'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'order_details_shown' as ConversationStep,
+          orderId: order.id,
+          externalUrl: {
+            type: 'whatsapp',
+            url: 'https://wa.me/221781362728',
+            description: 'Contacter pour suivi'
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error tracking order:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors du suivi de commande');
     }
   }
 
@@ -359,94 +526,94 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
 
   // ✅ NOUVELLE MÉTHODE: Gérer la sélection de quantité
   private async handleExpressQuantity(
-  sessionId: string,
-  input: string,
-  orderState: OrderState
-): Promise<ChatMessage> {
-  console.log('🔢 Processing express quantity selection:', { sessionId, input });
+    sessionId: string,
+    input: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    console.log('🔢 Processing express quantity selection:', { sessionId, input });
 
-  try {
-    let quantity = 1;
+    try {
+      let quantity = 1;
 
-    // Parser la quantité depuis l'input
-    if (input.includes('1 exemplaire')) {
-      quantity = 1;
-    } else if (input.includes('2 exemplaires')) {
-      quantity = 2;
-    } else if (input.includes('3 exemplaires')) {
-      quantity = 3;
-    } else if (input.includes('Autre quantité')) {
-      return {
-        type: 'assistant',
-        content: `🔢 **Quelle quantité souhaitez-vous ?**
+      // Parser la quantité depuis l'input
+      if (input.includes('1 exemplaire')) {
+        quantity = 1;
+      } else if (input.includes('2 exemplaires')) {
+        quantity = 2;
+      } else if (input.includes('3 exemplaires')) {
+        quantity = 3;
+      } else if (input.includes('Autre quantité')) {
+        return {
+          type: 'assistant',
+          content: `🔢 **Quelle quantité souhaitez-vous ?**
 
 Veuillez indiquer le nombre d'exemplaires (entre 1 et ${orderState.metadata?.maxQuantity || 10}) :
 
 Exemple : "5" ou "5 exemplaires"`,
-        choices: [],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'express_custom_quantity' as ConversationStep,
-          flags: { expressMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    } else {
-      // Essayer de parser un nombre depuis l'input
-      const numberMatch = input.match(/(\d+)/);
-      if (numberMatch) {
-        quantity = parseInt(numberMatch[1]);
+          choices: [],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_custom_quantity' as ConversationStep,
+            flags: { expressMode: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        // Essayer de parser un nombre depuis l'input
+        const numberMatch = input.match(/(\d+)/);
+        if (numberMatch) {
+          quantity = parseInt(numberMatch[1]);
+        }
       }
-    }
 
-    // Validation de la quantité
-    if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
-      return {
-        type: 'assistant',
-        content: `❌ **Quantité invalide**
+      // Validation de la quantité
+      if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
+        return {
+          type: 'assistant',
+          content: `❌ **Quantité invalide**
 
 Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaires :`,
-        choices: [
-          '1 exemplaire',
-          '2 exemplaires', 
-          '3 exemplaires',
-          '🔢 Autre quantité'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'express_quantity' as ConversationStep,
-          flags: { expressMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
+          choices: [
+            '1 exemplaire',
+            '2 exemplaires', 
+            '3 exemplaires',
+            '🔢 Autre quantité'
+          ],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_quantity' as ConversationStep,
+            flags: { expressMode: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
 
-    // ✅ CORRECTION: Mettre à jour la quantité et recalculer tous les montants
-    orderState.data.quantity = quantity;
-    orderState.step = 'contact'; // Passer à l'étape contact
-    this.orderStates.set(sessionId, orderState);
-    await this.updateSessionInDatabase(sessionId, orderState);
+      // ✅ CORRECTION: Mettre à jour la quantité et recalculer tous les montants
+      orderState.data.quantity = quantity;
+      orderState.step = 'contact'; // Passer à l'étape contact
+      this.orderStates.set(sessionId, orderState);
+      await this.updateSessionInDatabase(sessionId, orderState);
 
-    // ✅ CORRECTION: Récupérer toutes les infos produit nécessaires
-    const { data: product } = await supabase
-      .from('products')
-      .select('id, name, price')
-      .eq('id', orderState.data.productId)
-      .single();
+      // ✅ CORRECTION: Récupérer toutes les infos produit nécessaires
+      const { data: product } = await supabase
+        .from('products')
+        .select('id, name, price')
+        .eq('id', orderState.data.productId)
+        .single();
 
-    if (!product) {
-      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
-    }
+      if (!product) {
+        return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
+      }
 
-    // ✅ CORRECTION: Calculer tous les montants correctement
-    const itemPrice = product.price;
-    const subtotal = itemPrice * quantity;
-    const deliveryCost = 0; // Sera calculé à l'étape suivante
-    const totalAmount = subtotal + deliveryCost;
+      // ✅ CORRECTION: Calculer tous les montants correctement
+      const itemPrice = product.price;
+      const subtotal = itemPrice * quantity;
+      const deliveryCost = 0; // Sera calculé à l'étape suivante
+      const totalAmount = subtotal + deliveryCost;
 
-    return {
-      type: 'assistant',
-      content: `✅ **Quantité confirmée : ${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+      return {
+        type: 'assistant',
+        content: `✅ **Quantité confirmée : ${quantity} exemplaire${quantity > 1 ? 's' : ''}**
 
 🎯 **${product.name}**
 💰 ${totalAmount.toLocaleString()} FCFA (${quantity} × ${itemPrice.toLocaleString()} FCFA)
@@ -454,47 +621,47 @@ Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaire
 Sur quel numéro devons-nous vous joindre pour la livraison ?
 
 💡 *Formats acceptés : +221 77 123 45 67, 77 123 45 67*`,
-      choices: [],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_contact' as ConversationStep,
-        orderData: { 
-          session_id: sessionId,
-          product_id: product.id,
-          quantity: quantity,
-          subtotal: subtotal,
-          total_amount: totalAmount,
-          items: [{
-            productId: product.id,
-            name: product.name,
+        choices: [],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_contact' as ConversationStep,
+          orderData: { 
+            session_id: sessionId,
+            product_id: product.id,
             quantity: quantity,
-            price: itemPrice,
-            totalPrice: subtotal
-          }]
+            subtotal: subtotal,
+            total_amount: totalAmount,
+            items: [{
+              productId: product.id,
+              name: product.name,
+              quantity: quantity,
+              price: itemPrice,
+              totalPrice: subtotal
+            }]
+          },
+          flags: { 
+            expressMode: true,
+            quantitySelected: true
+          }
         },
-        flags: { 
-          expressMode: true,
-          quantitySelected: true
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
+        timestamp: new Date().toISOString()
+      };
 
-  } catch (error) {
-    console.error('❌ Error in handleExpressQuantity:', error);
-    return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
+    } catch (error) {
+      console.error('❌ Error in handleExpressQuantity:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
+    }
   }
-}
 
   /**
-   * ✅ MÉTHODE AMÉLIORÉE: Validation téléphone avec support international
+   * ✅ MÉTHODE CORRIGÉE: Validation téléphone avec reconnaissance client
    */
   private async handleExpressContact(
     sessionId: string,
     phone: string,
     orderState: OrderState
   ): Promise<ChatMessage> {
-    console.log('📱 Processing contact step with international support:', { sessionId, phone });
+    console.log('📱 Processing contact step with customer recognition:', { sessionId, phone });
 
     try {
       // ✅ Utiliser le PhoneService amélioré
@@ -549,21 +716,29 @@ Exemple : +221 77 123 45 67`,
         };
       }
 
-      // ✅ Vérifier client existant avec numéro formaté
-      const { data: existingCustomer } = await supabase
+      // ✅ CORRECTION : Vérifier client existant dans la table customers
+      const { data: existingCustomer, error: customerError } = await supabase
         .from('customers')
         .select('*')
         .eq('phone', formattedPhone.international)
         .single();
 
+      console.log('🔍 Customer lookup result:', { 
+        found: !!existingCustomer, 
+        error: customerError,
+        phone: formattedPhone.international 
+      });
+
       // ✅ Mettre à jour l'état
       orderState.data.phone = formattedPhone.international;
       
-      if (existingCustomer) {
-        // Client existant - raccourci vers l'adresse
-        orderState.data.name = `${existingCustomer.first_name || ''} ${existingCustomer.last_name || ''}`.trim();
-        orderState.data.address = existingCustomer.address;
-        orderState.data.city = existingCustomer.city;
+      if (existingCustomer && !customerError) {
+        // ✅ CLIENT EXISTANT - Raccourci vers confirmation d'adresse
+        const fullName = `${existingCustomer.first_name || ''} ${existingCustomer.last_name || ''}`.trim();
+        
+        orderState.data.name = fullName || 'Client';
+        orderState.data.address = existingCustomer.address || '';
+        orderState.data.city = existingCustomer.city || '';
         orderState.flags.customerExists = true;
         orderState.flags.allowAddressChange = true;
         orderState.step = 'address';
@@ -575,12 +750,12 @@ Exemple : +221 77 123 45 67`,
 
         return {
           type: 'assistant',
-          content: `👋 **Ravi de vous revoir ${existingCustomer.first_name} !**
+          content: `👋 **Ravi de vous revoir ${existingCustomer.first_name || 'cher client'} !**
 
 ${countryFlag} **Numéro confirmé :** ${formattedPhone.formatted}
 
 📍 **Votre adresse enregistrée :**
-${existingCustomer.address}, ${existingCustomer.city}
+${existingCustomer.address || 'Adresse non renseignée'}, ${existingCustomer.city || 'Ville non renseignée'}
 
 Utiliser la même adresse ou en changer ?`,
           choices: [
@@ -599,8 +774,9 @@ Utiliser la même adresse ou en changer ?`,
           timestamp: new Date().toISOString()
         };
       } else {
-        // Nouveau client - demander le nom
+        // ✅ NOUVEAU CLIENT - Demander le nom
         orderState.step = 'name';
+        orderState.flags.customerExists = false;
         this.orderStates.set(sessionId, orderState);
         await this.updateSessionInDatabase(sessionId, orderState);
 
@@ -620,7 +796,8 @@ Exemple : "Aminata Diop", "Benoit Nguessan", "Marie Dupont"`,
             nextStep: 'express_name' as ConversationStep,
             flags: { 
               expressMode: true,
-              phoneValidated: true
+              phoneValidated: true,
+              newCustomer: true
             }
           },
           timestamp: new Date().toISOString()
@@ -732,7 +909,7 @@ ${orderState.data.address}, ${orderState.data.city}
 🚚 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
 
 💳 Comment payez-vous ?`,
-          choices: ['💰 Wave', '💳 Carte bancaire', '🚚 Payer à la livraison'], // ✅ Orange Money retiré
+          choices: ['Wave', '💳 Carte bancaire', '🛵 Payer à la livraison'],
           assistant: this.getBotInfo(),
           metadata: {
             nextStep: 'express_payment' as ConversationStep,
@@ -816,7 +993,7 @@ ${parts[0]}, ${parts[1]}
 🚚 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
 
 💳 Comment payez-vous ?`,
-        choices: ['💰 Wave', '💳 Carte bancaire', '🚚 Payer à la livraison'], // ✅ Orange Money retiré
+        choices: ['🐧 Wave', '💳 Carte bancaire', '🛵 Payer à la livraison'],
         assistant: this.getBotInfo(),
         metadata: {
           nextStep: 'express_payment' as ConversationStep,
@@ -831,6 +1008,39 @@ ${parts[0]}, ${parts[1]}
       return this.createErrorMessage(sessionId, 'Erreur lors de la validation de l\'adresse');
     }
   }
+
+  /**
+ * ✅ Retourne le nom d'affichage du mode de paiement
+ */
+private getPaymentDisplayName(provider: PaymentProvider): string {
+  const names: Record<PaymentProvider, string> = {
+    'WAVE': 'Wave',
+    'STRIPE': 'Carte bancaire',
+    'CASH': 'Paiement à la livraison',
+    'ORANGE_MONEY': 'Orange Money' // Au cas où vous l'ajouteriez plus tard
+  };
+  
+  return names[provider] || 'Paiement';
+}
+
+/**
+ * ✅ BONUS: Méthode pour formater les boutons de paiement avec styles
+ */
+private formatPaymentButton(method: PaymentProvider): string {
+  switch (method) {
+    case 'WAVE':
+      return `<div class="wave-payment-button" style="background-color: #4BD2FA; color: white; padding: 12px 24px; border-radius: 8px; display: flex; align-items: center; gap: 8px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; justify-content: center;">
+        <img src="/images/payments/wave_2.svg" alt="Wave" style="width: 20px; height: 20px; flex-shrink: 0;" />
+        <span>Payer avec Wave</span>
+      </div>`;
+    case 'STRIPE':
+      return '💳 Payer par Carte bancaire';
+    case 'CASH':
+      return '🛵 Payer à la livraison';
+    default:
+      return 'Payer';
+  }
+}
 
   private async handleExpressPayment(
     sessionId: string,
@@ -909,7 +1119,7 @@ ${parts[0]}, ${parts[1]}
   }
 
   // ✅ NOUVEAU: Après confirmation de paiement, proposer d'autres produits
-  private async handleExpressConfirmation(
+    private async handleExpressConfirmation(
     sessionId: string,
     input: string,
     orderState: OrderState
@@ -917,39 +1127,64 @@ ${parts[0]}, ${parts[1]}
     console.log('✅ Processing confirmation step:', { sessionId, input });
 
     try {
-      if (input.includes('Suivre ma commande')) {
+      if (input.includes('Suivre ma commande') || input.includes('🔍')) {
+        return this.handleOrderTracking(sessionId);
+      }
+
+      // ✅ CORRECTION: Gestion intelligente "Autres produits" 
+      if (input.includes('Autres produits') || input.includes('🛍️')) {
+        return this.handleAdditionalProducts(sessionId, orderState);
+      }
+
+      // ✅ NOUVEAU: Gestion "Nous contacter"
+      if (input.includes('Nous contacter') || input.includes('📞')) {
         return {
           type: 'assistant',
-          content: `🔍 **Suivi de commande**
+          content: `📞 **Contactez notre équipe !**
 
-Vous pouvez suivre votre commande via WhatsApp au +221 78 136 27 28
+  🤝 **Notre support client est là pour vous :**
 
-📧 Un email de confirmation vous sera envoyé sous peu.`,
-          choices: ['📞 Nous contacter', '🛍️ Autres produits', '⭐ Donner un avis'],
+  📱 **WhatsApp :** +221 78 136 27 28
+  📧 **Email :** contact@viensonseconnait.com
+  🕒 **Horaires :** Lun-Ven 9h-18h, Sam 9h-14h
+
+  💬 **Ou continuez ici :**
+  Je peux répondre à toutes vos questions sur nos jeux, votre commande, ou nos services.
+
+  Comment puis-je vous aider ?`,
+          choices: [
+            '📞 WhatsApp (+221 78 136 27 28)',
+            '📧 Envoyer un email',
+            '❓ Poser ma question ici',
+            '🔙 Retour au menu'
+          ],
           assistant: this.getBotInfo(),
           metadata: {
-            nextStep: 'post_purchase' as ConversationStep,
-            flags: { orderCompleted: true }
+            nextStep: 'customer_service' as ConversationStep,
+            externalUrl: {
+              type: 'whatsapp',
+              url: 'https://wa.me/221781362728',
+              description: 'Contacter sur WhatsApp'
+            },
+            flags: { 
+              contactMode: true,
+              freeTextEnabled: true 
+            }
           },
           timestamp: new Date().toISOString()
         };
-      }
-
-      // ✅ NOUVEAU: Proposer d'autres produits après commande
-      if (input.includes('Autres produits') || input.includes('🛍️')) {
-        return this.handleAdditionalProducts(sessionId, orderState);
       }
 
       return {
         type: 'assistant',
         content: `✅ **Commande confirmée !** 🎉
 
-Merci pour votre achat ! Voulez-vous :
+  Merci pour votre achat ! Voulez-vous :
 
-🛍️ **Ajouter d'autres jeux** à votre commande
-📦 **Finaliser** et recevoir la confirmation
+  🛍️ **Ajouter d'autres jeux** à votre commande
+  📦 **Finaliser** et recevoir la confirmation
 
-Que préférez-vous ?`,
+  Que préférez-vous ?`,
         choices: [
           '🛍️ Ajouter d\'autres jeux',
           '📦 Finaliser ma commande',
@@ -969,19 +1204,19 @@ Que préférez-vous ?`,
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gérer l'ajout de produits supplémentaires
+  // ✅ MÉTHODE AMÉLIORÉE: Gérer l'ajout de produits supplémentaires
   private async handleAdditionalProducts(
     sessionId: string,
     orderState: OrderState
   ): Promise<ChatMessage> {
     try {
-      // Récupérer d'autres produits disponibles
+      // ✅ Récupérer d'autres produits disponibles avec plus d'informations
       const { data: products, error } = await supabase
         .from('products')
-        .select('id, name, price')
+        .select('id, name, price, description, images')
         .eq('status', 'active')
         .neq('id', orderState.data.productId) // Exclure le produit déjà commandé
-        .limit(3);
+        .limit(4); // Augmenter à 4 produits
 
       if (error || !products || products.length === 0) {
         return {
@@ -994,25 +1229,39 @@ Voulez-vous finaliser votre commande actuelle ?`,
           choices: [
             '📦 Finaliser ma commande',
             '📞 Nous contacter',
-            '🔙 Retour'
+            '🌐 Voir tous nos jeux'
           ],
           assistant: this.getBotInfo(),
           metadata: {
-            nextStep: 'finalize_order' as ConversationStep
+            nextStep: 'finalize_order' as ConversationStep,
+            externalUrl: {
+              type: 'other',
+              url: '/nos-jeux',
+              description: 'Voir tous nos jeux'
+            }
           },
           timestamp: new Date().toISOString()
         };
       }
 
+      // ✅ Créer un affichage enrichi des produits
+      const productDescriptions = products.map(p => {
+        const shortDesc = p.description ? 
+          (p.description.length > 80 ? `${p.description.substring(0, 80)}...` : p.description) : 
+          'Découvrez ce jeu pour renforcer vos relations';
+        
+        return `🎯 **${p.name}**\n💰 ${p.price.toLocaleString()} FCFA\n📝 ${shortDesc}`;
+      }).join('\n\n');
+
       return {
         type: 'assistant',
         content: `🛍️ **Ajoutez d'autres jeux à votre commande :**
 
-${products.map(p => `🎯 **${p.name}**\n💰 ${p.price.toLocaleString()} FCFA`).join('\n\n')}
+${productDescriptions}
 
 Quel jeu souhaitez-vous ajouter ?`,
         choices: [
-          ...products.map(p => `➕ ${p.name}`),
+          ...products.slice(0, 3).map(p => `➕ ${p.name}`), // Limiter à 3 boutons pour l'interface
           '📦 Finaliser sans ajouter'
         ],
         assistant: this.getBotInfo(),
@@ -1029,6 +1278,132 @@ Quel jeu souhaitez-vous ajouter ?`,
       return this.createErrorMessage(sessionId, 'Erreur lors de la récupération des produits');
     }
   }
+
+  // ✅ NOUVEAU: Gestion des sélections de produits supplémentaires
+    async handleAdditionalProductSelection(
+      sessionId: string,
+      selectedChoice: string,
+      availableProducts: any[]
+    ): Promise<ChatMessage> {
+      console.log('➕ Handling additional product selection:', selectedChoice);
+
+      try {
+        // ✅ Cas: Voir tous nos jeux (redirection)
+        if (selectedChoice.includes('Voir tous nos jeux') || selectedChoice.includes('🌐')) {
+          return {
+            type: 'assistant',
+            content: `🌐 **Découvrez notre collection complète !**
+
+    Vous allez être redirigé vers notre page qui présente tous nos jeux de cartes.
+
+    🎯 **Sur cette page, vous pourrez :**
+    • Voir tous nos jeux par catégorie
+    • Lire les descriptions détaillées  
+    • Découvrir les avis clients
+    • Comparer les différents jeux
+
+    👆 **Cliquez sur le bouton ci-dessous pour y accéder :**`,
+            choices: [
+              '🌐 Voir tous nos jeux',
+              '📦 Finaliser ma commande actuelle',
+              '🔙 Retour au chat'
+            ],
+            assistant: this.getBotInfo(),
+            metadata: {
+              nextStep: 'redirect_to_catalog' as ConversationStep,
+              externalUrl: {
+                type: 'other',
+                url: '/nos-jeux',
+                description: 'Découvrir tous nos jeux'
+              },
+              flags: { 
+                catalogRedirect: true,
+                showExternalLink: true 
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // ✅ Cas: Finaliser sans ajouter
+        if (selectedChoice.includes('Finaliser ma commande') || selectedChoice.includes('📦')) {
+          return {
+            type: 'assistant',
+            content: `📦 **Commande finalisée !**
+
+    ✅ Votre commande a été confirmée avec succès.
+    📧 Vous recevrez un email de confirmation dans les 5 minutes.
+    📱 Notre équipe vous contactera pour organiser la livraison.
+
+    🙏 **Merci pour votre confiance !**
+
+    Besoin d'autre chose ?`,
+            choices: [
+              '🔍 Suivre ma commande',
+              '📞 Nous contacter',
+              '⭐ Donner un avis',
+              '🏠 Retour à l\'accueil'
+            ],
+            assistant: this.getBotInfo(),
+            metadata: {
+              nextStep: 'order_finalized' as ConversationStep,
+              flags: { 
+                orderCompleted: true,
+                orderFinalized: true 
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // ✅ Cas: Sélection d'un produit spécifique
+        if (selectedChoice.includes('➕')) {
+          const productName = selectedChoice.replace('➕ ', '').trim();
+          const selectedProduct = availableProducts.find(p => p.name === productName);
+
+          if (!selectedProduct) {
+            return this.createErrorMessage(sessionId, 'Produit non trouvé. Veuillez réessayer.');
+          }
+
+          // Ajouter le produit au panier via ConversationalCartService
+          // Cette intégration sera faite dans la prochaine étape
+          return {
+            type: 'assistant',
+            content: `✅ **${selectedProduct.name} ajouté !**
+
+    💰 **Prix :** ${selectedProduct.price.toLocaleString()} FCFA
+    📝 **Description :** ${selectedProduct.description || 'Parfait pour créer des moments authentiques'}
+
+    🛒 **Votre commande sera mise à jour avec ce nouveau produit.**
+
+    Que souhaitez-vous faire maintenant ?`,
+            choices: [
+              '🛍️ Ajouter un autre jeu',
+              '📦 Finaliser ma commande',
+              '✏️ Modifier les quantités',
+              '🗑️ Retirer ce produit'
+            ],
+            assistant: this.getBotInfo(),
+            metadata: {
+              nextStep: 'product_added_to_cart' as ConversationStep,
+              productAdded: selectedProduct,
+              flags: { 
+                productAdded: true,
+                multipleProducts: true 
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // Cas par défaut
+        return this.createErrorMessage(sessionId, 'Choix non reconnu');
+
+      } catch (error) {
+        console.error('❌ Error in handleAdditionalProductSelection:', error);
+        return this.createErrorMessage(sessionId, 'Erreur lors de la sélection du produit');
+      }
+    }
 
   // ==========================================
   // ✅ INTÉGRATION STRIPE DANS LE FLOW EXPRESS
@@ -1244,6 +1619,40 @@ Quel jeu souhaitez-vous ajouter ?`,
 
       console.log('✅ Order created successfully:', insertedOrder.id);
 
+      // ✅ NOUVEAU : Sauvegarder ou mettre à jour le client dans la table customers
+      try {
+        const customerData = {
+          first_name: firstName,
+          last_name: lastName,
+          phone: orderState.data.phone,
+          city: orderState.data.city,
+          address: orderState.data.address,
+          email: '', // Sera mis à jour plus tard si collecté
+          updated_at: new Date().toISOString()
+        };
+
+        if (orderState.flags.customerExists) {
+          // Mettre à jour client existant
+          await supabase
+            .from('customers')
+            .update(customerData)
+            .eq('phone', orderState.data.phone);
+          console.log('✅ Customer updated in database');
+        } else {
+          // Créer nouveau client
+          await supabase
+            .from('customers')
+            .insert({
+              ...customerData,
+              created_at: new Date().toISOString()
+            });
+          console.log('✅ New customer saved to database');
+        }
+      } catch (customerError) {
+        console.error('⚠️ Error saving customer (non-blocking):', customerError);
+        // Ne pas faire échouer la commande pour une erreur de sauvegarde client
+      }
+
       // Décrémenter le stock
       await this.decrementProductStock(productId, orderState.data.quantity);
 
@@ -1346,24 +1755,39 @@ Quel jeu souhaitez-vous ajouter ?`,
 
   // ✅ CORRECTION: Mapper le choix de paiement sans Orange Money
   private mapPaymentChoice(choice: string): PaymentProvider {
-    const normalized = choice.toLowerCase();
-    
-    if (normalized.includes('wave')) return 'WAVE';
-    if (normalized.includes('carte')) return 'STRIPE';
-    if (normalized.includes('livraison')) return 'CASH';
-    
-    return 'WAVE'; // Par défaut
+  const normalized = choice.toLowerCase();
+  
+  // ✅ Gestion du bouton Wave avec HTML/SVG
+  if (normalized.includes('wave') || choice.includes('wave_2.svg') || choice.includes('#4BD2FA')) {
+    return 'WAVE';
   }
+  
+  if (normalized.includes('carte') || normalized.includes('bancaire')) {
+    return 'STRIPE';
+  }
+  
+  if (normalized.includes('livraison') || normalized.includes('🛵')) {
+    return 'CASH';
+  }
+  
+  return 'WAVE'; // Par défaut
+}
 
-  // ✅ CORRECTION: Gestion sécurisée des types de paiement
-  private getPaymentDisplayName(provider: PaymentProvider): string {
-    const names: Record<string, string> = {
-      'WAVE': 'Wave',
-      'STRIPE': 'Carte bancaire', 
-      'CASH': 'Paiement à la livraison'
-    };
-    return names[provider] || 'Paiement';
-  }
+// ✅ AMÉLIORATION: Formatage des boutons de paiement avec styles
+private formatPaymentChoices(orderState: OrderState): string[] {
+  const choices = [];
+  
+  // ✅ Bouton Wave avec style personnalisé
+  choices.push(`<button class="wave-payment-button" style="background-color: #4BD2FA; color: white; padding: 12px 24px; border-radius: 8px; display: flex; align-items: center; gap: 8px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s;">
+    <img src="/images/payments/wave_2.svg" alt="Wave" style="width: 20px; height: 20px; flex-shrink: 0;" />
+    <span>Payer avec Wave</span>
+  </button>`);
+  
+  choices.push('💳 Carte bancaire');
+  choices.push('🛵 Payer à la livraison');
+  
+  return choices;
+}
 
   private async decrementProductStock(productId: string, quantity: number): Promise<void> {
     try {

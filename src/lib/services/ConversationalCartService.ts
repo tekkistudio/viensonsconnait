@@ -122,9 +122,9 @@ export class ConversationalCartService {
 
       return {
         type: 'assistant',
-        content: `✅ **${product.name} ajouté au panier !**
+        content: `✅ **${product.name} ajouté à la commande !**
 
-🛒 **Votre panier (${cart.items.length} article${cart.items.length > 1 ? 's' : ''}) :**
+🛒 **Votre commande (${cart.items.length} article${cart.items.length > 1 ? 's' : ''}) :**
 ${cart.items.map(item => `• ${item.name} x${item.quantity} = ${item.totalPrice.toLocaleString()} FCFA`).join('\n')}
 
 💰 **Total actuel :** ${cart.totalAmount.toLocaleString()} FCFA
@@ -133,7 +133,7 @@ Que souhaitez-vous faire maintenant ?`,
         choices: [
           '🛍️ Continuer mes achats',
           '📦 Finaliser ma commande',
-          '🗑️ Modifier le panier',
+          '🗑️ Modifier la commande',
           '👀 Voir d\'autres jeux'
         ],
         assistant: {
@@ -153,7 +153,7 @@ Que souhaitez-vous faire maintenant ?`,
 
     } catch (error) {
       console.error('❌ Error adding product to cart:', error);
-      return this.createErrorMessage('Erreur lors de l\'ajout au panier');
+      return this.createErrorMessage('Erreur lors de l\'ajout à la commande');
     }
   }
 
@@ -185,23 +185,23 @@ Que souhaitez-vous faire maintenant ?`,
         
         return {
           type: 'assistant',
-          content: `👋 **Bienvenue sur la page du ${product.name} !**
+          content: `👋 **Heureuse de vous revoir sur la page du jeu ${product.name} !**
 
-🛒 **Votre panier actuel :**
+🛒 **Votre commande actuel :**
 ${cartSummary}
 
 💰 **Total : ${cart.totalAmount.toLocaleString()} FCFA**
 
 Souhaitez-vous ajouter ce jeu à votre commande existante ou commencer une nouvelle commande ?`,
           choices: [
-            `➕ Ajouter ${product.name} au panier`,
+            `➕ Ajouter le jeu ${product.name} à la commande`,
             '📦 Finaliser ma commande actuelle',
-            '🗑️ Vider le panier et recommencer',
+            '🗑️ Vider la commande et recommencer',
             '💬 En savoir plus sur ce jeu'
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: 'product_navigation_choice' as ConversationStep,
@@ -220,7 +220,7 @@ Souhaitez-vous ajouter ce jeu à votre commande existante ou commencer une nouve
           type: 'assistant',
           content: `👋 **Bonjour ! Je suis Rose.**
 
-Je vais vous aider avec le **${product.name}** !
+Je vais vous aider avec le jeu **${product.name}** !
 
 Comment puis-je vous aider aujourd'hui ?`,
           choices: [
@@ -231,7 +231,7 @@ Comment puis-je vous aider aujourd'hui ?`,
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: 'initial_engagement' as ConversationStep,
@@ -264,7 +264,7 @@ Comment puis-je vous aider aujourd'hui ?`,
       const itemIndex = cart.items.findIndex(item => item.productId === productId);
 
       if (itemIndex === -1) {
-        return this.createErrorMessage('Produit non trouvé dans le panier');
+        return this.createErrorMessage('Produit non trouvé dans la commande');
       }
 
       if (newQuantity <= 0) {
@@ -276,18 +276,18 @@ Comment puis-je vous aider aujourd'hui ?`,
         
         return {
           type: 'assistant',
-          content: `🗑️ **${removedItem.name} retiré du panier**
+          content: `🗑️ **${removedItem.name} retiré de la commande**
 
 ${cart.items.length > 0 ? 
-  `🛒 **Panier restant :**\n${cart.items.map(item => `• ${item.name} x${item.quantity}`).join('\n')}\n\n💰 **Nouveau total :** ${cart.totalAmount.toLocaleString()} FCFA` 
-  : '🛒 **Votre panier est maintenant vide**'
+  `🛒 **Commande restante :**\n${cart.items.map(item => `• ${item.name} x${item.quantity}`).join('\n')}\n\n💰 **Nouveau total :** ${cart.totalAmount.toLocaleString()} FCFA` 
+  : '🛒 **Votre commande est maintenant vide**'
 }
 
 Que souhaitez-vous faire ?`,
           choices: cart.items.length > 0 ? [
             '📦 Finaliser ma commande',
             '🛍️ Continuer mes achats',
-            '🗑️ Modifier le panier'
+            '🗑️ Modifier la commande'
           ] : [
             '🛍️ Reprendre mes achats',
             '👀 Voir nos jeux populaires',
@@ -295,7 +295,7 @@ Que souhaitez-vous faire ?`,
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: cart.items.length > 0 ? 'cart_management' : 'empty_cart' as ConversationStep,
@@ -315,7 +315,7 @@ Que souhaitez-vous faire ?`,
           type: 'assistant',
           content: `✅ **Quantité mise à jour !**
 
-🛒 **Votre panier :**
+🛒 **Votre commande :**
 ${cart.items.map(item => `• ${item.name} x${item.quantity} = ${item.totalPrice.toLocaleString()} FCFA`).join('\n')}
 
 💰 **Total : ${cart.totalAmount.toLocaleString()} FCFA**
@@ -324,12 +324,12 @@ Que souhaitez-vous faire maintenant ?`,
           choices: [
             '📦 Finaliser ma commande',
             '🛍️ Continuer mes achats',
-            '🗑️ Modifier le panier',
+            '🗑️ Modifier la commande',
             '💬 Ajouter une note'
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: 'cart_management' as ConversationStep,
@@ -358,7 +358,7 @@ Que souhaitez-vous faire maintenant ?`,
       if (cart.items.length === 0) {
         return {
           type: 'assistant',
-          content: `🛒 **Votre panier est vide**
+          content: `🛒 **Votre commande est vide**
 
 Découvrez nos jeux de cartes pour transformer vos relations !
 
@@ -371,7 +371,7 @@ Que souhaitez-vous faire ?`,
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: 'empty_cart_options' as ConversationStep
@@ -384,7 +384,7 @@ Que souhaitez-vous faire ?`,
 
       return {
         type: 'assistant',
-        content: `🛒 **Résumé de votre panier**
+        content: `🛒 **Résumé de votre commande**
 
 📦 **Articles (${cart.items.length}) :**
 ${cart.items.map(item => `• ${item.name} x${item.quantity} = ${item.totalPrice.toLocaleString()} FCFA`).join('\n')}
@@ -399,11 +399,11 @@ Que souhaitez-vous faire ?`,
           '📦 Finaliser ma commande',
           '🛍️ Continuer mes achats',
           '✏️ Modifier les quantités',
-          '🗑️ Vider le panier'
+          '🗑️ Vider la commande'
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'cart_summary_actions' as ConversationStep,
@@ -417,7 +417,7 @@ Que souhaitez-vous faire ?`,
 
     } catch (error) {
       console.error('❌ Error getting cart summary:', error);
-      return this.createErrorMessage('Erreur lors de l\'affichage du panier');
+      return this.createErrorMessage('Erreur lors de l\'affichage de la commande');
     }
   }
 
@@ -439,20 +439,20 @@ Que souhaitez-vous faire ?`,
 
       return {
         type: 'assistant',
-        content: `🗑️ **Panier vidé avec succès**
+        content: `🗑️ **Commande vidée avec succès**
 
 Vous pouvez recommencer vos achats quand vous le souhaitez !
 
 Que souhaitez-vous faire maintenant ?`,
         choices: [
           '🛍️ Reprendre mes achats',
-          '🎯 Voir nos jeux populaires',
+          '🎯 Voir les jeux populaires',
           '💬 Poser une question',
           '📞 Contacter le support'
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'fresh_start' as ConversationStep,
@@ -542,7 +542,7 @@ Voulez-vous réessayer ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'error_recovery' as ConversationStep,

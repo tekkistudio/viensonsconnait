@@ -240,8 +240,8 @@ export default function ProductPageContent({ productId, product }: ProductPageCo
                 {/* Description courte et bien formatée */}
                 <div className="text-gray-700 text-sm leading-relaxed">
                   {product.description 
-                    ? product.description.length > 120 
-                      ? `${product.description.substring(0, 120).trim()}...`
+                    ? product.description.length > 250 
+                      ? `${product.description.substring(0, 250).trim()}...`
                       : product.description
                     : `Découvrez ${product.name}, un jeu conçu pour créer des moments authentiques et renforcer vos relations.`
                   }

@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== CORRECTIONS CRITIQUES CONTAINER MOBILE ===== */
+@layer base {
+  /* Configuration viewport et container fixe */
+  html {
+    /* Empêche le scroll horizontal et les effets de rebond */
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    /* Largeur fixe */
+    width: 100vw;
+    max-width: 100vw;
+    /* Base styles */
+    @apply bg-background;
+  }
+
+  body {
+    /* Container fixe sans débordement horizontal */
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    width: 100vw;
+    max-width: 100vw;
+    /* Empêche le zoom sur les inputs mobiles */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    /* Position et espacement */
+    position: relative;
+    margin: 0;
+    padding: 0;
+    /* Styles existants */
+    @apply text-foreground transition-colors duration-300;
+    font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: var(--announcement-height);
+  }
+
+  /* Conteneur principal Next.js */
+  #__next {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Configuration globale des éléments */
+  * {
+    box-sizing: border-box;
+    max-width: 100vw;
+    @apply border-gray-200 dark:border-gray-800;
+  }
+}
+
 /* Variables et thèmes de base */
 @layer base {
   :root {
@@ -22,24 +73,131 @@
     --foreground: theme('colors.gray.100');
     --border: theme('colors.gray.800');
   }
+}
 
+/* ===== CORRECTIONS SPÉCIFIQUES MOBILE ===== */
+@media (max-width: 768px) {
   html, body {
-    @apply bg-background;
+    /* Container strictement fixe sur mobile */
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: none !important;
+    /* Empêche les effets de swipe Safari iOS */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  
+  /* Empêche tout débordement des enfants */
+  * {
+    max-width: 100vw !important;
+    box-sizing: border-box;
+  }
+  
+  /* Container spécifique mobile */
+  .mobile-container {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+    @apply px-4 md:px-6 lg:px-8;
   }
 
-  body {
-    @apply text-foreground transition-colors duration-300;
-    font-family: 'Montserrat', Arial, Helvetica, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    padding-top: var(--announcement-height);
+  /* Correction pour les images et médias */
+  img, video, svg {
+    max-width: 100% !important;
+    height: auto;
+  }
+
+  /* Correction pour les conteneurs Tailwind */
+  .container {
+    max-width: 100vw !important;
+    overflow-x: hidden;
+  }
+
+  /* Empêche le débordement des cartes et composants */
+  .card, .dialog-content, .modal {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* ===== NOUVELLES CORRECTIONS ESPACEMENT MOBILE ===== */
+  
+  /* Réduction de l'espacement des sections sur mobile */
+  .mobile-section-spacing {
+    padding-top: 0.5rem !important;
+    padding-bottom: 1rem !important;
+  }
+  
+  /* Espacement spécifique pour les grilles de produits */
+  .products-grid-mobile {
+    margin-top: 0 !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  /* Réduction de l'espacement entre le header et le contenu */
+  .mobile-content-spacing {
+    margin-top: 0 !important;
+    padding-top: 0.5rem !important;
+  }
+  
+  /* Titre section mobile avec moins d'espacement */
+  .mobile-section-title {
+    margin-bottom: 0.75rem !important;
+    margin-top: 0 !important;
+  }
+  
+  /* Container principal mobile optimisé */
+  .mobile-main-container {
+    padding-top: 0.25rem !important;
+  }
+
+  /* Correction pour la page nos-jeux spécifiquement */
+  main {
+    padding-top: 0.5rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  /* Réduction de l'espacement après le header */
+  .header-wrapper + main {
+    margin-top: 0 !important;
+    padding-top: 0.5rem !important;
   }
 }
 
-/* Configuration des bordures */
-@layer base {
-  * {
-    @apply border-gray-200 dark:border-gray-800;
+/* ===== STYLES WAVE BUTTON ===== */
+@layer components {
+  .wave-payment-button {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-6 py-3 text-base;
+    background-color: #4BD2FA;
+    color: white;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(75, 210, 250, 0.25);
+    transition: all 0.2s ease-in-out;
+    transform: scale(1);
+  }
+
+  .wave-payment-button:hover {
+    background-color: #3BC5E8;
+    transform: scale(1.05);
+    box-shadow: 0 6px 8px rgba(75, 210, 250, 0.35);
+  }
+
+  .wave-payment-button:active {
+    transform: scale(0.95);
+  }
+
+  .wave-payment-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: scale(1);
+  }
+
+  .wave-logo {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
   }
 }
 
@@ -55,11 +213,7 @@
     display: none;
   }
 
-  /* Classes responsives */
-  .mobile-container {
-    @apply px-4 md:px-6 lg:px-8;
-  }
-
+  /* Classes responsives améliorées */
   .mobile-safe-bottom {
     padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
@@ -75,6 +229,42 @@
 
   .responsive-flex {
     @apply flex flex-col sm:flex-row items-start sm:items-center;
+  }
+
+  /* Container sécurisé pour mobile */
+  .safe-container {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Prévention débordement horizontal */
+  .no-horizontal-overflow {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* ===== NOUVELLES CLASSES UTILITAIRES POUR ESPACEMENT ===== */
+  
+  /* Espacement mobile ultra-compact */
+  .mobile-ultra-compact {
+    @apply py-1 md:py-4;
+  }
+
+  /* Espacement mobile réduit */
+  .mobile-compact {
+    @apply py-2 md:py-6;
+  }
+
+  /* Marges mobiles réduites */
+  .mobile-margin-tight {
+    @apply my-1 md:my-4;
+  }
+
+  /* Padding mobile réduit */
+  .mobile-padding-tight {
+    @apply p-2 md:p-6;
   }
 }
 
@@ -97,6 +287,14 @@
   @apply py-8 md:py-12 lg:py-16;
 }
 
+/* ===== CORRECTION SECTION PADDING MOBILE ===== */
+@media (max-width: 768px) {
+  .section-padding {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+}
+
 /* Optimisations tables responsives */
 .responsive-table-wrapper {
   @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
@@ -110,7 +308,7 @@
   @apply whitespace-nowrap px-4 py-3 text-sm;
 }
 
-/* Optimisations mobiles */
+/* Optimisations mobiles améliorées */
 @media (max-width: 768px) {
   /* Défilement horizontal amélioré */
   .scroll-x-container {
@@ -118,6 +316,9 @@
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    max-width: 100vw;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .scroll-x-item {
@@ -140,11 +341,15 @@
   .mobile-menu {
     max-height: calc(100vh - var(--header-height) - var(--announcement-height));
     overflow-y: auto;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   /* Adaptation des cartes pour mobile */
   .mobile-card {
     @apply rounded-lg border p-4 bg-white dark:bg-gray-800;
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
   }
 
   .mobile-card-header {
@@ -159,11 +364,29 @@
   .mobile-filters {
     @apply flex overflow-x-auto gap-2 -mx-4 px-4 pb-2;
     scroll-snap-type: x mandatory;
+    max-width: 100vw;
   }
 
   .mobile-filter-item {
     @apply flex-shrink-0;
     scroll-snap-align: start;
+  }
+
+  /* Carrousel d'images mobile */
+  .image-carousel-container {
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .image-carousel-content {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
   }
 }
 
@@ -206,12 +429,58 @@
   }
 }
 
+/* Animations fluides pour carrousel */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-overlayShow {
   animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-contentShow {
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 300ms ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 400ms ease-out;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 400ms ease-out;
 }
 
 .dialog-content-enter {
@@ -248,11 +517,54 @@
 @media (max-width: 640px) {
   .dialog-content {
     width: 95vw;
+    max-width: calc(100vw - 1rem);
     padding: 1rem;
     max-height: 90vh;
+    overflow-x: hidden;
   }
 }
 
 .dialog-content:focus {
   outline: none;
+}
+
+/* ===== CORRECTIONS SUPPLÉMENTAIRES POUR IMAGES ===== */
+.product-image-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.product-image-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Empêche le débordement des contenus générés dynamiquement */
+.chat-container, .chat-message, .chat-content {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Corrections pour les layouts Framer Motion */
+.motion-container {
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* Styles pour les boutons de choix dans le chat */
+.chat-choice-button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-wrap: break-word;
 }

@@ -1,4 +1,4 @@
-// src/features/home/components/sections/ProductsGridSection.tsx
+// src/features/home/components/sections/ProductsGridSection.tsx - CODE COMPLET CORRIGÉ
 "use client";
 
 import { useState, useEffect } from "react";
@@ -52,7 +52,7 @@ export function ProductsGridSection({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-6 md:py-12">
         <Loader2 className="w-8 h-8 animate-spin text-brand-blue" />
       </div>
     );
@@ -60,18 +60,19 @@ export function ProductsGridSection({
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-500">
+      <div className="text-center py-6 md:py-8 text-red-500">
         {error}
       </div>
     );
   }
 
   return (
-    <section className={`w-full ${className}`}>
+    <section className={`w-full mobile-section-spacing ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
+        {/* ✅ CORRECTION: Espacement réduit sur mobile */}
+        <div className="flex items-center justify-between mb-4 md:mb-8 mobile-section-title">
           <h2 className="text-2xl font-bold text-brand-blue">Nos Jeux</h2>
-          {isMobile && (
+          {!isMobile && (
             <button
               onClick={toggleLayout}
               className="p-2 rounded-lg hover:bg-gray-100"
@@ -88,7 +89,7 @@ export function ProductsGridSection({
 
         {products.length > 0 ? (
           <div
-            className={`grid gap-4 md:gap-6 ${
+            className={`grid gap-4 md:gap-6 products-grid-mobile ${
               layout === "grid"
                 ? isMobile
                   ? "grid-cols-2"
@@ -106,7 +107,7 @@ export function ProductsGridSection({
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-8 md:py-12 text-gray-500">
             Aucun jeu disponible
           </div>
         )}
@@ -114,3 +115,5 @@ export function ProductsGridSection({
     </section>
   );
 }
+
+export default ProductsGridSection;

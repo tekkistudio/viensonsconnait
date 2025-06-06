@@ -25,11 +25,11 @@ export default function TestChat({ productId, productName, productPrice }: TestC
   useEffect(() => {
     const welcomeMessage: ChatMessage = {
       type: 'assistant',
-      content: `👋 Salut ! Je suis Rose, votre assistante pour **${productName}** (${productPrice.toLocaleString()} FCFA).\n\n✨ Que voulez-vous faire ?`,
+      content: `👋 Salut ! Je suis Rose, votre assistante d\'achat pour **${productName}** (${productPrice.toLocaleString()} FCFA).\n\n✨ Que voulez-vous faire ?`,
       choices: ['⚡ Acheter maintenant', '❓ Poser une question'],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC',
+        title: 'Assistante d\'achat',
       },
       timestamp: new Date().toISOString()
     };
@@ -69,7 +69,7 @@ export default function TestChat({ productId, productName, productPrice }: TestC
         choices: ['🔄 Réessayer'],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC',
+          title: 'Assistante d\'achat',
         },
         timestamp: new Date().toISOString()
       };
