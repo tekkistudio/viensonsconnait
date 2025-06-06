@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE AVEC SESSIONMANAGER
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -10,6 +10,7 @@ import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 import DynamicContentService from '@/lib/services/DynamicContentService';
+import SessionManager from '@/lib/services/SessionManager';
 import ChatMessage from './components/ChatMessage';
 import ChatChoices from './components/ChatChoices';
 import TypingIndicator from './components/TypingIndicator';
@@ -39,6 +40,7 @@ const ChatContainer = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
+  const [sessionManager] = useState(() => SessionManager.getInstance());
   const [isInitialized, setIsInitialized] = useState(false);
   const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
 
@@ -97,7 +99,7 @@ const ChatContainer = ({
     }
   }, [dynamicContentService]);
 
-  // ✅ Initialisation du chat avec protection contre les multiples appels
+  // ✅ CORRECTION: Initialisation du chat avec SessionManager
   useEffect(() => {
     if (!product?.id || welcomeMessageAdded) return;
 
@@ -112,8 +114,12 @@ const ChatContainer = ({
           return;
         }
 
+        // ✅ CORRECTION: Utiliser SessionManager pour créer session
+        const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
+        console.log('🆕 Desktop session created with SessionManager:', newSessionId);
+
         if (initializeSession) {
-          initializeSession(product.id, storeId);
+          initializeSession(product.id, storeId, newSessionId);
           setIsInitialized(true);
           
           setTimeout(() => {
@@ -124,12 +130,12 @@ const ChatContainer = ({
                 type: 'assistant',
                 content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
 
-Je vois que vous vous intéressez au jeu **${product.name}** !
+Je vois que vous vous intéressez à notre jeu **${product.name}** !
 
 ✨ Je peux vous aider à :
-• **Commander rapidement** (moins de 60 secondes)
-• **Répondre à vos questions**
-• **Vous conseiller** sur l'utilisation
+- **Commander rapidement** (moins de 60 secondes)
+- **Répondre à vos questions**
+- **Vous conseiller** sur l'utilisation
 
 Que souhaitez-vous faire ?`,
                 choices: [
@@ -140,12 +146,13 @@ Que souhaitez-vous faire ?`,
                 ],
                 assistant: {
                   name: 'Rose',
-                  title: 'Assistante VOSC',
+                  title: 'Assistante d\'achat',
                   avatar: undefined
                 },
                 metadata: {
                   nextStep: 'initial_engagement' as ConversationStep,
                   productId: product.id,
+                  sessionId: newSessionId,
                   flags: { 
                     isWelcome: true,
                     preventAIIntervention: true
@@ -168,7 +175,7 @@ Que souhaitez-vous faire ?`,
     };
 
     initializeChat();
-  }, [product.id, storeId, welcomeMessageAdded]);
+  }, [product.id, storeId, welcomeMessageAdded, sessionManager, initializeSession, addMessage]);
 
   // ✅ Auto-scroll optimisé
   useEffect(() => {
@@ -192,10 +199,10 @@ Que souhaitez-vous faire ?`,
         content: `🤔 **Parfait !** Posez-moi toutes vos questions sur le jeu **${product.name}**.
 
 Je peux vous expliquer :
-• Comment ça fonctionne
-• Pour qui c'est adapté
-• Les bénéfices
-• Les témoignages clients
+- Comment ça fonctionne
+- Pour qui c'est adapté
+- Les bénéfices
+- Les témoignages clients
 
 Qu'est-ce qui vous intéresse le plus ?`,
         choices: [
@@ -206,7 +213,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'question_mode' as ConversationStep,
@@ -229,7 +236,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_usage' as ConversationStep
@@ -250,7 +257,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'target_audience' as ConversationStep
@@ -271,7 +278,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_benefits' as ConversationStep
@@ -292,7 +299,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'testimonials_view' as ConversationStep
@@ -334,7 +341,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'delivery_info' as ConversationStep
@@ -356,7 +363,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_info' as ConversationStep
@@ -376,7 +383,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'initial_engagement' as ConversationStep
@@ -392,7 +399,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
     choices: ['🔄 Réessayer', '📞 Contacter le support'],
     assistant: {
       name: 'Rose',
-      title: 'Assistante VOSC'
+      title: 'Assistante d\'achat'
     },
     metadata: {
       nextStep: 'error_recovery' as ConversationStep,
@@ -483,7 +490,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
           response = await optimizedService.processUserInput(
             sessionId,
             content,
-            currentStep || 'initial' // ✅ CORRECTION TypeScript
+            currentStep
           );
         } catch (error) {
           console.error('❌ Error processing express step:', error);
@@ -501,17 +508,23 @@ Qu'est-ce qui vous intéresse le plus ?`,
           // Message de bouton standard
           response = await handleStandardMessages(content);
         } else {
-          // ✅ NOUVEAU: Message libre - utiliser l'IA
+          // ✅ NOUVEAU: Message libre - utiliser l'IA avec validation de session
           console.log('🤖 Free text message detected, using AI');
-          try {
-            response = await optimizedService.processUserInput(
-              sessionId, 
-              content, 
-              currentStep || 'initial' // ✅ CORRECTION TypeScript
-            );
-          } catch (error) {
-            console.error('❌ Error with AI response:', error);
-            response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+          
+          if (!sessionId || sessionId.length < 5) {
+            console.error('❌ Invalid session for AI processing');
+            response = createErrorResponse('Session expirée. Veuillez rafraîchir la page.');
+          } else {
+            try {
+              response = await optimizedService.processUserInput(
+                sessionId, 
+                content, 
+                currentStep || 'initial'
+              );
+            } catch (error) {
+              console.error('❌ Error with AI response:', error);
+              response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+            }
           }
         }
       }

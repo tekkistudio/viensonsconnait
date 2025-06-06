@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION MOBILE COMPLÈTE CORRIGÉE
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE COMPLÈTE
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -13,6 +13,7 @@ import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 import DynamicContentService from '@/lib/services/DynamicContentService';
+import SessionManager from '@/lib/services/SessionManager';
 import TypingIndicator from './TypingIndicator';
 import ChatMessage from './ChatMessage';
 import ChatChoices from './ChatChoices';
@@ -40,6 +41,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
+  const [sessionManager] = useState(() => SessionManager.getInstance());
   const [stats, setStats] = useState<RealTimeStats>({
     viewsCount: 0,
     salesCount: 0,
@@ -84,7 +86,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   } = store;
 
-  // ✅ CORRECTION: Initialisation sans duplication de message
+  // ✅ CORRECTION: Initialisation avec SessionManager
   useEffect(() => {
     let isMounted = true;
 
@@ -109,8 +111,12 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
 
         setIsInitialized(true);
 
+        // ✅ CORRECTION: Utiliser SessionManager pour créer session
+        const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
+        console.log('🆕 Session created with SessionManager:', newSessionId);
+
         if (initializeSession) {
-          initializeSession(product.id, storeId);
+          initializeSession(product.id, storeId, newSessionId);
         }
         
         setTimeout(() => {
@@ -123,12 +129,12 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
               type: 'assistant',
               content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
 
-Je vois que vous vous intéressez au jeu **${product.name}** !
+Je vois que vous vous intéressez à notre jeu **${product.name}** !
 
 ✨ Je peux vous aider à :
-• **Commander rapidement** (moins de 60 secondes)
-• **Répondre à vos questions**
-• **Vous conseiller** sur l'utilisation
+- **Commander rapidement** (moins de 60 secondes)
+- **Répondre à vos questions**
+- **Vous conseiller** sur l'utilisation
 
 Que souhaitez-vous faire ?`,
               choices: [
@@ -139,12 +145,13 @@ Que souhaitez-vous faire ?`,
               ],
               assistant: {
                 name: 'Rose',
-                title: 'Assistante VOSC',
+                title: 'Assistante d\'achat',
                 avatar: undefined
               },
               metadata: {
                 nextStep: 'initial_engagement' as ConversationStep,
                 productId: product.id,
+                sessionId: newSessionId,
                 flags: { 
                   isWelcome: true,
                   preventAIIntervention: true
@@ -175,7 +182,7 @@ Que souhaitez-vous faire ?`,
         cleanup();
       }
     };
-  }, [product.id, storeId, welcomeMessageSent, isInitialized]);
+  }, [product.id, storeId, welcomeMessageSent, isInitialized, sessionManager, initializeSession, addMessage, cleanup]);
 
   useEffect(() => {
     setHideHeaderGroup(true);
@@ -234,10 +241,9 @@ Que souhaitez-vous faire ?`,
     }
   }, [messages, showTyping]);
 
-  // ✅ FONCTION DYNAMIQUE: Service de contenu dynamique
+  // Service de contenu dynamique
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
 
-  // ✅ CORRECTION TYPESCRIPT: Ajouter 'target' au type
   const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
       return await dynamicContentService.getProductInfo(product.id, infoType);
@@ -247,7 +253,6 @@ Que souhaitez-vous faire ?`,
     }
   }, [product.id, product.name, dynamicContentService]);
 
-  // ✅ FONCTION DYNAMIQUE: Récupérer les infos de livraison de la base
   const getDeliveryInfoFromDatabase = useCallback(async () => {
     try {
       return await dynamicContentService.getDeliveryInfo();
@@ -257,7 +262,7 @@ Que souhaitez-vous faire ?`,
     }
   }, [dynamicContentService]);
 
-  // ✅ FONCTION CORRIGÉE: Gérer les messages standards avec données dynamiques
+  // ✅ CORRECTION: Gestion des messages standards avec données dynamiques
   const handleStandardMessages = async (content: string): Promise<ChatMessageType> => {
     if (content.includes('Poser une question') || content.includes('❓')) {
       return {
@@ -265,10 +270,10 @@ Que souhaitez-vous faire ?`,
         content: `🤔 **Parfait !** Posez-moi toutes vos questions sur le jeu **${product.name}**.
 
 Je peux vous expliquer :
-• Comment ça fonctionne
-• Pour qui c'est adapté
-• Les bénéfices
-• Les témoignages clients
+- Comment ça fonctionne
+- Pour qui c'est adapté
+- Les bénéfices
+- Les témoignages clients
 
 Qu'est-ce qui vous intéresse le plus ?`,
         choices: [
@@ -279,7 +284,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'question_mode' as ConversationStep,
@@ -289,7 +294,6 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION: Questions détaillées
     if (content.includes('Comment ça marche') || content.includes('Comment ça fonctionne')) {
       const usageInfo = await getProductInfoFromDatabase('usage');
       return {
@@ -302,7 +306,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_usage' as ConversationStep
@@ -311,7 +315,6 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION: "C'est pour qui" dynamique par produit
     if (content.includes('C\'est pour qui') || content.includes('Pour qui')) {
       const targetInfo = await getProductInfoFromDatabase('target');
       return {
@@ -324,7 +327,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'target_audience' as ConversationStep
@@ -345,7 +348,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_benefits' as ConversationStep
@@ -366,7 +369,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'testimonials_view' as ConversationStep
@@ -375,7 +378,6 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION: Infos livraison dynamiques sans Orange Money
     if (content.includes('Infos livraison') || content.includes('📦')) {
       const deliveryInfo = await getDeliveryInfoFromDatabase();
       
@@ -393,7 +395,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
         deliveryContent += `💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       } else {
-        deliveryContent += `📍 **Zones couvertes :**\n• Dakar : Gratuit\n• Autres villes du Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
+        deliveryContent += `📍 **Zones principales :**\n• Dakar : Gratuit\n• Autres villes Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       }
       
       deliveryContent += `Voulez-vous commander maintenant ?`;
@@ -404,11 +406,11 @@ Qu'est-ce qui vous intéresse le plus ?`,
         choices: [
           '⚡ Commander maintenant',
           '📞 Autres questions',
-          '🏠 Changer d\'adresse'
+          '🏠 Ma zone de livraison'
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'delivery_info' as ConversationStep
@@ -417,7 +419,6 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION: En savoir plus dynamique
     if (content.includes('En savoir plus') || content.includes('💬')) {
       const descriptionInfo = await getProductInfoFromDatabase('description');
       return {
@@ -430,7 +431,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'product_info' as ConversationStep
@@ -450,7 +451,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'initial_engagement' as ConversationStep
@@ -459,14 +460,14 @@ Qu'est-ce qui vous intéresse le plus ?`,
     };
   };
 
-  // ✅ FONCTION UTILITAIRE: Créer un message d'erreur
+  // Fonction utilitaire: Créer un message d'erreur
   const createErrorResponse = (errorText: string): ChatMessageType => ({
     type: 'assistant',
     content: `😔 ${errorText}`,
     choices: ['🔄 Réessayer', '📞 Contacter le support'],
     assistant: {
       name: 'Rose',
-      title: 'Assistante VOSC'
+      title: 'Assistante d\'achat'
     },
     metadata: {
       nextStep: 'error_recovery' as ConversationStep,
@@ -494,7 +495,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
     }
   };
 
-  // ✅ CORRECTION TYPESCRIPT: Fonction sendMessage corrigée
+  // ✅ CORRECTION: Fonction sendMessage avec gestion d'erreur améliorée
   const sendMessage = async (content: string) => {
     try {
       console.log('📱 Processing mobile message:', { content, sessionId, isExpressMode, currentStep });
@@ -521,7 +522,6 @@ Qu'est-ce qui vous intéresse le plus ?`,
         response = await optimizedService.startExpressPurchase(sessionId, product.id);
         setExpressMode(true);
         
-        // Mettre à jour les données de commande
         updateOrderData({
           session_id: sessionId,
           product_id: product.id,
@@ -539,11 +539,11 @@ Qu'est-ce qui vous intéresse le plus ?`,
         response = await optimizedService.processUserInput(
           sessionId, 
           content, 
-          currentStep || 'initial' // ✅ CORRECTION TYPESCRIPT: Valeur par défaut
+          currentStep
         );
         
       } else {
-        // ✅ CORRECTION MAJEURE: Distinguer boutons vs messages libres
+        // Distinguer boutons vs messages libres
         const isStandardButton = [
           'Poser une question', 'Comment ça marche', 'C\'est pour qui',
           'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
@@ -553,17 +553,23 @@ Qu'est-ce qui vous intéresse le plus ?`,
           // Message de bouton standard
           response = await handleStandardMessages(content);
         } else {
-          // ✅ NOUVEAU: Message libre - utiliser l'IA
+          // ✅ CORRECTION: Message libre - utiliser l'IA avec validation de session
           console.log('🤖 Free text message detected, using AI');
-          try {
-            response = await optimizedService.processUserInput(
-              sessionId, 
-              content, 
-              currentStep || 'initial' // ✅ CORRECTION TYPESCRIPT: Valeur par défaut
-            );
-          } catch (error) {
-            console.error('❌ Error with AI response:', error);
-            response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+          
+          if (!sessionId || sessionId.length < 5) {
+            console.error('❌ Invalid session for AI processing');
+            response = createErrorResponse('Session expirée. Veuillez rafraîchir la page.');
+          } else {
+            try {
+              response = await optimizedService.processUserInput(
+                sessionId, 
+                content, 
+                currentStep || 'initial'
+              );
+            } catch (error) {
+              console.error('❌ Error with AI response:', error);
+              response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
+            }
           }
         }
       }
@@ -702,172 +708,172 @@ Qu'est-ce qui vous intéresse le plus ?`,
           </div>
 
           {/* Barre de commande mobile intégrée */}
-          {orderData?.items && orderData.items.length > 0 && (
-            <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
-                    <ShoppingBag className="w-3 h-3 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#132D5D]">
-                      Ma commande ({(orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)} article{((orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)) > 1 ? 's' : ''})
-                    </p>
-                    <p className="text-xs text-gray-600 truncate max-w-[200px]">
-                      {(orderData.items || []).map(item => `${item.name} x${item.quantity}`).join(', ')}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <p className="text-sm font-bold text-[#FF7E93]">
-                    {(orderData.total_amount || 0).toLocaleString()} FCFA
-                  </p>
-                  <p className="text-xs text-gray-500">Total</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+         {orderData?.items && orderData.items.length > 0 && (
+           <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3">
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                 <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
+                   <ShoppingBag className="w-3 h-3 text-white" />
+                 </div>
+                 <div>
+                   <p className="text-xs font-medium text-[#132D5D]">
+                     Ma commande ({(orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)} article{((orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)) > 1 ? 's' : ''})
+                   </p>
+                   <p className="text-xs text-gray-600 truncate max-w-[200px]">
+                     {(orderData.items || []).map(item => `${item.name} x${item.quantity}`).join(', ')}
+                   </p>
+                 </div>
+               </div>
+               
+               <div className="text-right">
+                 <p className="text-sm font-bold text-[#FF7E93]">
+                   {(orderData.total_amount || 0).toLocaleString()} FCFA
+                 </p>
+                 <p className="text-xs text-gray-500">Total</p>
+               </div>
+             </div>
+           </div>
+         )}
+       </div>
 
-        {/* Zone des messages optimisée pour mobile */}
-        <div
-          ref={chatRef}
-          className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {messages && messages.length > 0 ? (
-            <AnimatePresence mode="popLayout">
-              {messages.map((message, index) => (
-                <motion.div
-                  key={`${message.type}-${index}-${message.timestamp}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChatMessage
-                    message={message}
-                    isTyping={false}
-                    onChoiceSelect={handleChoiceSelect}
-                  />
+       {/* Zone des messages optimisée pour mobile */}
+       <div
+         ref={chatRef}
+         className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
+         style={{ WebkitOverflowScrolling: 'touch' }}
+       >
+         {messages && messages.length > 0 ? (
+           <AnimatePresence mode="popLayout">
+             {messages.map((message, index) => (
+               <motion.div
+                 key={`${message.type}-${index}-${message.timestamp}`}
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 exit={{ opacity: 0 }}
+                 transition={{ duration: 0.2 }}
+               >
+                 <ChatMessage
+                   message={message}
+                   isTyping={false}
+                   onChoiceSelect={handleChoiceSelect}
+                 />
 
-                  {/* Gestion sécurisée du sélecteur de quantité */}
-                  {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-                    <div className="mt-4">
-                      <QuantitySelector
-                        quantity={1}
-                        onQuantityChange={(qty: number) => {
-                          if (message.metadata?.handleQuantityChange) {
-                            message.metadata.handleQuantityChange(qty);
-                          }
-                        }}
-                        onConfirm={async (qty: number) => {
-                          if (message.metadata?.handleQuantitySubmit) {
-                            await message.metadata.handleQuantitySubmit(qty);
-                            if (message.metadata) {
-                              message.metadata.quantityHandled = true;
-                            }
-                          }
-                          handleChoiceSelect(qty.toString());
-                        }}
-                        maxQuantity={message.metadata?.maxQuantity || 10}
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+                 {/* Gestion sécurisée du sélecteur de quantité */}
+                 {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+                   <div className="mt-4">
+                     <QuantitySelector
+                       quantity={1}
+                       onQuantityChange={(qty: number) => {
+                         if (message.metadata?.handleQuantityChange) {
+                           message.metadata.handleQuantityChange(qty);
+                         }
+                       }}
+                       onConfirm={async (qty: number) => {
+                         if (message.metadata?.handleQuantitySubmit) {
+                           await message.metadata.handleQuantitySubmit(qty);
+                           if (message.metadata) {
+                             message.metadata.quantityHandled = true;
+                           }
+                         }
+                         handleChoiceSelect(qty.toString());
+                       }}
+                       maxQuantity={message.metadata?.maxQuantity || 10}
+                     />
+                   </div>
+                 )}
+               </motion.div>
+             ))}
 
-              {/* Indicateur de frappe */}
-              {showTyping && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  key="typing-indicator"
-                >
-                  <TypingIndicator />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7E93] mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">Chargement du chat...</p>
-              </div>
-            </div>
-          )}
-        </div>
+             {/* Indicateur de frappe */}
+             {showTyping && (
+               <motion.div
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 exit={{ opacity: 0 }}
+                 key="typing-indicator"
+               >
+                 <TypingIndicator />
+               </motion.div>
+             )}
+           </AnimatePresence>
+         ) : (
+           <div className="flex items-center justify-center h-full">
+             <div className="text-center">
+               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7E93] mx-auto mb-2" />
+               <p className="text-gray-500 text-sm">Chargement du chat...</p>
+             </div>
+           </div>
+         )}
+       </div>
 
-        {/* Zone de saisie mobile optimisée */}
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t px-4 py-3">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Tapez votre message..."
-              className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isProcessing}
-              maxLength={500}
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <button
-                type="button"
-                className="p-2 text-gray-400 cursor-not-allowed"
-                disabled
-                title="Reconnaissance vocale (bientôt disponible)"
-              >
-                <Mic className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={handleMessageSend}
-                disabled={!inputMessage.trim() || isProcessing}
-                className={`p-2 transition-colors ${
-                  inputMessage.trim() && !isProcessing
-                    ? 'text-[#FF7E93] hover:text-[#132D5D]' 
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
-                title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}
-              >
-                {isProcessing ? (
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-[#FF7E93] rounded-full animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+       {/* Zone de saisie mobile optimisée */}
+       <div className="sticky bottom-0 left-0 right-0 bg-white border-t px-4 py-3">
+         <div className="relative flex items-center">
+           <input
+             type="text"
+             value={inputMessage}
+             onChange={(e) => setInputMessage(e.target.value)}
+             onKeyDown={handleKeyDown}
+             placeholder="Tapez votre message..."
+             className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+             disabled={isProcessing}
+             maxLength={500}
+           />
+           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+             <button
+               type="button"
+               className="p-2 text-gray-400 cursor-not-allowed"
+               disabled
+               title="Reconnaissance vocale (bientôt disponible)"
+             >
+               <Mic className="w-5 h-5" />
+             </button>
+             <button
+               type="button"
+               onClick={handleMessageSend}
+               disabled={!inputMessage.trim() || isProcessing}
+               className={`p-2 transition-colors ${
+                 inputMessage.trim() && !isProcessing
+                   ? 'text-[#FF7E93] hover:text-[#132D5D]' 
+                   : 'text-gray-400 cursor-not-allowed'
+               }`}
+               title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}
+             >
+               {isProcessing ? (
+                 <div className="w-5 h-5 border-2 border-gray-300 border-t-[#FF7E93] rounded-full animate-spin" />
+               ) : (
+                 <Send className="w-5 h-5" />
+               )}
+             </button>
+           </div>
+         </div>
+       </div>
 
-        {/* Modals de paiement pour mobile */}
-        <BictorysPaymentModal
-          isOpen={paymentModal?.isOpen || false}
-          onClose={handleClosePaymentModal}
-          amount={orderData?.totalAmount || 0}
-          currency="XOF"
-          orderId={parseInt(orderData?.session_id || Date.now().toString())}
-          customerInfo={{
-            name: `${orderData?.first_name || ''} ${orderData?.last_name || ''}`.trim() || 'Client',
-            phone: orderData?.phone || '',
-            email: orderData?.email || '',
-            city: orderData?.city || ''
-          }}
-        />
+       {/* Modals de paiement pour mobile */}
+       <BictorysPaymentModal
+         isOpen={paymentModal?.isOpen || false}
+         onClose={handleClosePaymentModal}
+         amount={orderData?.totalAmount || 0}
+         currency="XOF"
+         orderId={parseInt(orderData?.session_id || Date.now().toString())}
+         customerInfo={{
+           name: `${orderData?.first_name || ''} ${orderData?.last_name || ''}`.trim() || 'Client',
+           phone: orderData?.phone || '',
+           email: orderData?.email || '',
+           city: orderData?.city || ''
+         }}
+       />
 
-        {payment?.status === 'processing' && payment?.clientSecret && (
-          <StripePaymentModal
-            isOpen={stripeModalOpen}
-            onClose={() => setStripeModalOpen(false)}
-            clientSecret={payment.clientSecret}
-          />
-        )}
-      </div>
-    </ConversationProvider>
-  );
+       {payment?.status === 'processing' && payment?.clientSecret && (
+         <StripePaymentModal
+           isOpen={stripeModalOpen}
+           onClose={() => setStripeModalOpen(false)}
+           clientSecret={payment.clientSecret}
+         />
+       )}
+     </div>
+   </ConversationProvider>
+ );
 };
 
 export default MobileChatContainer;

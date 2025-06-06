@@ -1,4 +1,4 @@
-// src/features/home/components/sections/ProductsGridSection.tsx - CODE COMPLET CORRIGÉ
+// src/features/home/components/sections/ProductsGridSection.tsx - ESPACEMENT CORRIGÉ
 "use client";
 
 import { useState, useEffect } from "react";
@@ -67,11 +67,12 @@ export function ProductsGridSection({
   }
 
   return (
-    <section className={`w-full mobile-section-spacing ${className}`}>
+    /* ✅ CORRECTION: Espacement considérablement réduit sur mobile et desktop */
+    <section className={`w-full pt-6 md:pt-12 pb-8 md:pb-16 ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* ✅ CORRECTION: Espacement réduit sur mobile */}
-        <div className="flex items-center justify-between mb-4 md:mb-8 mobile-section-title">
-          <h2 className="text-2xl font-bold text-brand-blue">Nos Jeux</h2>
+        {/* ✅ CORRECTION: Marge réduite entre le début de la section et le titre */}
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-brand-blue">Nos Jeux</h2>
           {!isMobile && (
             <button
               onClick={toggleLayout}
@@ -89,7 +90,7 @@ export function ProductsGridSection({
 
         {products.length > 0 ? (
           <div
-            className={`grid gap-4 md:gap-6 products-grid-mobile ${
+            className={`grid gap-4 md:gap-6 ${
               layout === "grid"
                 ? isMobile
                   ? "grid-cols-2"

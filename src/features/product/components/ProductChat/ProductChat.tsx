@@ -118,11 +118,11 @@ export default function ProductChat({
       // Message de bienvenue personnalisé
       const welcomeMessage: ChatMessage = {
         type: 'assistant',
-        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez au jeu **${productName}** !\n\n C'est excellent ✨ Je peux :\n• Vous aider à **Commander en express** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous expliquer** comment y jouer\n\nQue souhaitez-vous faire ?`,
+        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez à notre jeu **${productName}** ! C'est excellent ✨\n\n Je peux :\n• Vous aider à **Commander en express** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous expliquer** comment y jouer\n\nQue souhaitez-vous faire ?`,
         choices: [],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC',
+          title: 'Assistante d\'achat',
           avatar: undefined
         },
         metadata: {
@@ -185,7 +185,7 @@ export default function ProductChat({
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC',
+            title: 'Assistante d\'achat',
             avatar: undefined
           },
           metadata: {
@@ -218,7 +218,7 @@ export default function ProductChat({
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC',
+            title: 'Assistante d\'achat',
             avatar: undefined
           },
           metadata: {
@@ -278,7 +278,7 @@ export default function ProductChat({
         choices: ['🔄 Réessayer', '📞 Contacter le support'],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC',
+          title: 'Assistante d\'achat',
           avatar: undefined
         },
         metadata: {

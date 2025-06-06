@@ -157,7 +157,7 @@ Merci pour votre confiance ! 🙏`,
               ],
               assistant: {
                 name: 'Rose',
-                title: 'Assistante VOSC'
+                title: 'Assistante d\'achat'
               },
               metadata: {
                 orderId,

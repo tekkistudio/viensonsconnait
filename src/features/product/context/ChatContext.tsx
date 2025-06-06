@@ -65,7 +65,7 @@ export function ChatProvider({ children, product }: ChatProviderProps) {
       // Message de bienvenue
       const welcomeMessage: ChatMessage = {
         type: 'assistant',
-        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez au jeu **${product.name}** !\n\n C'est excellent ✨ Je peux :\n• Vous aider à **commander rapidement** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous expliquer** comment y jouer\n\nQue souhaitez-vous faire ?`,
+        content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.\n\nJe vois que vous vous intéressez à notre jeu **${product.name}** ! C'est excellent ✨\n\n  Je peux :\n• Vous aider à **commander rapidement** (moins de 60 secondes)\n• **Répondre à vos questions**\n• **Vous expliquer** comment y jouer\n\nQue souhaitez-vous faire ?`,
         choices: [
           '⚡ Commander rapidement',
           '❓ Poser une question',
@@ -74,7 +74,7 @@ export function ChatProvider({ children, product }: ChatProviderProps) {
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC',
+          title: 'Assistante d\'achat',
           avatar: undefined
         },
         metadata: {
@@ -150,7 +150,7 @@ export function ChatProvider({ children, product }: ChatProviderProps) {
         choices: ['Réessayer', 'Contacter le support'],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'error_recovery' as ConversationStep,

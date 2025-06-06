@@ -174,7 +174,7 @@ Voulez-vous nous contacter maintenant ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'address_change_request' as ConversationStep,
@@ -219,7 +219,7 @@ Tapez votre question dans le champ ci-dessous, je vous réponds immédiatement !
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'customer_support' as ConversationStep,
@@ -252,7 +252,7 @@ Que souhaitez-vous faire ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'general_support' as ConversationStep
@@ -316,7 +316,7 @@ Quel mode préférez-vous ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'mode_selection',
@@ -345,7 +345,7 @@ Quel mode préférez-vous ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'usage_explained',
@@ -369,7 +369,7 @@ Quel mode préférez-vous ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'product_info_detailed'
@@ -424,7 +424,7 @@ Voulez-vous le commander maintenant ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'price_explained',
@@ -466,7 +466,7 @@ Voulez-vous le commander maintenant ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'delivery_info_shown'
@@ -489,7 +489,7 @@ Voulez-vous le commander maintenant ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'testimonials_shown',
@@ -675,7 +675,7 @@ Prêt(e) à commencer cette belle aventure ?`;
     if (isQuestion) {
       response = `🤔 **Excellente question !** 
 
-Je vois que vous vous intéressez au jeu **${productName}**. C'est un excellent choix !
+Je vois que vous vous intéressez à notre jeu **${productName}**. C'est un excellent choix !
 
 ✨ **Je peux vous expliquer :**
 • Comment utiliser le jeu concrètement
@@ -710,7 +710,7 @@ Cela me fait plaisir de répondre à vos questions sur le **${productName}**.
     } else {
       response = `💬 **Merci pour votre message !**
 
-Je vois que vous vous intéressez au jeu **${productName}**. C'est un excellent choix !
+Je vois que vous vous intéressez à notre jeu **${productName}**. C'est un excellent choix !
 
 Que puis-je vous expliquer pour vous aider dans votre décision ?`;
 

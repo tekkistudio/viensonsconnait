@@ -165,7 +165,7 @@ export class PersuasiveAIService {
         : this.getDefaultChoices(context),
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: this.determineNextStep(knowledge.category, context),
@@ -199,7 +199,7 @@ export class PersuasiveAIService {
     if (isQuestion) {
       response = `🤔 **Excellente question !** 
 
-Je vois que vous vous intéressez au jeu **${productName}**. C'est un choix parfait pour transformer vos relations !
+Je vois que vous vous intéressez à notre jeu **${productName}**. C'est un choix parfait pour transformer vos relations !
 
 Pour mieux vous renseigner, voici ce que je peux vous expliquer :
 
@@ -223,7 +223,7 @@ Qu'est-ce qui vous intéresse le plus ?`;
       // Réponse générale engageante
       response = `💬 **Merci pour votre message !**
 
-Je vois que vous vous intéressez au **${productName}**. C'est un choix intelligent !
+Je vois que vous vous intéressez à notre jeu **${productName}**. C'est un choix intelligent !
 
 🌟 **Pourquoi tant de familles nous font confiance :**
 • **1 247 clients satisfaits** dans 12 pays africains
@@ -255,7 +255,7 @@ ${messageCount > 3 ?
       choices,
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep,
@@ -292,7 +292,7 @@ Que souhaitez-vous savoir en premier ?`,
       ],
       assistant: {
         name: 'Rose',
-        title: 'Assistante VOSC'
+        title: 'Assistante d\'achat'
       },
       metadata: {
         nextStep: 'fallback_response' as ConversationStep,

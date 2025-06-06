@@ -59,75 +59,124 @@ export class OptimizedChatService {
   // ✅ NOUVELLE SECTION: GESTION DES MESSAGES LIBRES IA
   // ==========================================
 
-  /**
-   * ✅ MÉTHODE PRINCIPALE: Traiter les messages libres de l'utilisateur avec l'IA
-   */
-  async processUserInput(
-    sessionId: string,
-    message: string,
-    currentStep?: ConversationStep
-  ): Promise<ChatMessage> {
-    console.log('🤖 Processing user input with AI:', { sessionId, message, currentStep });
+/**
+ * ✅ MÉTHODE CORRIGÉE: Traiter les messages libres avec gestion TypeScript correcte
+ */
+async processUserInput(
+  sessionId: string,
+  message: string,
+  currentStep?: ConversationStep
+): Promise<ChatMessage> {
+  console.log('🤖 Processing user input with improved session handling:', { sessionId, message, currentStep });
 
-    try {
-      // ✅ Vérifier si c'est un message pour le flow express
-      if (currentStep?.includes('express')) {
-        return this.handleExpressStep(sessionId, message, currentStep);
-      }
-
-      // ✅ Vérifier si c'est un bouton d'action post-achat
-      const postPurchaseActions = [
-        'Suivre ma commande', 'Nous contacter', 'Autres produits',
-        'WhatsApp', 'Contacter le support', 'Voir ma commande',
-        'Changer d\'adresse', 'Autre question', '❓', '🔍'
-      ];
-      
-      if (postPurchaseActions.some(action => message.includes(action))) {
-        return this.handlePostPurchaseActions(sessionId, message);
-      }
-
-      // ✅ Récupérer les infos produit pour le contexte
-      const orderState = this.orderStates.get(sessionId);
-      const productId = orderState?.data?.productId;
-      
-      if (!productId) {
-        return this.createErrorMessage(sessionId, 'Session expirée. Veuillez rafraîchir la page.');
-      }
-
-      // ✅ Récupérer les infos produit depuis la base
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('id, name, price, description')
-        .eq('id', productId)
-        .single();
-
-      if (productError || !product) {
-        console.error('❌ Product not found for AI context:', productError);
-        return this.createErrorMessage(sessionId, 'Produit non trouvé.');
-      }
-
-      // ✅ Préparer le contexte pour l'IA
-      const aiContext = {
-        productId: product.id,
-        productName: product.name,
-        sessionId,
-        isExpressMode: orderState?.mode === 'express' || false,
-        currentStep,
-        userMessage: message,
-        conversationHistory: [] // Vous pouvez ajouter l'historique ici si nécessaire
-      };
-
-      // ✅ Laisser l'IA traiter le message
-      const aiResponse = await this.aiResponseHandler.handleFreeTextMessage(aiContext);
-      
-      console.log('✅ AI response generated:', aiResponse);
-      return aiResponse;
-
-    } catch (error) {
-      console.error('❌ Error processing user input:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre message');
+  try {
+    // ✅ CORRECTION 1: Vérifier et initialiser la session si nécessaire
+    if (!sessionId || sessionId.length < 5) {
+      console.error('❌ Invalid sessionId provided:', sessionId);
+      return this.createErrorMessage('', 'Session invalide. Veuillez rafraîchir la page.');
     }
+
+    // ✅ CORRECTION 2: Récupérer ou créer l'état de commande avec type correct
+    let orderState: OrderState | undefined = this.orderStates.get(sessionId);
+    
+    if (!orderState) {
+      console.log('🔄 Order state not found, attempting to recover or create new one');
+      
+      // Essayer de récupérer depuis la base de données
+      const recoveredState = await this.recoverSessionFromDatabase(sessionId);
+      
+      if (recoveredState) {
+        orderState = recoveredState;
+        this.orderStates.set(sessionId, orderState);
+      } else {
+        // Créer un nouvel état par défaut
+        console.log('📝 Creating new order state for session:', sessionId);
+        orderState = {
+          step: 'quantity' as PurchaseStep,
+          mode: 'conversational',
+          data: {
+            quantity: 1,
+            storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
+          },
+          flags: {
+            customerExists: false,
+            addressValidated: false,
+            paymentInitiated: false
+          }
+        };
+        
+        this.orderStates.set(sessionId, orderState);
+      }
+    }
+
+    // ✅ CORRECTION 3: Vérifier si c'est un message pour le flow express
+    if (currentStep?.includes('express')) {
+      return this.handleExpressStep(sessionId, message, currentStep);
+    }
+
+    // ✅ CORRECTION 4: Vérifier si c'est un bouton d'action post-achat
+    const postPurchaseActions = [
+      'Suivre ma commande', 'Nous contacter', 'Autres produits',
+      'WhatsApp', 'Contacter le support', 'Voir ma commande',
+      'Changer d\'adresse', 'Autre question', '❓', '🔍'
+    ];
+    
+    if (postPurchaseActions.some(action => message.includes(action))) {
+      return this.handlePostPurchaseActions(sessionId, message);
+    }
+
+    // ✅ CORRECTION 5: Récupérer le productId depuis l'état ou deviner depuis le sessionId
+    let productId = orderState.data.productId;
+    
+    if (!productId) {
+      // Essayer d'extraire depuis le sessionId (format: productId_storeId_timestamp_random)
+      const sessionParts = sessionId.split('_');
+      if (sessionParts.length >= 2) {
+        productId = sessionParts[0];
+        orderState.data.productId = productId;
+        this.orderStates.set(sessionId, orderState);
+      }
+    }
+
+    if (!productId) {
+      console.error('❌ No productId found for session:', sessionId);
+      return this.createErrorMessage(sessionId, 'Produit non trouvé. Veuillez rafraîchir la page.');
+    }
+
+    // ✅ CORRECTION 6: Récupérer les infos produit depuis la base
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, name, price, description')
+      .eq('id', productId)
+      .single();
+
+    if (productError || !product) {
+      console.error('❌ Product not found for AI context:', productError);
+      return this.createErrorMessage(sessionId, `Produit ${productId} non trouvé.`);
+    }
+
+    // ✅ CORRECTION 7: Préparer le contexte pour l'IA avec toutes les données nécessaires
+    const aiContext = {
+      productId: product.id,
+      productName: product.name,
+      sessionId,
+      isExpressMode: orderState?.mode === 'express' || false,
+      currentStep,
+      userMessage: message,
+      conversationHistory: []
+    };
+
+    // ✅ CORRECTION 8: Laisser l'IA traiter le message
+    const aiResponse = await this.aiResponseHandler.handleFreeTextMessage(aiContext);
+    
+    console.log('✅ AI response generated successfully:', aiResponse);
+    return aiResponse;
+
+  } catch (error) {
+    console.error('❌ Error processing user input:', error);
+    return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre message. Veuillez réessayer.');
   }
+}
 
   /**
    * ✅ NOUVELLE MÉTHODE: Gérer les actions post-achat avec suivi de commande
@@ -1516,26 +1565,26 @@ Quel jeu souhaitez-vous ajouter ?`,
     }
   }
 
-  private async recoverSessionFromDatabase(sessionId: string): Promise<OrderState | null> {
-    try {
-      const { data: conversation, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
+  private async recoverSessionFromDatabase(sessionId: string): Promise<OrderState | undefined> {
+  try {
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
 
-      if (error || !conversation) {
-        console.error('❌ Could not recover session from database:', error);
-        return null;
-      }
-
-      console.log('✅ Session recovered from database:', sessionId);
-      return conversation.session_data as OrderState;
-    } catch (error) {
-      console.error('❌ Error in recoverSessionFromDatabase:', error);
-      return null;
+    if (error || !conversation) {
+      console.error('❌ Could not recover session from database:', error);
+      return undefined; // ✅ CORRECTION: Retourner undefined au lieu de null
     }
+
+    console.log('✅ Session recovered from database:', sessionId);
+    return conversation.session_data as OrderState;
+  } catch (error) {
+    console.error('❌ Error in recoverSessionFromDatabase:', error);
+    return undefined; // ✅ CORRECTION: Retourner undefined au lieu de null
   }
+}
 
   private async createExpressOrder(
     sessionId: string,

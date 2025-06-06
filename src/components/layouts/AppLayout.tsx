@@ -1,4 +1,4 @@
-// src/components/layouts/AppLayout.tsx - CORRIGÉ
+// src/components/layouts/AppLayout.tsx - ESPACEMENT MOBILE CORRIGÉ
 'use client'
 
 import React from 'react'
@@ -17,17 +17,17 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { isMobile } = useBreakpoint();
   
   return (
-    <div className="min-h-screen flex flex-col safe-container">
-      {/* Header group avec z-index */}
+    <div className="min-h-screen flex flex-col">
+      {/* ✅ CORRECTION: Header sans sticky pour éviter les espaces */}
       {!hideHeaderGroup && (
-        <div className="sticky top-0 z-50 bg-white">
+        <div className="relative z-50">
           <Header />
         </div>
       )}
       
-      {/* ✅ CORRECTION: Utilisation de div au lieu de main pour éviter l'erreur TypeScript */}
+      {/* ✅ CORRECTION: Contenu principal sans espacement superflu */}
       <div 
-        className="flex-1 relative z-0 no-horizontal-overflow" 
+        className="flex-1 relative z-0" 
         role="main"
         aria-label="Contenu principal"
       >

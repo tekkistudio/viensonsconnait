@@ -138,7 +138,7 @@ Que souhaitez-vous faire maintenant ?`,
         ],
         assistant: {
           name: 'Rose',
-          title: 'Assistante VOSC'
+          title: 'Assistante d\'achat'
         },
         metadata: {
           nextStep: 'cart_management' as ConversationStep,

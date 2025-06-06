@@ -41,7 +41,7 @@ Que souhaitez-vous faire maintenant ?`,
           ],
           assistant: {
             name: 'Rose',
-            title: 'Assistante VOSC'
+            title: 'Assistante d\'achat'
           },
           metadata: {
             nextStep: 'order_complete' as ConversationStep,

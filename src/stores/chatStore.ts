@@ -1,11 +1,11 @@
-// src/stores/chatStore.ts - VERSION AMÉLIORÉE POUR QUESTIONS LIBRES
+// src/stores/chatStore.ts - VERSION CORRIGÉE AVEC TYPESCRIPT STRICT
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ChatMessage, ConversationStep, ChatOrderData } from '@/types/chat';
 import type { PaymentProvider } from '@/types/order';
 import { v4 as uuidv4 } from 'uuid';
 
-// ✅ INTERFACES COMPLÈTES AMÉLIORÉES
+// ✅ INTERFACES COMPLÈTES CORRIGÉES
 interface PaymentState {
   selectedMethod: PaymentProvider | null;
   status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
@@ -20,7 +20,6 @@ interface PaymentModalState {
   provider?: PaymentProvider;
 }
 
-// ✅ NOUVEAU: Interface pour le contexte de conversation
 interface ConversationContext {
   userIntent: 'browsing' | 'interested' | 'considering' | 'ready_to_buy' | 'post_purchase';
   mentionedTopics: string[];
@@ -28,10 +27,9 @@ interface ConversationContext {
   interests: string[];
   lastUserMessage?: string;
   messageCount: number;
-  freeTextEnabled: boolean; // ✅ NOUVEAU: Flag pour questions libres
+  freeTextEnabled: boolean;
 }
 
-// ✅ NOUVEAU: Interface pour les statistiques de session
 interface SessionStats {
   startTime: string;
   lastActivity: string;
@@ -39,8 +37,8 @@ interface SessionStats {
   userMessages: number;
   assistantMessages: number;
   averageResponseTime?: number;
-  sessionDuration: number; // en millisecondes
-  wasRestored: boolean; // ✅ NOUVEAU: Indique si la session a été restaurée
+  sessionDuration: number;
+  wasRestored: boolean;
 }
 
 interface ChatState {
@@ -58,10 +56,10 @@ interface ChatState {
   payment: PaymentState;
   paymentModal: PaymentModalState;
   
-  // ✅ NOUVEAU: Contexte de conversation élargi
+  // Contexte de conversation élargi
   conversationContext: ConversationContext;
   
-  // ✅ NOUVEAU: Statistiques de session
+  // Statistiques de session
   sessionStats: SessionStats;
   
   // Métadonnées
@@ -77,12 +75,12 @@ interface ChatState {
     orderCompleted: boolean;
     paymentInitiated: boolean;
     isInitialized: boolean;
-    canAcceptFreeText: boolean; // ✅ NOUVEAU: Accepte les questions libres
-    showSessionRestored: boolean; // ✅ NOUVEAU: Afficher indicateur de session restaurée
+    canAcceptFreeText: boolean;
+    showSessionRestored: boolean;
   };
 
-  // Actions principales
-  initializeSession: (productId?: string, storeId?: string) => void;
+  // ✅ CORRECTION: Actions avec types stricts
+  initializeSession: (productId?: string, storeId?: string, providedSessionId?: string) => void;
   addMessage: (message: ChatMessage) => void;
   updateTypingStatus: (isTyping: boolean) => void;
   setCurrentStep: (step: ConversationStep | null) => void;
@@ -90,7 +88,7 @@ interface ChatState {
   setExpressMode: (isExpress: boolean) => void;
   updateFlags: (flags: Partial<ChatState['flags']>) => void;
   
-  // ✅ NOUVEAU: Actions pour contexte de conversation
+  // Actions pour contexte de conversation
   updateConversationContext: (context: Partial<ConversationContext>) => void;
   addUserConcern: (concern: string) => void;
   addUserInterest: (interest: string) => void;
@@ -100,7 +98,7 @@ interface ChatState {
   setPaymentModal: (modal: PaymentModalState) => void;
   updatePaymentStatus: (payment: Partial<PaymentState>) => void;
   
-  // ✅ NOUVEAU: Actions de session avancées
+  // Actions de session avancées
   restoreSession: () => void;
   getSessionAge: () => number;
   shouldShowContinueMessage: () => boolean;
@@ -117,10 +115,10 @@ interface ChatState {
   updateActivity: () => void;
 }
 
-// ✅ CONSTANTES POUR LA GESTION DE SESSION
+// Constantes pour la gestion de session
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 heures
 const CONTINUE_MESSAGE_THRESHOLD = 10 * 60 * 1000; // 10 minutes
-const MAX_STORED_MESSAGES = 100; // Limite de messages stockés
+const MAX_STORED_MESSAGES = 100;
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -146,7 +144,7 @@ export const useChatStore = create<ChatState>()(
         provider: undefined
       },
       
-      // ✅ NOUVEAU: Contexte de conversation initial
+      // Contexte de conversation initial
       conversationContext: {
         userIntent: 'browsing',
         mentionedTopics: [],
@@ -156,7 +154,7 @@ export const useChatStore = create<ChatState>()(
         freeTextEnabled: true
       },
       
-      // ✅ NOUVEAU: Statistiques de session initiales
+      // Statistiques de session initiales
       sessionStats: {
         startTime: new Date().toISOString(),
         lastActivity: new Date().toISOString(),
@@ -177,12 +175,12 @@ export const useChatStore = create<ChatState>()(
         orderCompleted: false,
         paymentInitiated: false,
         isInitialized: false,
-        canAcceptFreeText: true, // ✅ NOUVEAU: Activé par défaut
+        canAcceptFreeText: true,
         showSessionRestored: false
       },
 
-      // ✅ AMÉLIORATION: Initialisation avec détection de session existante
-      initializeSession: (productId?: string, storeId?: string) => {
+      // ✅ CORRECTION: initializeSession avec sessionId optionnel
+      initializeSession: (productId?: string, storeId?: string, providedSessionId?: string) => {
         const state = get();
         const now = new Date().toISOString();
         
@@ -190,16 +188,17 @@ export const useChatStore = create<ChatState>()(
         const existingSession = state.messages.length > 0;
         const sessionAge = Date.now() - new Date(state.sessionStats.startTime).getTime();
         
-        // ✅ NOUVEAU: Gestion intelligente de la reprise de session
+        // Gestion intelligente de la reprise de session
         if (existingSession && sessionAge < SESSION_TIMEOUT) {
           console.log('📱 Session existante détectée, restauration...', {
-            sessionAge: Math.floor(sessionAge / 1000 / 60), // en minutes
+            sessionAge: Math.floor(sessionAge / 1000 / 60),
             messageCount: state.messages.length
           });
           
           set({
             productId: productId || state.productId,
             storeId: storeId || state.storeId,
+            sessionId: providedSessionId || state.sessionId, // ✅ CORRECTION: Utiliser sessionId fourni
             lastActivity: now,
             sessionStats: {
               ...state.sessionStats,
@@ -216,12 +215,12 @@ export const useChatStore = create<ChatState>()(
           return;
         }
         
-        // ✅ Session expirée ou nouvelle session
         if (sessionAge >= SESSION_TIMEOUT) {
           console.log('⏰ Session expirée, création d\'une nouvelle session');
         }
         
-        const newSessionId = uuidv4();
+        // ✅ CORRECTION: Utiliser sessionId fourni ou générer nouveau
+        const newSessionId = providedSessionId || uuidv4();
         console.log(`🆕 Initializing new chat session: ${newSessionId}`);
         
         set({
@@ -275,7 +274,7 @@ export const useChatStore = create<ChatState>()(
         });
       },
 
-      // ✅ AMÉLIORATION: addMessage avec analyse intelligente
+      // ✅ CORRECTION: addMessage avec gestion d'état TypeScript-safe
       addMessage: (message: ChatMessage) => {
         const state = get();
         const now = new Date().toISOString();
@@ -296,9 +295,9 @@ export const useChatStore = create<ChatState>()(
           const newMessages = [...currentState.messages, message];
           const limitedMessages = newMessages.slice(-MAX_STORED_MESSAGES);
           
-          // ✅ NOUVEAU: Mise à jour des statistiques
+          // Mise à jour des statistiques
           const isUserMessage = message.type === 'user';
-          const newStats = {
+          const newStats: SessionStats = {
             ...currentState.sessionStats,
             lastActivity: now,
             totalMessages: currentState.sessionStats.totalMessages + 1,
@@ -307,8 +306,8 @@ export const useChatStore = create<ChatState>()(
             sessionDuration: Date.now() - new Date(currentState.sessionStats.startTime).getTime()
           };
           
-          // ✅ NOUVEAU: Analyse du contexte conversationnel
-          let updatedContext = { ...currentState.conversationContext };
+          // Analyse du contexte conversationnel
+          let updatedContext: ConversationContext = { ...currentState.conversationContext };
           
           if (isUserMessage) {
             updatedContext.messageCount += 1;
@@ -317,75 +316,68 @@ export const useChatStore = create<ChatState>()(
             // Analyse automatique des intentions
             const content = message.content.toLowerCase();
             
-            // Détection d'intérêts
             if (content.includes('intéresse') || content.includes('aime')) {
               updatedContext.userIntent = 'interested';
             }
             
-            // Détection d'objections/préoccupations
             if (content.includes('cher') || content.includes('prix') || content.includes('doute')) {
               if (!updatedContext.concerns.includes('price_concern')) {
                 updatedContext.concerns.push('price_concern');
               }
             }
             
-            // Détection d'intention d'achat
             if (content.includes('acheter') || content.includes('commander') || content.includes('prendre')) {
               updatedContext.userIntent = 'ready_to_buy';
             }
           }
 
-          // ✅ CORRECTION: Créer l'objet updates avec TOUTES les propriétés nécessaires
-          const updates: Partial<ChatState> = {
+          // ✅ CORRECTION TypeScript: Construction d'état explicite
+          const newState: ChatState = {
+            ...currentState,
             messages: limitedMessages,
             lastActivity: now,
             sessionStats: newStats,
-            conversationContext: updatedContext,
-            // ✅ AJOUT: Propriétés manquantes avec valeurs par défaut
-            currentStep: currentState.currentStep,
-            orderData: currentState.orderData,
-            isExpressMode: currentState.isExpressMode,
-            flags: currentState.flags
+            conversationContext: updatedContext
           };
 
-          // ✅ CORRECTION: Mise à jour conditionnelle avec assignation correcte
+          // Mise à jour conditionnelle des métadonnées
           if (message.metadata?.nextStep && message.metadata.nextStep !== currentState.currentStep) {
-            updates.currentStep = message.metadata.nextStep;
+            newState.currentStep = message.metadata.nextStep;
           }
 
           if (message.metadata?.orderData) {
-            updates.orderData = {
+            newState.orderData = {
               ...currentState.orderData,
               ...message.metadata.orderData
             };
           }
 
           if (message.metadata?.flags) {
-            const newFlags = { ...currentState.flags };
+            const updatedFlags = { ...currentState.flags };
             let flagsChanged = false;
             
             if (message.metadata.flags.expressMode !== undefined && 
                 message.metadata.flags.expressMode !== currentState.isExpressMode) {
-              updates.isExpressMode = message.metadata.flags.expressMode;
+              newState.isExpressMode = message.metadata.flags.expressMode;
             }
             
-            Object.keys(message.metadata.flags).forEach(key => {
-              if (key in newFlags && newFlags[key as keyof typeof newFlags] !== message.metadata!.flags![key]) {
-                (newFlags as any)[key] = message.metadata!.flags![key];
+            Object.entries(message.metadata.flags).forEach(([key, value]) => {
+              if (key in updatedFlags && (updatedFlags as any)[key] !== value) {
+                (updatedFlags as any)[key] = value;
                 flagsChanged = true;
               }
             });
             
             if (flagsChanged) {
-              updates.flags = newFlags;
+              newState.flags = updatedFlags;
             }
           }
 
-          return { ...currentState, ...updates };
+          return newState;
         });
       },
 
-      // ✅ NOUVEAU: Actions pour le contexte de conversation
+      // Actions pour le contexte de conversation
       updateConversationContext: (context: Partial<ConversationContext>) => {
         set((state) => ({
           conversationContext: { ...state.conversationContext, ...context },
@@ -426,7 +418,7 @@ export const useChatStore = create<ChatState>()(
         }));
       },
 
-      // ✅ NOUVEAU: Actions de session avancées
+      // Actions de session avancées
       restoreSession: () => {
         const state = get();
         console.log('🔄 Restoring session with context:', state.conversationContext);
@@ -623,7 +615,7 @@ export const useChatStore = create<ChatState>()(
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         sessionId: state.sessionId,
-        messages: state.messages.slice(-MAX_STORED_MESSAGES), // ✅ Limite dynamique
+        messages: state.messages.slice(-MAX_STORED_MESSAGES),
         currentStep: state.currentStep,
         orderData: state.orderData,
         isExpressMode: state.isExpressMode,
@@ -631,10 +623,10 @@ export const useChatStore = create<ChatState>()(
         storeId: state.storeId,
         startedAt: state.startedAt,
         lastActivity: state.lastActivity,
-        conversationContext: state.conversationContext, // ✅ NOUVEAU: Persister le contexte
+        conversationContext: state.conversationContext,
         sessionStats: {
           ...state.sessionStats,
-          wasRestored: false // Reset à la persistance
+          wasRestored: false
         },
         flags: {
           ...state.flags,
@@ -647,7 +639,7 @@ export const useChatStore = create<ChatState>()(
           isOpen: false
         }
       }),
-      version: 4, // ✅ Incrémenter pour migration
+      version: 4,
       migrate: (persistedState: any, version: number) => {
         console.log(`🔄 Migrating chat store from version ${version} to 4`);
         
@@ -691,7 +683,7 @@ export const useChatStore = create<ChatState>()(
   )
 );
 
-// ✅ NOUVEAUX HOOKS UTILITAIRES POUR QUESTIONS LIBRES
+// Hooks utilitaires pour questions libres
 export const useChatConversation = () => {
   const store = useChatStore();
   

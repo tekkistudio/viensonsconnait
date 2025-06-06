@@ -84,7 +84,7 @@ const defaultPrompts: Prompt[] = [
   {
     id: "product-inquiry",
     scenario: "Demande d'informations produit",
-    content: "Je vois que vous vous intéressez à {product_name}. Je peux vous donner plus de détails sur ce produit. Que souhaitez-vous savoir ?",
+    content: "Je vois que vous vous intéressez à notre jeu {product_name}. Je peux vous donner plus de détails sur ce produit. Que souhaitez-vous savoir ?",
     isActive: true,
   },
 ];

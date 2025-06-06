@@ -253,7 +253,7 @@ export class DynamicContentService {
         return this.getDefaultUsage();
       }
 
-      let usage = `❓ **Comment utiliser le ${product.name} :**\n\n`;
+      let usage = `❓ **Comment jouer au jeu ${product.name} :**\n\n`;
 
       // ✅ Utiliser game_rules en priorité (vos vraies données)
       if (product.game_rules) {
@@ -272,7 +272,7 @@ export class DynamicContentService {
       }
 
       // Si pas d'instructions spécifiques, utiliser les defaults
-      if (usage === `❓ **Comment utiliser le ${product.name} :**\n\n`) {
+      if (usage === `❓ **Comment jouer au jeu ${product.name} :**\n\n`) {
         return this.getDefaultUsage();
       }
 
@@ -492,7 +492,7 @@ Souhaitez-vous voir les témoignages ou commander ?`;
   private getDefaultDescription(): string {
     return `💬 **En savoir plus sur notre jeu de cartes**
 
-Ce jeu de cartes a été spécialement conçu pour renforcer les liens et améliorer la communication entre les participants.
+Ce jeu de cartes a été spécialement conçu pour renforcer les liens et améliorer la communication entre les joueurs.
 
 🎯 **Objectifs :**
 • Créer des moments de partage authentiques
