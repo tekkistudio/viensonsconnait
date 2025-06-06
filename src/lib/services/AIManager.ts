@@ -94,7 +94,7 @@ export class AIManager {
       // Si c'est un choix prédéfini, on retourne directement sans utiliser l'IA
       if (predefinedChoices.includes(message.content)) {
         return {
-          content: '', // ChatService s'occupera de la réponse
+          content: '', 
           type: 'assistant',
           choices: [],
           nextStep: currentStep
