@@ -44,11 +44,11 @@ function PaymentCanceledContent() {
               onClick={handleReturnToChat}
               className="w-full bg-[#FF7E93] text-white px-6 py-3 rounded-lg hover:bg-[#FF7E93]/90 transition-colors"
             >
-              Retour au chat
+              Retourner sur la page produit
             </button>
             
             <button
-              onClick={() => router.push('/contact')}
+              onClick={() => router.push('https://wa.me/221781362728')}
               className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Nous contacter

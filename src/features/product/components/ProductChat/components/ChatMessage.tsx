@@ -218,25 +218,57 @@ export default function ChatMessage({
   const isOrderComplete = message.metadata?.flags?.orderCompleted === true;
 
   // ✅ AMÉLIORATION: Gestion du paiement avec callback
-  const handlePaymentClick = (url: string) => {
-    console.log('💳 Opening payment URL:', url);
-    try {
-      // Ouvrir dans un nouvel onglet avec sécurité
-      const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    const handlePaymentClick = (url: string) => {
+      console.log('💳 Opening payment URL:', url);
       
-      if (!newWindow) {
-        // Si le popup est bloqué, essayer avec location.href
-        console.warn('⚠️ Popup blocked, redirecting in same tab');
-        window.location.href = url;
+      try {
+        // ✅ CORRECTION SPÉCIALE POUR WAVE MOBILE
+        if (url.includes('pay.wave.com')) {
+          console.log('🌊 Wave payment detected');
+          
+          // Détecter si on est sur mobile
+          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          
+          if (isMobile) {
+            console.log('📱 Mobile detected, using Wave deep link');
+            
+            // ✅ CORRECTION: Redirection immédiate vers Wave
+            window.location.href = url;
+            
+            // Fallback après 2 secondes si l'app ne s'ouvre pas
+            setTimeout(() => {
+              console.log('⚠️ Fallback: Opening Wave in browser');
+              const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+              if (!newWindow) {
+                // Si popup bloqué, rediriger dans le même onglet
+                window.location.href = url;
+              }
+            }, 2000);
+          } else {
+            // Desktop : ouvrir dans nouvel onglet
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!newWindow) {
+              window.location.href = url;
+            }
+          }
+        } else {
+          // ✅ POUR STRIPE ET AUTRES PAIEMENTS
+          const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+          
+          if (!newWindow) {
+            // Si le popup est bloqué, essayer avec location.href
+            console.warn('⚠️ Popup blocked, redirecting in same tab');
+            window.location.href = url;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error opening payment URL:', error);
+        // Fallback: copier l'URL dans le presse-papier
+        navigator.clipboard.writeText(url).then(() => {
+          alert('Lien de paiement copié dans le presse-papier. Collez-le dans votre navigateur.');
+        });
       }
-    } catch (error) {
-      console.error('❌ Error opening payment URL:', error);
-      // Fallback: copier l'URL dans le presse-papier
-      navigator.clipboard.writeText(url).then(() => {
-        alert('Lien de paiement copié dans le presse-papier. Collez-le dans votre navigateur.');
-      });
-    }
-  };
+    };
 
   // Copier le numéro de commande
   const copyOrderId = async () => {
@@ -341,66 +373,71 @@ export default function ChatMessage({
           <div className="mt-3 space-y-3">
             {/* ✅ CORRECTION PRINCIPALE: Boutons de choix avec gestion paiement */}
             {message.choices && message.choices.length > 0 && (
-            <div className="grid gap-2">
-              {message.choices.map((choice, index) => {
-                const isPrimary = choice.includes('Commander rapidement') || 
-                                choice.includes('⚡') ||
-                                choice.includes('Wave') || 
-                                choice.includes('🐧') ||
-                                choice.includes('acheter') || 
-                                choice.includes('Valider') ||
-                                choice.includes('Express') ||
-                                choice.includes('Payer');
-                
-                const isWaveButton = choice.includes('Wave') || choice.includes('🌊');
-                
-                if (isWaveButton) {
-                  // ✅ BOUTON WAVE SPÉCIAL avec logo et couleur
+              <div className="grid gap-2">
+                {message.choices.map((choice, index) => {
+                  const isPrimary = choice.includes('Commander rapidement') || 
+                                  choice.includes('⚡') ||
+                                  choice.includes('acheter') || 
+                                  choice.includes('Valider') ||
+                                  choice.includes('Express') ||
+                                  choice.includes('Payer');
+                  
+                  const isWaveButton = choice.includes('Wave') || choice.includes('🌊');
+                  
+                  // ✅ CORRECTION: Éviter les boutons Wave dupliqués
+                  if (isWaveButton) {
+                    // Vérifier si on a déjà un lien de paiement Wave
+                    if (message.metadata?.paymentUrl && message.metadata.paymentUrl.includes('wave.com')) {
+                      console.log('⚠️ Wave button skipped - payment link already available');
+                      return null; // Skip ce bouton car on a déjà le lien Wave
+                    }
+                    
+                    // Bouton Wave spécial avec logo et couleur
+                    return (
+                      <motion.button
+                        key={index}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleChoiceClick(choice)}
+                        className="w-full text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3 font-semibold border-none cursor-pointer min-h-[48px]"
+                        style={{
+                          backgroundColor: '#4BD2FA',
+                          background: 'linear-gradient(135deg, #4BD2FA 0%, #3BC9E8 100%)'
+                        }}
+                      >
+                        <img 
+                          src="/images/payments/wave_2.svg" 
+                          alt="Wave" 
+                          className="w-5 h-5 flex-shrink-0" 
+                        />
+                        <span>{choice.replace(/🌊|Wave/g, '').trim() || 'Payer avec Wave'}</span>
+                      </motion.button>
+                    );
+                  }
+                  
+                  // ✅ BOUTONS NORMAUX
                   return (
                     <motion.button
                       key={index}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleChoiceClick(choice)}
-                      className="w-full text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3 font-semibold border-none cursor-pointer min-h-[48px]"
-                      style={{
-                        backgroundColor: '#4BD2FA',
-                        background: 'linear-gradient(135deg, #4BD2FA 0%, #3BC9E8 100%)'
-                      }}
+                      className={`
+                        px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
+                        ${isPrimary 
+                          ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
+                          : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
+                        }
+                        flex items-center justify-center gap-2 min-h-[48px] w-full
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
                     >
-                      <img 
-                        src="/images/payments/wave_2.svg" 
-                        alt="Wave" 
-                        className="w-5 h-5 flex-shrink-0" 
-                      />
-                      <span>{choice.replace(/🌊|Wave/g, '').trim() || 'Payer avec Wave'}</span>
+                      <span>{choice}</span>
                     </motion.button>
                   );
-                }
-                
-                // ✅ BOUTONS NORMAUX
-                return (
-                  <motion.button
-                    key={index}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleChoiceClick(choice)}
-                    className={`
-                      px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
-                      ${isPrimary 
-                        ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
-                        : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
-                      }
-                      flex items-center justify-center gap-2 min-h-[48px] w-full
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
-                  >
-                    <span>{choice}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          )}
+                }).filter(Boolean)} {/* ✅ Filtrer les boutons null */}
+              </div>
+            )}
 
             {/* ✅ AMÉLIORATION: Lien de paiement séparé pour plus de visibilité */}
             {message.metadata?.paymentUrl && message.metadata?.paymentAmount && (

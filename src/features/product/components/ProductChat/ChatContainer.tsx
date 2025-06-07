@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE AVEC SESSIONMANAGER
+// src/features/product/components/ProductChat/ChatContainer.tsx 
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -224,64 +224,93 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION: Questions détaillées avec vraies données
-    // ✅ CORRECTION COMPLÈTE
-if (content.includes('Comment y jouer') || content.includes('Comment ça fonctionne')) {
-  // ✅ CORRECTION: Récupérer les vraies règles du jeu depuis game_rules
-  let gameRules = '';
-  
-  try {
-    const { data: productData, error }: { data: any, error: any } = await supabase
-      .from('products')
-      .select('game_rules, name')
-      .eq('id', product.id)  // ✅ product vient des props
-      .single();
+    // ✅ CORRECTION DESKTOP: Gestion "Comment y jouer ?" avec vraies données DB
+    if (content.includes('Comment y jouer') || content.includes('Comment ça fonctionne')) {
+      console.log('🎮 Desktop: Récupération des règles du jeu depuis la base de données');
+      
+      let gameRules = '';
+      
+      try {
+        // ✅ CORRECTION: Récupération sécurisée depuis la table products
+        const { data: productData, error }: { data: any, error: any } = await supabase
+          .from('products')
+          .select('game_rules, name')
+          .eq('id', product.id)  // ✅ product vient des props
+          .single();
 
-    if (error || !productData) {
-      console.error('❌ Error fetching game rules:', error);
-      gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+        if (error || !productData) {
+          console.error('❌ Erreur récupération produit:', error);
+          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-Les règles détaillées du jeu seront bientôt disponibles.
+    Une erreur est survenue lors du chargement des règles. 
 
-En attendant, vous pouvez nous contacter pour plus d'informations.`;
-    } else if (productData.game_rules && productData.game_rules.trim()) {
-      gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+    📞 **Contactez-nous pour plus d'informations :**
+    • WhatsApp : +221 78 136 27 28
+    • Email : contact@viensonseconnait.com
 
-${productData.game_rules}
+    Nous vous enverrons les règles détaillées !`;
+        } else if (productData.game_rules && productData.game_rules.trim()) {
+          console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
+          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-Prêt(e) à vivre cette expérience ?`;
-    } else {
-      gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+    ${productData.game_rules}
 
-Les règles détaillées de ce jeu seront ajoutées prochainement.
+    🎯 **Prêt(e) à vivre cette expérience ?**`;
+        } else {
+          console.log('⚠️ Pas de règles définies pour ce produit');
+          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-Pour toute question, n'hésitez pas à nous contacter !`;
+    📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+
+    En attendant, voici ce que vous devez savoir :
+    • Ce jeu est conçu pour renforcer les relations
+    • Il se joue en groupe (2 personnes minimum)
+    • Chaque partie dure environ 30-60 minutes
+    • Aucune préparation spéciale requise
+
+    📞 **Pour les règles complètes, contactez-nous :**
+    • WhatsApp : +221 78 136 27 28
+    • Email : contact@viensonseconnait.com
+
+    Nous vous enverrons un guide détaillé !`;
+        }
+      } catch (dbError) {
+        console.error('❌ Erreur base de données:', dbError);
+        gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+    😔 **Problème technique temporaire**
+
+    Nous ne pouvons pas charger les règles du jeu en ce moment.
+
+    📞 **Solution immédiate :**
+    • WhatsApp : +221 78 136 27 28
+    • Nous vous enverrons les règles par message
+
+    🔄 **Ou réessayez dans quelques minutes**`;
+      }
+
+      return {
+        type: 'assistant',
+        content: gameRules,
+        choices: [
+          '⚡ Commander maintenant',
+          '💝 Quels bénéfices ?',
+          '⭐ Voir les avis',
+          '📞 Contacter le support'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'game_rules_shown' as ConversationStep,
+          flags: {
+            gameRulesShown: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
-  } catch (error) {
-    console.error('❌ Error fetching game rules:', error);
-    gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-Une erreur est survenue lors du chargement des règles. Veuillez réessayer ou nous contacter.`;
-  }
-
-  return {
-    type: 'assistant',
-    content: gameRules,
-    choices: [
-      '⚡ Commander maintenant',
-      '💝 Quels bénéfices ?',
-      '⭐ Voir les avis'
-    ],
-    assistant: {
-      name: 'Rose',
-      title: 'Assistante d\'achat'
-    },
-    metadata: {
-      nextStep: 'game_rules_shown' as ConversationStep
-    },
-    timestamp: new Date().toISOString()
-  };
-}
 
     if (content.includes('Quels bénéfices') || content.includes('bénéfices')) {
       const benefitsInfo = await getProductInfoFromDatabase('benefits');

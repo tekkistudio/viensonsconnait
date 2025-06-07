@@ -368,49 +368,49 @@ export class DynamicContentService {
       const productName = product.name.toLowerCase();
       
       if (productName.includes('famille')) {
-        return `👥 **Le ${product.name} est parfait pour :**
+        return `👥 **Le jeu ${product.name} est parfait pour :**
 
-• Les familles avec enfants de 16 ans et plus
-• Les parents qui veulent améliorer la communication
-• Ceux qui souhaitent créer des moments privilégiés
-• Les familles qui cherchent à mieux se comprendre
+• Les familles avec enfants de 12 ans et plus
+• Les parents qui veulent améliorer la communication avec leurs enfants
+• Les parents et enfants qui souhaitent créer des moments privilégiés
+• Les familles qui cherchent à mieux se comprendre et se connaître
 
-💕 **Testé et approuvé** par des centaines de familles qui ont redécouvert le plaisir de dialoguer !
+💕 **Testé et approuvé** par des centaines de familles au Sénégal et en Côte d'Ivoire qui ont redécouvert le plaisir de conversations riches et significatives loin des écrans !
 
 Souhaitez-vous voir les témoignages ou commander ?`;
       
       } else if (productName.includes('amis')) {
-        return `👥 **Le ${product.name} est parfait pour :**
+        return `👥 **Le jeu ${product.name} est parfait pour :**
 
 • Les groupes d'amis de 18 ans et plus
-• Ceux qui veulent animer leurs soirées
-• Les amis qui souhaitent se découvrir autrement
 • Tous ceux qui cherchent à approfondir leurs amitiés
+• Ceux qui veulent animer leurs soirées ou rencontres entre amis
+• Les amis qui souhaitent se (re)découvrir plus en profondeur
 
 🎉 **Recommandé** par des centaines de groupes d'amis pour des moments inoubliables !
 
 Souhaitez-vous voir les témoignages ou commander ?`;
       
       } else if (productName.includes('collègues')) {
-        return `👥 **Le ${product.name} est parfait pour :**
+        return `👥 **Le jeu ${product.name} est parfait pour :**
 
 • Les équipes professionnelles
-• Les managers qui veulent renforcer la cohésion
-• Les entreprises cherchant à améliorer l'ambiance
-• Les équipes qui travaillent en remote
+• Les managers qui veulent renforcer la cohésion d'équipe
+• Les entreprises cherchant à améliorer l'ambiance au sein de leurs équipes
+• Les équipes qui travaillent en remote et souhaitent mieux se connaître
 
-💼 **Utilisé** par plus de 50 entreprises pour créer de meilleures relations professionnelles !
+💼 **Utilisé** par plus de 12 entreprises pour créer de meilleures relations professionnelles !
 
 Souhaitez-vous voir les témoignages ou commander ?`;
       
       } else {
         // Produit générique
-        return `👥 **Le ${product.name} est parfait pour :**
+        return `👥 **Le jeu ${product.name} est parfait pour :**
 
 • Toute personne souhaitant améliorer ses relations
 • Ceux qui cherchent à créer des moments authentiques
-• Les personnes qui veulent mieux communiquer
-• Tous ceux qui souhaitent renforcer leurs liens
+• Les personnes qui veulent communiquer de manière bienveillante
+• Tous ceux qui souhaitent renforcer leurs liens 
 
 💕 **Approuvé** par des milliers de personnes qui ont transformé leur façon de communiquer !
 

@@ -513,7 +513,7 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
         content: `⚡ **Commande Express Activée** ⚡
 
 Jeu : **${product.name}**
-Prix : ${product.price.toLocaleString()} FCFA l'unité
+Prix : **${product.price.toLocaleString()} FCFA** l'unité
 Livraison : **incluse selon votre adresse**
 
 **Combien d'exemplaires souhaitez-vous commander ?**`,
@@ -793,10 +793,10 @@ Exemple : "5" ou "5 exemplaires"`,
 
         return {
           type: 'assistant',
-          content: `✅ **Quantité confirmée : ${orderState.data.quantity} exemplaire${orderState.data.quantity > 1 ? 's' : ''}**
+          content: `✅ C'est noté ! Vous commandez **${orderState.data.quantity} exemplaire${orderState.data.quantity > 1 ? 's' : ''}**
 
 Jeu : **${product.name}**
-Prix total : ${totalAmount.toLocaleString()} FCFA (${orderState.data.quantity} × ${product.price.toLocaleString()} FCFA)
+Prix total : **${totalAmount.toLocaleString()} FCFA** (${orderState.data.quantity} × ${product.price.toLocaleString()} FCFA)
 
 Sur quel numéro vous joindre pour la livraison ?`,
           choices: [],
@@ -879,14 +879,12 @@ Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaire
 
       return {
         type: 'assistant',
-        content: `✅ **Quantité confirmée : ${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+        content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
 
-🎯 **${product.name}**
-💰 ${totalAmount.toLocaleString()} FCFA (${quantity} × ${itemPrice.toLocaleString()} FCFA)
+Jeu : **${product.name}**
+Prix total : **${totalAmount.toLocaleString()} FCFA** (${quantity} × ${itemPrice.toLocaleString()} FCFA)
 
-Sur quel numéro devons-nous vous joindre pour la livraison ?
-
-💡 *Formats acceptés : +221 77 123 45 67, 77 123 45 67*`,
+Sur quel numéro vous joindre pour la livraison ?`,
         choices: [],
         assistant: this.getBotInfo(),
         metadata: {
@@ -1016,7 +1014,7 @@ Exemple : +221 77 123 45 67`,
 
         return {
           type: 'assistant',
-          content: `👋 Ravi de vous revoir, **${existingCustomer.first_name || 'cher client'} !**
+          content: `👋 Heureuse de vous revoir, **${existingCustomer.first_name || 'cher client'} !**
 
 ${countryFlag} Numéro confirmé : **${formattedPhone.formatted}**
 
@@ -1129,12 +1127,12 @@ Exemple : "Aminata Diop"`,
 
       return {
         type: 'assistant',
-        content: `👋 Enchanté(e) **${nameParts[0]}** !
+        content: `👋 Enchantée, **${nameParts[0]}** !
 
 📍 A quelle adresse livrer votre commande ?
 *Format : Adresse, Ville*
 
-Exemple : "Ouest-Foire, Dakar"`,
+Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
         choices: [],
         assistant: this.getBotInfo(),
         metadata: {
@@ -1169,12 +1167,12 @@ Exemple : "Ouest-Foire, Dakar"`,
 
         return {
           type: 'assistant',
-          content: `📍 **Adresse confirmée** ✅
-${orderState.data.address}, ${orderState.data.city}
+          content: `📍 Adresse enregistrée ✅
+Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
-🚚 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
+🛵 Frais de livraison : **${deliveryCost.toLocaleString()} FCFA**
 
-💳 Comment payez-vous ?`,
+💳 Comment souhaitez-vous payer ?`,
           choices: [
             this.createWaveButton(),
             '💳 Payer par Carte bancaire', 
@@ -1196,7 +1194,7 @@ ${orderState.data.address}, ${orderState.data.city}
           content: `📍 **Nouvelle adresse de livraison**
 *Format : Adresse, Ville*
 
-Exemple : "Ouest-Foire, Dakar"`,
+Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1215,7 +1213,7 @@ Exemple : "Ouest-Foire, Dakar"`,
           type: 'assistant',
           content: `❌ Adresse trop courte. Soyez plus précis :
 
-Exemple : "Ouest-Foire, Dakar"`,
+Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1233,7 +1231,7 @@ Exemple : "Ouest-Foire, Dakar"`,
           type: 'assistant',
           content: `❌ Format incorrect. Utilisez : **Adresse, Ville**
 
-Exemple : "Ouest-Foire, Dakar"`,
+Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1257,12 +1255,12 @@ Exemple : "Ouest-Foire, Dakar"`,
 
       return {
         type: 'assistant',
-        content: `📍 **Adresse confirmée** ✅
+        content: `📍 **Adresse enregistrée** ✅
 ${parts[0]}, ${parts[1]}
 
-🚚 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
+🛵 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
 
-💳 Comment payez-vous ?`,
+💳 Comment souhaitez-vous payer ?`,
         choices: [
           this.createWaveButton(),
           '💳 Payer par Carte bancaire', 
@@ -1312,7 +1310,7 @@ ${parts[0]}, ${parts[1]}
         // Paiement à la livraison - commande confirmée directement
         return {
           type: 'assistant',
-          content: `🎉 **Commande confirmée !** 🎉
+          content: `🎉 **Votre commande est confirmée !** 🎉
 
 📋 **Commande N° : ${orderId}**
 👤 **Client : ${orderState.data.name}**
@@ -1347,8 +1345,8 @@ ${parts[0]}, ${parts[1]}
 🔗 **Étapes :**
 1. Cliquez sur le bouton Wave ci-dessous
 2. Effectuez le paiement
-3. Copiez l'ID de transaction (commence par T)
-4. Revenez ici pour confirmer avec votre ID
+3. Copiez l'ID de transaction
+4. Revenez ici pour confirmer votre paiement
 
 👇🏽 Cliquez pour payer avec Wave :`,
           choices: [
@@ -1382,7 +1380,7 @@ ${parts[0]}, ${parts[1]}
 👤 Client : **${orderState.data.name}**
 💰 Montant : **${orderTotalFCFA.toLocaleString()} FCFA**
 
-👆 Cliquez sur le bouton ci-dessous pour payer :`,
+👇🏽 Cliquez sur le bouton ci-dessous pour payer :`,
           choices: [`💳 Payer par ${this.getPaymentDisplayName(paymentMethod)}`],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1411,7 +1409,7 @@ ${parts[0]}, ${parts[1]}
       'WAVE': 'Wave',
       'STRIPE': 'Carte bancaire',
       'CASH': 'Paiement à la livraison',
-      'ORANGE_MONEY': 'Orange Money' // Au cas où vous l'ajouteriez plus tard
+      'ORANGE_MONEY': 'Orange Money' 
     };
     
     return names[provider] || 'Paiement';
@@ -1439,7 +1437,7 @@ ${parts[0]}, ${parts[1]}
       if (input.includes('Nous contacter') || input.includes('📞')) {
         return {
           type: 'assistant',
-          content: `📞 **Contactez notre équipe !**
+          content: `💬 **Contactez notre équipe !**
 
 🤝 **Notre support client est là pour vous :**
 
@@ -1448,7 +1446,7 @@ ${parts[0]}, ${parts[1]}
 🕒 **Horaires :** Lun-Ven 9h-18h, Sam 9h-14h
 
 💬 **Ou continuez ici :**
-Je peux répondre à toutes vos questions sur nos jeux, votre commande, ou nos services.
+Je peux répondre à toutes vos questions sur nos jeux, votre commande, et autres.
 
 Comment puis-je vous aider ?`,
           choices: [
@@ -1480,12 +1478,12 @@ Comment puis-je vous aider ?`,
 
       return {
         type: 'assistant',
-        content: `✅ **Commande confirmée !** 🎉
+        content: `✅ **Votre commande est confirmée !** 🎉
 
 Merci pour votre achat ! Voulez-vous :
 
-🛍️ **Ajouter d'autres jeux** à votre commande
-📦 **Finaliser** et recevoir la confirmation
+🛍️ **Ajouter d'autres jeux** à votre commande ?
+📦 **Finaliser** et recevoir la confirmation ?
 
 Que préférez-vous ?`,
         choices: [
@@ -1605,12 +1603,12 @@ Que préférez-vous ?`,
           type: 'assistant',
           content: `🛍️ **Nos autres produits**
 
-Découvrez toute notre gamme sur notre site ou contactez-nous pour plus d'informations.
+Découvrez toute notre gamme sur notre site.
 
 Voulez-vous finaliser votre commande actuelle ?`,
           choices: [
             '📦 Finaliser ma commande',
-            '📞 Nous contacter',
+            '💬 Nous contacter',
             '🌐 Voir tous nos jeux'
           ],
           assistant: this.getBotInfo(),
@@ -1632,7 +1630,7 @@ Voulez-vous finaliser votre commande actuelle ?`,
           (p.description.length > 80 ? `${p.description.substring(0, 80)}...` : p.description) : 
           'Découvrez ce jeu pour renforcer vos relations';
         
-        return `🎯 **${p.name}**\n💰 ${p.price.toLocaleString()} FCFA\n📝 ${shortDesc}`;
+        return `📦 **${p.name}**\n💰 ${p.price.toLocaleString()} FCFA\n📝 ${shortDesc}`;
       }).join('\n\n');
 
       return {

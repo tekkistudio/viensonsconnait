@@ -1,4 +1,4 @@
-// src/lib/utils/currency.ts - VERSION CORRIGÉE POUR STRIPE
+// src/lib/utils/currency.ts
 import { useCountryStore } from "@/core/hooks/useCountryStore";
 
 export function formatPrice(amount: number, currencyCode?: string): string {
@@ -12,9 +12,9 @@ export function formatPrice(amount: number, currencyCode?: string): string {
   return formatted;
 }
 
-// ✅ CORRECTION PRINCIPALE: Taux de change FCFA → EUR corrigé
+// ✅ CORRECTION MAJEURE: Taux de change FCFA → EUR exact
 export const convertCFAToEUR = (cfaAmount: number): number => {
-  // ✅ TAUX CORRIGÉ: 1 EUR = 655.957 XOF (taux fixe CFA)
+  // ✅ TAUX CORRIGÉ: 1 EUR = 655.957 XOF (taux fixe officiel CFA)
   const rate = 655.957;
   const eurAmount = cfaAmount / rate;
   
@@ -34,9 +34,23 @@ export const formatCurrency = (amount: number, currency: 'CFA' | 'EUR'): string 
   return `${amount.toFixed(2)}€`;
 };
 
-// ✅ NOUVELLE FONCTION: Calcul spécifique pour Stripe
+// ✅ FONCTION CORRIGÉE: Calcul spécifique pour Stripe
 export const calculateStripeAmount = (cfaAmount: number): number => {
   return convertCFAToEUR(cfaAmount);
+};
+
+// ✅ FONCTION DE DEBUG: Vérifier les conversions
+export const debugConversion = (cfaAmount: number): void => {
+  const eurCentimes = convertCFAToEUR(cfaAmount);
+  const eurAmount = eurCentimes / 100;
+  
+  console.log(`💰 Conversion Debug:`, {
+    original: `${cfaAmount.toLocaleString()} FCFA`,
+    converted: `${eurAmount.toFixed(2)}€`,
+    stripeCentimes: eurCentimes,
+    reverseCheck: `${convertEURToCFA(eurAmount).toLocaleString()} FCFA`,
+    expectedFor28000: `28,000 FCFA = ${(28000 / 655.957).toFixed(2)}€`
+  });
 };
 
 // ✅ FONCTION AMÉLIORÉE: Calcul du total avec remises
@@ -48,7 +62,7 @@ export function calculateOrderTotal(
   deliveryCost: number;
   total: number;
   formatted: string;
-  stripeAmount: number; // ✅ NOUVEAU: Montant pour Stripe en centimes EUR
+  stripeAmount: number; // ✅ Montant pour Stripe en centimes EUR
 } {
   const subtotal = items.reduce((acc, item) => {
     let itemTotal = 0;
@@ -72,28 +86,15 @@ export function calculateOrderTotal(
     deliveryCost,
     total,
     formatted: formatPrice(total),
-    stripeAmount: calculateStripeAmount(total) // ✅ NOUVEAU: Pour Stripe
+    stripeAmount: calculateStripeAmount(total) // ✅ Conversion correcte
   };
 }
 
-// ✅ NOUVELLE FONCTION: Validation des montants
+// ✅ VALIDATION DES MONTANTS
 export const validatePaymentAmount = (amount: number, currency: 'CFA' | 'EUR'): boolean => {
   if (currency === 'CFA') {
     return amount >= 500 && amount <= 10000000; // Entre 500 FCFA et 10M FCFA
   } else {
     return amount >= 0.76 && amount <= 15245; // Entre 0.76€ et 15,245€
   }
-};
-
-// ✅ FONCTION DEBUG: Pour vérifier les conversions
-export const debugConversion = (cfaAmount: number): void => {
-  const eurCentimes = convertCFAToEUR(cfaAmount);
-  const eurAmount = eurCentimes / 100;
-  
-  console.log(`💰 Conversion Debug:`, {
-    original: `${cfaAmount.toLocaleString()} FCFA`,
-    converted: `${eurAmount.toFixed(2)}€`,
-    stripeCentimes: eurCentimes,
-    reverseCheck: `${convertEURToCFA(eurAmount).toLocaleString()} FCFA`
-  });
 };
