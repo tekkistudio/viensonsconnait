@@ -1,4 +1,4 @@
-// src/components/layouts/AppLayout.tsx - ESPACEMENT MOBILE CORRIGÉ
+// src/components/layouts/AppLayout.tsx 
 'use client'
 
 import React from 'react'
@@ -7,6 +7,7 @@ import { useBreakpoint } from '@/core/theme/hooks/useBreakpoint'
 import Header from './Header'
 import Footer from './Footer'
 import { DukkaBadge } from '../../components/ui/DukkaBadge'
+import { AnnouncementBar } from '../../features/home/components/sections/AnnouncementBar'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -18,18 +19,29 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ✅ CORRECTION: Header sans sticky pour éviter les espaces */}
+      {/* ✅ NOUVEAU : AnnouncementBar en premier pour z-index correct */}
+      <AnnouncementBar
+        text="Livraison gratuite à Dakar 🇸🇳 | Livraison disponible à Abidjan 🇨🇮"
+        phone="221781362728"
+        whatsapp="221781362728"
+      />
+      
+      {/* ✅ CORRECTION : Header avec positionnement optimisé */}
       {!hideHeaderGroup && (
-        <div className="relative z-50">
+        <div className="relative z-40 header-wrapper">
           <Header />
         </div>
       )}
       
-      {/* ✅ CORRECTION: Contenu principal sans espacement superflu */}
+      {/* ✅ CORRECTION : Contenu principal sans espacement automatique du body */}
       <div 
-        className="flex-1 relative z-0" 
+        className="flex-1 relative z-0 main-content-wrapper" 
         role="main"
         aria-label="Contenu principal"
+        style={{
+          // ✅ NOUVEAU : Compensier uniquement le header, pas l'announcement
+          marginTop: hideHeaderGroup ? '0' : 'var(--header-height, 64px)'
+        }}
       >
         {children}
       </div>

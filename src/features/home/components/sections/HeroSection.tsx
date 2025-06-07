@@ -29,8 +29,10 @@ export function HeroSection({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <section className="relative bg-brand-blue text-white overflow-hidden">
-      {/* Fond décoratif */}
+    <section className={`relative bg-brand-blue text-white overflow-hidden ${
+      isMobile ? 'hero-section-mobile' : ''
+    }`}>
+      {/* ✅ NOUVEAU : Fond décoratif optimisé */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-transparent opacity-10" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-brand-pink/40" />
@@ -48,23 +50,24 @@ export function HeroSection({
         </svg>
       </div>
 
-      {/* ✅ CORRECTION: Réduction du padding pour éliminer l'espace sur mobile */}
-      <div className="relative max-w-6xl mx-auto px-4 py-8 md:py-24">
-        <div className="flex flex-col md:flex-row items-center gap-6 md:gap-12">
+      {/* ✅ CORRECTION : Container avec espacement mobile optimisé */}
+      <div className="relative max-w-6xl mx-auto px-4 py-6 md:py-12 lg:py-24">
+        <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8 lg:gap-12">
           {/* Contenu */}
           <div className="w-full md:w-1/2 space-y-4 md:space-y-6 text-center md:text-left">
-            <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold leading-tight">
+            <h1 className="text-2xl md:text-3xl lg:text-5xl xl:text-6xl font-bold leading-tight">
               {title}
             </h1>
 
-            <p className="text-sm md:text-lg lg:text-xl text-white/90 max-w-xl">
+            <p className="text-sm md:text-base lg:text-lg xl:text-xl text-white/90 max-w-xl">
               {description}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center md:justify-start">
+            {/* ✅ CORRECTION : Boutons avec espacement mobile optimisé */}
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center md:justify-start pt-2 md:pt-0">
               <Link
                 href="/nos-jeux"
-                className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white rounded-lg font-medium hover:bg-white hover:text-brand-blue transition-all transform hover:-translate-y-0.5 text-center"
+                className="inline-flex items-center justify-center px-4 md:px-6 py-2.5 md:py-3 border-2 border-white text-white rounded-lg font-medium hover:bg-white hover:text-brand-blue transition-all transform hover:-translate-y-0.5 text-center text-sm md:text-base"
               >
                 Découvrir les jeux
               </Link>
@@ -72,15 +75,15 @@ export function HeroSection({
                 href="https://apps.apple.com/app/vosc/id6464125284"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center px-6 py-3 bg-white text-brand-blue rounded-lg font-medium hover:bg-brand-pink hover:text-white transition-all transform hover:-translate-y-0.5 text-center"
+                className="inline-flex items-center justify-center px-4 md:px-6 py-2.5 md:py-3 bg-white text-brand-blue rounded-lg font-medium hover:bg-brand-pink hover:text-white transition-all transform hover:-translate-y-0.5 text-center text-sm md:text-base"
               >
-                Télécharger l'App pour iphone 📱
+                Télécharger l'App pour iPhone 📱
               </Link>
             </div>
           </div>
 
-          {/* Vidéo */}
-          <div className="w-full md:w-1/2">
+          {/* ✅ CORRECTION : Section vidéo avec espacement mobile optimisé */}
+          <div className="w-full md:w-1/2 mt-4 md:mt-0">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <button className="relative w-full rounded-lg overflow-hidden group">
@@ -92,8 +95,8 @@ export function HeroSection({
                     />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-14 h-14 md:w-20 md:h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform transition-all duration-300 group-hover:scale-110">
-                        <Play className="w-5 h-5 md:w-8 md:h-8 text-brand-blue transform translate-x-0.5" />
+                      <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform transition-all duration-300 group-hover:scale-110">
+                        <Play className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-brand-blue transform translate-x-0.5" />
                       </div>
                     </div>
                   </div>
@@ -123,12 +126,12 @@ export function HeroSection({
               </DialogContent>
             </Dialog>
 
-            {/* ✅ CORRECTION: Badges flottants avec espacement optimisé */}
-            <div className="flex flex-wrap justify-center gap-3 md:gap-4 mt-3 md:mt-4">
-              <div className="bg-white/10 backdrop-blur-sm px-3 py-1.5 md:px-4 md:py-2 rounded-full">
+            {/* ✅ CORRECTION : Badges flottants avec espacement mobile optimisé */}
+            <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-3 md:mt-4">
+              <div className="bg-white/10 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-full">
                 <span className="text-xs md:text-sm font-medium">+7 000 jeux vendus</span>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm px-3 py-1.5 md:px-4 md:py-2 rounded-full">
+              <div className="bg-white/10 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-full">
                 <span className="text-xs md:text-sm font-medium">98% de satisfaction</span>
               </div>
             </div>

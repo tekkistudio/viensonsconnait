@@ -22,6 +22,7 @@ import type { PaymentProvider } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
 import type { RealTimeStats } from '@/types/product';
+import { supabase } from '@/lib/supabase';
 
 interface MobileChatContainerProps {
   product: Product;
@@ -141,7 +142,7 @@ Que souhaitez-vous faire ?`,
                 '⚡ Commander rapidement',
                 '❓ Poser une question',
                 '📦 Infos livraison',
-                '💬 En savoir plus'
+                '💬 En savoir plus sur le jeu'
               ],
               assistant: {
                 name: 'Rose',
@@ -277,7 +278,7 @@ Je peux vous expliquer :
 
 Qu'est-ce qui vous intéresse le plus ?`,
         choices: [
-          '❓ Comment ça marche ?',
+          '❓ Comment y jouer ?',
           '👥 C\'est pour qui ?',
           '💝 Quels bénéfices ?',
           '⭐ Avis clients'
@@ -294,26 +295,63 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    if (content.includes('Comment ça marche') || content.includes('Comment ça fonctionne')) {
-      const usageInfo = await getProductInfoFromDatabase('usage');
-      return {
-        type: 'assistant',
-        content: usageInfo,
-        choices: [
-          '⚡ Commander maintenant',
-          '💝 Quels bénéfices ?',
-          '⭐ Voir les avis'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'product_usage' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
+    // ✅ CORRECTION COMPLÈTE
+if (content.includes('Comment y jouer') || content.includes('Comment ça fonctionne')) {
+  // ✅ CORRECTION: Récupérer les vraies règles du jeu depuis game_rules
+  let gameRules = '';
+  
+  try {
+    const { data: productData, error }: { data: any, error: any } = await supabase
+      .from('products')
+      .select('game_rules, name')
+      .eq('id', product.id)  // ✅ product vient des props
+      .single();
+
+    if (error || !productData) {
+      console.error('❌ Error fetching game rules:', error);
+      gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+Les règles détaillées du jeu seront bientôt disponibles.
+
+En attendant, vous pouvez nous contacter pour plus d'informations.`;
+    } else if (productData.game_rules && productData.game_rules.trim()) {
+      gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+${productData.game_rules}
+
+Prêt(e) à vivre cette expérience ?`;
+    } else {
+      gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+Les règles détaillées de ce jeu seront ajoutées prochainement.
+
+Pour toute question, n'hésitez pas à nous contacter !`;
     }
+  } catch (error) {
+    console.error('❌ Error fetching game rules:', error);
+    gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+Une erreur est survenue lors du chargement des règles. Veuillez réessayer ou nous contacter.`;
+  }
+
+  return {
+    type: 'assistant',
+    content: gameRules,
+    choices: [
+      '⚡ Commander maintenant',
+      '💝 Quels bénéfices ?',
+      '⭐ Voir les avis'
+    ],
+    assistant: {
+      name: 'Rose',
+      title: 'Assistante d\'achat'
+    },
+    metadata: {
+      nextStep: 'game_rules_shown' as ConversationStep
+    },
+    timestamp: new Date().toISOString()
+  };
+}
 
     if (content.includes('C\'est pour qui') || content.includes('Pour qui')) {
       const targetInfo = await getProductInfoFromDatabase('target');
@@ -343,7 +381,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         content: benefitsInfo,
         choices: [
           '⚡ Commander maintenant',
-          '❓ Comment ça marche ?',
+          '❓ Comment y jouer ?',
           '⭐ Voir les avis'
         ],
         assistant: {
@@ -364,7 +402,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         content: testimonialsInfo,
         choices: [
           '⚡ Commander maintenant',
-          '❓ Comment ça marche ?',
+          '❓ Comment y jouer ?',
           '💝 Quels bénéfices ?'
         ],
         assistant: {
@@ -426,7 +464,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         content: descriptionInfo,
         choices: [
           '⚡ Commander maintenant',
-          '❓ Comment ça marche ?',
+          '❓ Comment y jouer ?',
           '⭐ Voir les avis'
         ],
         assistant: {
@@ -545,7 +583,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
       } else {
         // Distinguer boutons vs messages libres
         const isStandardButton = [
-          'Poser une question', 'Comment ça marche', 'C\'est pour qui',
+          'Poser une question', 'Comment y jouer', 'C\'est pour qui',
           'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
         ].some(btn => content.includes(btn));
         

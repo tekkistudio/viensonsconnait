@@ -66,19 +66,18 @@ export default function Header() {
     }, []);
   
     return (
-      <header className={`bg-brand-blue text-white transition-shadow duration-300 relative
+      <header className={`bg-brand-blue text-white transition-shadow duration-300
         ${isScrolled ? 'shadow-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4">
-          {/* ✅ CORRECTION: Ajustement du padding pour éliminer l'espace */}
-          <nav className="flex items-center justify-between py-2.5 md:py-4">
-            {/* Logo - Optimisé pour mobile */}
-            <Link href="/" className="relative flex-shrink-0 z-10">
+          <nav className="flex items-center justify-between py-3 md:py-4">
+            {/* Logo - Ajusté pour mobile */}
+            <Link href="/" className="relative flex-shrink-0">
               <Image 
                 src="/images/logos/logo-white.svg" 
                 alt="VIENS ON S'CONNAÎT"
                 width={140}
                 height={40}
-                className="h-9 md:h-12 w-auto"
+                className="h-10 md:h-12 w-auto"
                 priority
               />
             </Link>
@@ -145,7 +144,7 @@ export default function Header() {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-2 hover:bg-white/10 rounded-lg z-10"
+                className="md:hidden p-2 hover:bg-white/10 rounded-lg"
                 aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               >
                 {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -153,10 +152,10 @@ export default function Header() {
             </div>
           </nav>
   
-          {/* ✅ CORRECTION: Mobile Menu repositionné et optimisé */}
+          {/* Mobile Menu - Amélioré avec animations */}
           {isMenuOpen && (
-            <div className="md:hidden absolute inset-x-0 top-full bg-brand-blue border-t border-white/10 z-50 mobile-menu">
-              <div className="p-4 space-y-4 animate-fadeIn max-h-[80vh] overflow-y-auto">
+            <div className="md:hidden absolute inset-x-0 top-full bg-brand-blue border-t border-white/10 mobile-menu">
+              <div className="p-4 space-y-4 animate-fadeIn">
                 {navigation.map((item) => (
                   <div key={item.name}>
                     {item.hasSubmenu ? (

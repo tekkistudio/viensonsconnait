@@ -341,63 +341,66 @@ export default function ChatMessage({
           <div className="mt-3 space-y-3">
             {/* ✅ CORRECTION PRINCIPALE: Boutons de choix avec gestion paiement */}
             {message.choices && message.choices.length > 0 && (
-              <div className="grid gap-2">
-                {message.choices.map((choice, index) => {
-                  const isPrimary = choice.includes('Commander rapidement') || 
-                                   choice.includes('⚡') ||
-                                   choice.includes('Wave') || 
-                                   choice.includes('acheter') || 
-                                   choice.includes('Valider') ||
-                                   choice.includes('Express') ||
-                                   choice.includes('Payer');
-                  
-                  const isPaymentButton = choice.includes('Payer') && message.metadata?.paymentUrl;
-                  
-                  const getChoiceIcon = (choice: string) => {
-                    if (choice.includes('💰') || choice.includes('Wave')) return '💰';
-                    if (choice.includes('🟠') || choice.includes('Orange')) return '🟠';
-                    if (choice.includes('💳') || choice.includes('Carte')) return '💳';
-                    if (choice.includes('🚚') || choice.includes('livraison')) return '🚚';
-                    if (choice.includes('📞') || choice.includes('contacter')) return '📞';
-                    if (choice.includes('🔄') || choice.includes('Réessayer')) return '🔄';
-                    if (choice.includes('⚡') || choice.includes('Express') || choice.includes('rapidement')) return '⚡';
-                    if (choice.includes('❓') || choice.includes('question')) return '❓';
-                    if (choice.includes('📦') || choice.includes('livraison') || choice.includes('Infos')) return '📦';
-                    if (choice.includes('💬') || choice.includes('savoir plus')) return '💬';
-                    return null;
-                  };
-
-                  const icon = getChoiceIcon(choice);
-                  const cleanChoice = choice.replace(/[💰🟠💳🚚📞🔄⚡❓📦💬]/g, '').trim();
-                  
+            <div className="grid gap-2">
+              {message.choices.map((choice, index) => {
+                const isPrimary = choice.includes('Commander rapidement') || 
+                                choice.includes('⚡') ||
+                                choice.includes('Wave') || 
+                                choice.includes('🐧') ||
+                                choice.includes('acheter') || 
+                                choice.includes('Valider') ||
+                                choice.includes('Express') ||
+                                choice.includes('Payer');
+                
+                const isWaveButton = choice.includes('Wave') || choice.includes('🌊');
+                
+                if (isWaveButton) {
+                  // ✅ BOUTON WAVE SPÉCIAL avec logo et couleur
                   return (
                     <motion.button
                       key={index}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleChoiceClick(choice)}
-                      className={`
-                        px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
-                        ${isPrimary 
-                          ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
-                          : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
-                        }
-                        ${isPaymentButton 
-                          ? 'ring-2 ring-[#FF7E93] ring-opacity-50 animate-pulse' 
-                          : ''
-                        }
-                        flex items-center justify-center gap-2 min-h-[48px] w-full
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                      `}
+                      className="w-full text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3 font-semibold border-none cursor-pointer min-h-[48px]"
+                      style={{
+                        backgroundColor: '#4BD2FA',
+                        background: 'linear-gradient(135deg, #4BD2FA 0%, #3BC9E8 100%)'
+                      }}
                     >
-                      {icon && <span className="text-base">{icon}</span>}
-                      <span>{cleanChoice || choice}</span>
-                      {isPaymentButton && <ExternalLink className="w-4 h-4 ml-1" />}
+                      <img 
+                        src="/images/payments/wave_2.svg" 
+                        alt="Wave" 
+                        className="w-5 h-5 flex-shrink-0" 
+                      />
+                      <span>{choice.replace(/🌊|Wave/g, '').trim() || 'Payer avec Wave'}</span>
                     </motion.button>
                   );
-                })}
-              </div>
-            )}
+                }
+                
+                // ✅ BOUTONS NORMAUX
+                return (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleChoiceClick(choice)}
+                    className={`
+                      px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
+                      ${isPrimary 
+                        ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
+                        : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
+                      }
+                      flex items-center justify-center gap-2 min-h-[48px] w-full
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    `}
+                  >
+                    <span>{choice}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
 
             {/* ✅ AMÉLIORATION: Lien de paiement séparé pour plus de visibilité */}
             {message.metadata?.paymentUrl && message.metadata?.paymentAmount && (

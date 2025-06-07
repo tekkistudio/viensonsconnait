@@ -140,7 +140,7 @@ export class DynamicContentService {
         return this.getDefaultDescription();
       }
 
-      let content = `💬 **En savoir plus sur ${product.name}**\n\n`;
+      let content = `💬 **En savoir plus sur le jeu ${product.name}**\n\n`;
 
       // ✅ Utiliser la vraie description du produit
       if (product.description) {
@@ -170,7 +170,7 @@ export class DynamicContentService {
         }
       }
 
-      content += 'Souhaitez-vous en savoir plus ou passer commande ?';
+      content += 'Souhaitez-vous savoir comment y jouer ou passer commande ?';
       return content;
 
     } catch (error) {

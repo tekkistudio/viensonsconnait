@@ -70,7 +70,7 @@ export function ChatProvider({ children, product }: ChatProviderProps) {
           '⚡ Commander rapidement',
           '❓ Poser une question',
           '📦 Infos livraison',
-          '💬 En savoir plus'
+          '💬 En savoir plus sur le jeu'
         ],
         assistant: {
           name: 'Rose',

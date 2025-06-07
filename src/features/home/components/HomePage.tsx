@@ -4,7 +4,6 @@
 import React from 'react';
 import { useBreakpoint } from '../../../core/theme/hooks/useBreakpoint';
 import { useProductsLayout } from '../../../features/shop/hooks/useProductsLayout';
-
 import { HeroSection } from './sections/HeroSection';
 import { CategoriesSection } from './sections/CategoriesSection';
 import { ProductsGridSection } from './sections/ProductsGridSection';

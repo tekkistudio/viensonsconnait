@@ -227,7 +227,7 @@ Comment puis-je vous aider aujourd'hui ?`,
             '⚡ Commander rapidement',
             '❓ Poser une question',
             '📦 Infos livraison',
-            '💬 En savoir plus'
+            '💬 En savoir plus sur le jeu'
           ],
           assistant: {
             name: 'Rose',
