@@ -2,7 +2,7 @@
 "use client"
 
 import { Phone, MessageSquare, X } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 interface AnnouncementBarProps {
   text: string;
@@ -12,100 +12,28 @@ interface AnnouncementBarProps {
 
 export function AnnouncementBar({ text, phone, whatsapp }: AnnouncementBarProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [height, setHeight] = useState(0);
-  const barRef = useRef<HTMLDivElement>(null);
 
-  // ✅ CORRECTION : Gestion robuste de la hauteur avec ResizeObserver
+  // ✅ NOUVEAU : Vérifier si l'utilisateur avait fermé la barre dans cette session
   useEffect(() => {
-    const updateHeight = () => {
-      if (barRef.current && isVisible) {
-        const newHeight = barRef.current.offsetHeight;
-        setHeight(newHeight);
-        
-        // ✅ CORRECTION : Mise à jour immédiate des variables CSS
-        document.documentElement.style.setProperty(
-          "--announcement-height", 
-          `${newHeight}px`
-        );
-        
-        // ✅ NOUVEAU : Mise à jour du padding du body
-        document.body.style.paddingTop = `${newHeight}px`;
-        
-        console.log('📏 AnnouncementBar height updated:', newHeight);
-      } else {
-        // ✅ CORRECTION : Reset complet quand invisible
-        document.documentElement.style.setProperty("--announcement-height", "0px");
-        document.body.style.paddingTop = "0px";
-        console.log('📏 AnnouncementBar height reset to 0');
-      }
-    };
-
-    // Mise à jour initiale
-    updateHeight();
-
-    // ✅ NOUVEAU : Observer les changements de taille
-    const resizeObserver = new ResizeObserver(() => {
-      updateHeight();
-    });
-
-    if (barRef.current) {
-      resizeObserver.observe(barRef.current);
-    }
-
-    // ✅ NOUVEAU : Écouter les changements d'orientation
-    const handleOrientationChange = () => {
-      setTimeout(updateHeight, 100); // Délai pour que le navigateur s'adapte
-    };
-
-    window.addEventListener('orientationchange', handleOrientationChange);
-    window.addEventListener('resize', updateHeight);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('orientationchange', handleOrientationChange);
-      window.removeEventListener('resize', updateHeight);
-    };
-  }, [isVisible]);
-
-  // ✅ CORRECTION : Gestion de la fermeture avec localStorage
-  const handleClose = () => {
-    setIsVisible(false);
-    
-    // ✅ NOUVEAU : Mémoriser la fermeture pour cette session
-    try {
-      localStorage.setItem('announcement-bar-closed', 'true');
-    } catch (error) {
-      console.warn('Cannot save announcement bar state:', error);
-    }
-  };
-
-  // ✅ NOUVEAU : Vérifier si l'utilisateur avait fermé la barre
-  useEffect(() => {
-    try {
-      const wasClosed = localStorage.getItem('announcement-bar-closed');
-      if (wasClosed === 'true') {
-        setIsVisible(false);
-      }
-    } catch (error) {
-      console.warn('Cannot read announcement bar state:', error);
+    const wasClosed = sessionStorage.getItem('announcement-bar-closed');
+    if (wasClosed === 'true') {
+      setIsVisible(false);
     }
   }, []);
 
-  // ✅ CORRECTION : Ne pas rendre si invisible
+  // ✅ CORRECTION : Gestion simple de la fermeture
+  const handleClose = () => {
+    setIsVisible(false);
+    sessionStorage.setItem('announcement-bar-closed', 'true');
+  };
+
+  // ✅ Ne pas rendre si invisible
   if (!isVisible) return null;
 
   const formattedPhone = phone.replace(/(\d{2})(\d{3})(\d{2})(\d{2})(\d{2})/, "+$1 $2 $3 $4 $5");
 
   return (
-    <div
-      ref={barRef}
-      id="announcement-bar"
-      className="fixed top-0 left-0 right-0 bg-brand-pink text-white z-50 transition-all duration-300 shadow-sm"
-      style={{
-        // ✅ NOUVEAU : Assurer la visibilité au-dessus de tout
-        zIndex: 9999
-      }}
-    >
+    <div className="bg-brand-pink text-white relative z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between py-2 md:py-3">
           {/* Texte principal - visible uniquement sur desktop */}

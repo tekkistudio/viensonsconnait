@@ -9,11 +9,11 @@
     /* Empêche le scroll horizontal et les effets de rebond */
     overflow-x: hidden;
     overscroll-behavior-x: none;
+    /* ✅ CORRECTION : Permettre le pull-to-refresh sur mobile */
+    overscroll-behavior-y: auto;
     /* Largeur fixe */
     width: 100vw;
     max-width: 100vw;
-    /* ✅ CORRECTION : Permettre le pull-to-refresh sur mobile */
-    overscroll-behavior-y: auto;
     /* Base styles */
     @apply bg-background;
   }
@@ -32,16 +32,13 @@
     /* Position et espacement */
     position: relative;
     margin: 0;
-    /* ✅ CORRECTION MAJEURE : Padding géré dynamiquement par JS */
+    /* ✅ CORRECTION MAJEURE : Pas de padding automatique */
     padding: 0;
-    /* ✅ CORRECTION : Transition fluide pour le padding */
-    transition: padding-top 0.3s ease-in-out;
     /* Styles existants */
     @apply text-foreground transition-colors duration-300;
     font-family: 'Montserrat', Arial, Helvetica, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* ✅ SUPPRESSION : padding-top: var(--announcement-height); */
   }
 
   /* Conteneur principal Next.js */
@@ -67,8 +64,6 @@
     --foreground: theme('colors.gray.900');
     --brand-blue: #132D5D;
     --brand-pink: #FF7E93;
-    /* ✅ CORRECTION : Valeur par défaut à 0 */
-    --announcement-height: 0px;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: theme('colors.gray.200');
@@ -129,127 +124,9 @@
   .card, .dialog-content, .modal {
     max-width: calc(100vw - 2rem) !important;
   }
-
-  /* ===== NOUVELLES CORRECTIONS ESPACEMENT MOBILE ===== */
-  
-  /* Réduction de l'espacement des sections sur mobile */
-  .mobile-section-spacing {
-    padding-top: 0.5rem !important;
-    padding-bottom: 1rem !important;
-  }
-  
-  /* Espacement spécifique pour les grilles de produits */
-  .products-grid-mobile {
-    margin-top: 0 !important;
-    margin-bottom: 1rem !important;
-  }
-  
-  /* ✅ CORRECTION : Espacement entre header et contenu */
-  .mobile-content-spacing {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-  }
-  
-  /* Titre section mobile avec moins d'espacement */
-  .mobile-section-title {
-    margin-bottom: 0.75rem !important;
-    margin-top: 0 !important;
-  }
-  
-  /* Container principal mobile optimisé */
-  .mobile-main-container {
-    padding-top: 0 !important;
-  }
-
-  /* ✅ CORRECTION : Suppression de l'espacement automatique */
-  main {
-    padding-top: 0 !important;
-    padding-bottom: 1rem !important;
-  }
-
-  /* ✅ CORRECTION : Suppression de l'espacement après le header */
-  .header-wrapper + main, 
-  .header-wrapper + .main-content-wrapper {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-  }
 }
 
-/* ✅ NOUVEAU : Classes utilitaires pour la gestion de l'espacement */
-@layer utilities {
-  /* ✅ NOUVEAU : Classes pour gérer l'espacement dynamique */
-  .announcement-spacing {
-    padding-top: var(--announcement-height, 0px);
-    transition: padding-top 0.3s ease-in-out;
-  }
-  
-  .no-announcement-spacing {
-    padding-top: 0 !important;
-  }
-  
-  /* ✅ NOUVEAU : Support du pull-to-refresh */
-  .pull-to-refresh-enabled {
-    overscroll-behavior-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Masquer la barre de défilement tout en conservant la fonctionnalité */
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Classes responsives améliorées */
-  .mobile-safe-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
-  }
-
-  .mobile-full-height {
-    min-height: calc(100vh - var(--header-height) - var(--mobile-footer-height));
-  }
-
-  /* Container sécurisé pour mobile */
-  .safe-container {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  /* Prévention débordement horizontal */
-  .no-horizontal-overflow {
-    overflow-x: hidden;
-    max-width: 100vw;
-  }
-
-  /* ===== NOUVELLES CLASSES UTILITAIRES POUR ESPACEMENT ===== */
-  
-  /* Espacement mobile ultra-compact */
-  .mobile-ultra-compact {
-    @apply py-1 md:py-4;
-  }
-
-  /* Espacement mobile réduit */
-  .mobile-compact {
-    @apply py-2 md:py-6;
-  }
-
-  /* Marges mobiles réduites */
-  .mobile-margin-tight {
-    @apply my-1 md:my-4;
-  }
-
-  /* Padding mobile réduit */
-  .mobile-padding-tight {
-    @apply p-2 md:p-6;
-  }
-}
-
-/* ✅ STYLES WAVE BUTTON (conservés) */
+/* ✅ STYLES WAVE BUTTON */
 @layer components {
   .wave-payment-button {
     @apply inline-flex items-center justify-center gap-2;
@@ -286,41 +163,70 @@
   }
 }
 
-/* Layout et composants spécifiques */
-.header-wrapper {
-  /* ✅ CORRECTION : Position sticky corrigée */
-  position: sticky;
-  top: var(--announcement-height, 0px);
-  z-index: 40;
-  transition: top 0.3s ease-in-out;
+/* Utilitaires personnalisés */
+@layer utilities {
+  /* ✅ NOUVEAU : Support du pull-to-refresh */
+  .pull-to-refresh-enabled {
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Masquer la barre de défilement tout en conservant la fonctionnalité */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Classes responsives améliorées */
+  .mobile-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .mobile-full-height {
+    min-height: calc(100vh - var(--header-height) - var(--mobile-footer-height));
+  }
+
+  /* Flexbox responsifs */
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+
+  .responsive-flex {
+    @apply flex flex-col sm:flex-row items-start sm:items-center;
+  }
+
+  /* Container sécurisé pour mobile */
+  .safe-container {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Prévention débordement horizontal */
+  .no-horizontal-overflow {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 }
 
-/* ✅ NOUVEAU : Classe pour le contenu principal */
-.main-content-wrapper {
-  /* ✅ Assurer que le contenu ne soit jamais caché sous le header */
-  position: relative;
-  min-height: calc(100vh - var(--header-height, 64px) - var(--announcement-height, 0px));
+/* Transitions pour le changement de thème */
+.transition-theme {
+  transition: background-color 0.3s ease-in-out,
+              color 0.3s ease-in-out,
+              border-color 0.3s ease-in-out;
 }
 
+/* ✅ SIMPLIFICATION : Suppression des styles header complexes */
 .section-padding {
   @apply py-8 md:py-12 lg:py-16;
 }
 
-/* ✅ CORRECTION SECTION PADDING MOBILE */
-@media (max-width: 768px) {
-  .section-padding {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-  }
-  
-  /* ✅ NOUVEAU : Style pour HeroSection mobile sans espace */
-  .hero-section-mobile {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-  }
-}
-
-/* Optimisations tables responsives (conservées) */
+/* Optimisations tables responsives */
 .responsive-table-wrapper {
   @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
 }
@@ -333,8 +239,9 @@
   @apply whitespace-nowrap px-4 py-3 text-sm;
 }
 
-/* Optimisations mobiles améliorées (conservées) */
+/* Optimisations mobiles améliorées */
 @media (max-width: 768px) {
+  /* Défilement horizontal amélioré */
   .scroll-x-container {
     @apply -mx-4 px-4;
     scroll-snap-type: x mandatory;
@@ -350,13 +257,26 @@
     flex-shrink: 0;
   }
 
+  /* Animation de défilement */
+  @keyframes scrollHint {
+    0% { transform: translateX(0); }
+    75% { transform: translateX(10px); }
+    100% { transform: translateX(0); }
+  }
+
+  .scroll-hint-animation {
+    animation: scrollHint 1.5s ease-in-out infinite;
+  }
+
+  /* Gestion du menu mobile */
   .mobile-menu {
-    max-height: calc(100vh - var(--header-height) - var(--announcement-height));
+    max-height: calc(100vh - var(--header-height));
     overflow-y: auto;
     overflow-x: hidden;
     max-width: 100vw;
   }
 
+  /* Adaptation des cartes pour mobile */
   .mobile-card {
     @apply rounded-lg border p-4 bg-white dark:bg-gray-800;
     max-width: calc(100vw - 2rem);
@@ -371,6 +291,7 @@
     @apply space-y-3;
   }
 
+  /* Adaptation des filtres pour mobile */
   .mobile-filters {
     @apply flex overflow-x-auto gap-2 -mx-4 px-4 pb-2;
     scroll-snap-type: x mandatory;
@@ -382,6 +303,7 @@
     scroll-snap-align: start;
   }
 
+  /* Carrousel d'images mobile */
   .image-carousel-container {
     width: 100vw;
     max-width: 100vw;
@@ -399,7 +321,7 @@
   }
 }
 
-/* Animations et styles restants (conservés) */
+/* Animations Dialog et Radix UI */
 @keyframes overlayShow {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -438,6 +360,7 @@
   }
 }
 
+/* Animations fluides pour carrousel */
 @keyframes fadeInScale {
   from {
     opacity: 0;
@@ -499,6 +422,7 @@
   animation: exit 200ms ease-in;
 }
 
+/* Styles Dialog */
 .dialog-overlay {
   background-color: rgba(0, 0, 0, 0.5);
   position: fixed;
@@ -535,6 +459,7 @@
   outline: none;
 }
 
+/* Corrections pour les images */
 .product-image-container {
   position: relative;
   width: 100%;
@@ -552,6 +477,7 @@
   justify-content: center;
 }
 
+/* Empêche le débordement des contenus générés dynamiquement */
 .chat-container, .chat-message, .chat-content {
   max-width: 100%;
   overflow-wrap: break-word;
@@ -559,12 +485,14 @@
   word-break: break-word;
 }
 
+/* Corrections pour les layouts Framer Motion */
 .motion-container {
   position: relative;
   overflow: hidden;
   max-width: 100%;
 }
 
+/* Styles pour les boutons de choix dans le chat */
 .chat-choice-button {
   max-width: 100%;
   overflow: hidden;
