@@ -202,7 +202,7 @@ Que souhaitez-vous faire ?`,
 Je peux vous expliquer :
 - Comment ça fonctionne
 - Pour qui c'est adapté
-- Les bénéfices
+- Les bénéfices pour vous
 - Les témoignages clients
 
 Qu'est-ce qui vous intéresse le plus ?`,
@@ -602,26 +602,152 @@ Qu'est-ce qui vous intéresse le plus ?`,
     }
   };
 
-  // ✅ FONCTION: Gestion des choix avec debounce
-  const handleChoiceSelect = async (choice: string) => {
-    if (isProcessing) {
-      console.log('⏳ Processing in progress, ignoring choice');
-      return;
-    }
-  
-    console.log('🔘 Desktop choice selected:', choice);
-    setIsProcessing(true);
-    updateTypingStatus(true);
-    
-    try {
-      await sendMessage(choice);
-    } catch (error) {
-      console.error('❌ Error sending choice:', error);
-    } finally {
-      updateTypingStatus(false);
-      setIsProcessing(false);
-    }
-  };
+  // ✅ CORRECTION DESKTOP: handleChoiceSelect avec traitement spécial "Comment y jouer"
+    const handleChoiceSelect = async (choice: string) => {
+      if (isProcessing) {
+        console.log('⏳ Processing in progress, ignoring choice');
+        return;
+      }
+
+      console.log('🔘 Desktop choice selected:', choice);
+      setIsProcessing(true);
+      updateTypingStatus(true);
+      
+      try {
+        // ✅ TRAITEMENT SPÉCIAL: Comment y jouer ?
+        if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
+          console.log('🎮 Desktop: Traitement spécial "Comment y jouer"');
+          
+          // Ajouter d'abord le message utilisateur
+          const userMessage: ChatMessageType = {
+            type: 'user',
+            content: choice,
+            timestamp: new Date().toISOString()
+          };
+          addMessage(userMessage);
+          
+          // Attendre un peu pour l'animation
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          let gameRules = '';
+          
+          try {
+            // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE
+            const { data: productData, error } = await supabase
+              .from('products')
+              .select('game_rules, name')
+              .eq('id', product.id)
+              .single();
+
+            if (error || !productData) {
+              console.error('❌ Desktop - Erreur récupération produit:', error);
+              gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+    Une erreur est survenue lors du chargement des règles. 
+
+    📞 **Contactez-nous pour plus d'informations :**
+    • WhatsApp : +221 78 136 27 28
+    • Email : contact@viensonseconnait.com
+
+    Nous vous enverrons les règles détaillées !`;
+            } else if (productData.game_rules && productData.game_rules.trim()) {
+              console.log('✅ Desktop - Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
+              gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+    ${productData.game_rules}
+
+    🎯 **Prêt(e) à vivre cette expérience ?**`;
+            } else {
+              console.log('⚠️ Desktop - Pas de règles définies pour ce produit');
+              gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+    📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+
+    En attendant, voici ce que vous devez savoir :
+    • Ce jeu est conçu pour renforcer les relations
+    • Il se joue en groupe (2 personnes minimum)
+    • Chaque partie dure environ 30-60 minutes
+    • Aucune préparation spéciale requise
+
+    📞 **Pour les règles complètes, contactez-nous :**
+    • WhatsApp : +221 78 136 27 28
+    • Email : contact@viensonseconnait.com
+
+    Nous vous enverrons un guide détaillé !`;
+            }
+          } catch (dbError) {
+            console.error('❌ Desktop - Erreur base de données:', dbError);
+            gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+    😔 **Problème technique temporaire**
+
+    Nous ne pouvons pas charger les règles du jeu en ce moment.
+
+    📞 **Solution immédiate :**
+    • WhatsApp : +221 78 136 27 28
+    • Nous vous enverrons les règles par message
+
+    🔄 **Ou réessayez dans quelques minutes**`;
+          }
+          
+          // Créer et ajouter la réponse assistant
+          const assistantMessage: ChatMessageType = {
+            type: 'assistant',
+            content: gameRules,
+            choices: [
+              '⚡ Commander maintenant',
+              '💝 Quels bénéfices ?',
+              '⭐ Voir les avis',
+              '📞 Contacter le support'
+            ],
+            assistant: {
+              name: 'Rose',
+              title: 'Assistante d\'achat'
+            },
+            metadata: {
+              nextStep: 'game_rules_shown' as ConversationStep,
+              flags: {
+                gameRulesShown: true
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
+          
+          addMessage(assistantMessage);
+          return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
+        }
+        
+        // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal
+        await sendMessage(choice);
+        
+      } catch (error) {
+        console.error('❌ Error sending desktop choice:', error);
+        
+        // Message d'erreur en cas de problème
+        const errorMessage: ChatMessageType = {
+          type: 'assistant',
+          content: `😔 **Erreur temporaire**
+
+    Un problème est survenu. Voulez-vous réessayer ?`,
+          choices: ['🔄 Réessayer', '📞 Contacter le support'],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'error_recovery' as ConversationStep,
+            flags: { hasError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        addMessage(errorMessage);
+        
+      } finally {
+        updateTypingStatus(false);
+        setIsProcessing(false);
+      }
+    };
 
   // ✅ FONCTION: Fermeture du modal de paiement
   const handleClosePaymentModal = () => {

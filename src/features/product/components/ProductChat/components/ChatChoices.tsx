@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatChoices.tsx - VERSION CORRIGÉE
+// src/features/product/components/ProductChat/components/ChatChoices.tsx 
 'use client';
 
 import React from 'react';
