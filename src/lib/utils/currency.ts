@@ -1,4 +1,4 @@
-// src/lib/utils/currency.ts
+// src/lib/utils/currency.ts - VERSION CORRIGÉE
 import { useCountryStore } from "@/core/hooks/useCountryStore";
 
 export function formatPrice(amount: number, currencyCode?: string): string {
@@ -12,26 +12,29 @@ export function formatPrice(amount: number, currencyCode?: string): string {
   return formatted;
 }
 
-// ✅ CORRECTION MAJEURE: Taux de change FCFA → EUR exact
+// ✅ TAUX DE CHANGE OFFICIEL CORRECT : 1 EUR = 655.957 XOF
+export const OFFICIAL_FCFA_TO_EUR_RATE = 655.957;
+
+// ✅ CORRECTION MAJEURE: Conversion FCFA → EUR exacte
 export const convertCFAToEUR = (cfaAmount: number): number => {
-  // ✅ TAUX CORRIGÉ: 1 EUR = 655.957 XOF (taux fixe officiel CFA)
-  const rate = 655.957;
-  const eurAmount = cfaAmount / rate;
+  // Conversion en EUR puis en centimes pour Stripe
+  const eurAmount = cfaAmount / OFFICIAL_FCFA_TO_EUR_RATE;
+  const eurCentimes = Math.round(eurAmount * 100);
   
-  // Retourner en centimes d'EUR pour Stripe (multiplié par 100)
-  return Math.round(eurAmount * 100);
+  console.log(`💰 Conversion: ${cfaAmount} FCFA = ${eurAmount.toFixed(2)}€ = ${eurCentimes} centimes`);
+  
+  return eurCentimes;
 };
 
 export const convertEURToCFA = (eurAmount: number): number => {
-  const rate = 655.957;
-  return Math.round(eurAmount * rate);
+  return Math.round(eurAmount * OFFICIAL_FCFA_TO_EUR_RATE);
 };
 
 export const formatCurrency = (amount: number, currency: 'CFA' | 'EUR'): string => {
   if (currency === 'CFA') {
     return `${amount.toLocaleString()} FCFA`;
   }
-  return `${amount.toFixed(2)}€`;
+  return `${(amount / 100).toFixed(2)}€`; // amount est en centimes pour EUR
 };
 
 // ✅ FONCTION CORRIGÉE: Calcul spécifique pour Stripe
@@ -49,8 +52,14 @@ export const debugConversion = (cfaAmount: number): void => {
     converted: `${eurAmount.toFixed(2)}€`,
     stripeCentimes: eurCentimes,
     reverseCheck: `${convertEURToCFA(eurAmount).toLocaleString()} FCFA`,
-    expectedFor28000: `28,000 FCFA = ${(28000 / 655.957).toFixed(2)}€`
+    expectedFor28000: `28,000 FCFA = ${(28000 / OFFICIAL_FCFA_TO_EUR_RATE).toFixed(2)}€`
   });
+  
+  // Pour 28,000 FCFA, on devrait avoir environ 42.68€
+  if (cfaAmount === 28000) {
+    const expected = 28000 / OFFICIAL_FCFA_TO_EUR_RATE;
+    console.log(`✅ Vérification 28,000 FCFA = ${expected.toFixed(2)}€ (${Math.round(expected * 100)} centimes)`);
+  }
 };
 
 // ✅ FONCTION AMÉLIORÉE: Calcul du total avec remises
@@ -95,6 +104,6 @@ export const validatePaymentAmount = (amount: number, currency: 'CFA' | 'EUR'): 
   if (currency === 'CFA') {
     return amount >= 500 && amount <= 10000000; // Entre 500 FCFA et 10M FCFA
   } else {
-    return amount >= 0.76 && amount <= 15245; // Entre 0.76€ et 15,245€
+    return amount >= 1 && amount <= 15245; // Entre 1€ et 15,245€ (en centimes)
   }
 };

@@ -1,4 +1,4 @@
-// src/lib/services/AIManager.ts
+// src/lib/services/AIManager.ts - VERSION COMPLÈTE CORRIGÉE
 import { ErrorManager } from './ErrorManager';
 import { PromptManager } from './PromptManager';
 import { supabase } from "@/lib/supabase";
@@ -18,12 +18,13 @@ import { ErrorTypes } from '@/constants/errors';
 const isServer = typeof window === 'undefined';
 let openai: OpenAI | null = null;
 
-// Initialiser OpenAI uniquement côté serveur
+// ✅ CORRECTION: Initialiser OpenAI avec GPT-4o
 function initializeOpenAI() {
-  if (isServer && config.openai?.apiKey) {
+  if (isServer && process.env.OPENAI_API_KEY) {
     openai = new OpenAI({
-      apiKey: config.openai.apiKey
+      apiKey: process.env.OPENAI_API_KEY
     });
+    console.log('✅ AIManager: OpenAI initialized with GPT-4o');
   }
 }
 
@@ -58,11 +59,11 @@ export class AIManager {
   private async ensureOpenAI(): Promise<OpenAI> {
     if (!openai) {
       if (!isServer) {
-        console.error('OpenAI is only available on the server');
+        console.error('❌ OpenAI is only available on the server');
         throw new Error('OpenAI is only available on the server');
       }
-      if (!config.openai?.apiKey) {
-        console.error('OpenAI API key is not configured');
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('❌ OpenAI API key is not configured');
         throw new Error('OpenAI API key is not configured');
       }
       initializeOpenAI();
@@ -73,6 +74,7 @@ export class AIManager {
     return openai;
   }
 
+  // ✅ MÉTHODE PRINCIPALE POUR LE CHATBOT PRODUIT
   async handleProductChatbot(
     message: CustomerMessage,
     productId: string,
@@ -80,6 +82,12 @@ export class AIManager {
     orderData: Partial<OrderData> = {}
   ): Promise<AIResponse> {
     try {
+      console.log('🤖 AIManager processing:', {
+        message: message.content.substring(0, 50),
+        productId,
+        currentStep
+      });
+
       // Liste des choix prédéfinis qui ne nécessitent pas l'IA
       const predefinedChoices = [
         'Je veux l\'acheter maintenant',
@@ -88,13 +96,16 @@ export class AIManager {
         'Je veux en savoir plus',
         'Voir la description du jeu',
         'Voir les témoignages',
-        'Parler à un humain'
+        'Parler à un humain',
+        'Commander rapidement',
+        '⚡'
       ];
   
       // Si c'est un choix prédéfini, on retourne directement sans utiliser l'IA
-      if (predefinedChoices.includes(message.content)) {
+      if (predefinedChoices.some(choice => message.content.includes(choice))) {
+        console.log('📋 Predefined choice detected, skipping AI');
         return {
-          content: '', 
+          content: '', // Sera géré par OptimizedChatService
           type: 'assistant',
           choices: [],
           nextStep: currentStep
@@ -111,6 +122,7 @@ export class AIManager {
           currentStep === 'testimonials' || 
           currentStep === 'game_rules' ||
           currentStep === 'initial') {
+        console.log('📄 Standard step, skipping AI');
         return {
           content: '', // Sera géré par ChatService
           type: 'assistant',
@@ -120,7 +132,7 @@ export class AIManager {
       }
   
       // À partir d'ici, on sait qu'on a besoin de l'IA
-      console.log('Starting AI processing:', { message, currentStep });
+      console.log('🚀 Starting AI processing with GPT-4o:', { message: message.content, currentStep });
   
       const sessionId = this.getSessionId(productId, orderData);
       const history = this.getMessageHistory(sessionId);
@@ -141,11 +153,11 @@ export class AIManager {
         }))
       );
   
-      console.log('System prompt generated, sending to OpenAI');
+      console.log('🤖 System prompt generated, sending to GPT-4o');
   
       const ai = await this.ensureOpenAI();
       const completion = await ai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           ...history.map(msg => ({
@@ -155,29 +167,41 @@ export class AIManager {
           { role: 'user', content: message.content }
         ],
         temperature: 0.7,
+        max_tokens: 400,
         response_format: { type: "json_object" }
       });
   
-      console.log('OpenAI response received:', completion.choices[0]?.message);
+      console.log('✅ GPT-4o response received:', completion.choices[0]?.message);
   
       if (!completion.choices[0]?.message?.content) {
-        throw new Error('Empty response from OpenAI');
+        throw new Error('Empty response from GPT-4o');
       }
   
       const parsedResponse = this.parseAIResponse(completion.choices[0].message);
-      return this.validateAndEnhanceResponse(parsedResponse, currentStep);
+      const enhancedResponse = this.validateAndEnhanceResponse(parsedResponse, currentStep);
+      
+      // Ajouter la réponse à l'historique
+      this.addToHistory(sessionId, {
+        content: enhancedResponse.content,
+        type: 'assistant',
+        timestamp: new Date()
+      });
+
+      return enhancedResponse;
   
     } catch (error) {
-      console.error('Chatbot error:', error);
+      console.error('❌ AIManager chatbot error:', error);
       return {
         content: "Je suis désolée, j'ai du mal à comprendre. Puis-je vous rediriger vers un conseiller ?",
         type: 'assistant',
-        choices: ["Réessayer", "Parler à un conseiller", "Voir les produits"],
+        choices: ["🔄 Réessayer", "📞 Parler à un conseiller", "⚡ Commander quand même"],
+        nextStep: currentStep,
         error: ErrorTypes.AI_ERROR
       };
     }
   }
 
+  // ✅ GESTION CÔTÉ CLIENT
   private async handleClientSideChat(
     message: CustomerMessage,
     productId: string,
@@ -185,7 +209,7 @@ export class AIManager {
     orderData: Partial<OrderData>
   ): Promise<AIResponse> {
     try {
-      console.log('Sending chat request to API:', {
+      console.log('📡 Sending chat request to API:', {
         message: message.content,
         productId,
         currentStep
@@ -208,7 +232,7 @@ export class AIManager {
   
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Chat API error:', {
+        console.error('❌ Chat API error:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData
@@ -217,14 +241,15 @@ export class AIManager {
       }
   
       const data = await response.json();
-      console.log('Chat API response:', data);
+      console.log('✅ Chat API response:', data);
       return data;
     } catch (error) {
-      console.error('Error in handleClientSideChat:', error);
+      console.error('❌ Error in handleClientSideChat:', error);
       throw error;
     }
   }
 
+  // ✅ MÉTHODE POUR LE DASHBOARD
   async handleDashboardAssistant(
     message: string,
     context: PageContext
@@ -264,10 +289,10 @@ export class AIManager {
           }))
       );
 
-      console.log('System prompt generated for dashboard');
+      console.log('🤖 System prompt generated for dashboard');
 
       const completion = await ai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           ...history.map(msg => ({
@@ -277,11 +302,12 @@ export class AIManager {
           { role: 'user', content: message }
         ],
         temperature: 0.7,
+        max_tokens: 500,
         response_format: { type: "json_object" }
       });
 
       if (!completion.choices[0]?.message?.content) {
-        throw new Error('Empty response from OpenAI');
+        throw new Error('Empty response from GPT-4o');
       }
 
       const parsedResponse = this.parseAIResponse(completion.choices[0].message);
@@ -298,7 +324,7 @@ export class AIManager {
       return enhancedResponse;
 
     } catch (error) {
-      console.error('Dashboard assistant error:', error);
+      console.error('❌ Dashboard assistant error:', error);
       const errorResponse = await this.errorManager.handleError(
         error as Error,
         ErrorTypes.AI_ERROR,
@@ -319,13 +345,14 @@ export class AIManager {
     }
   }
 
+  // ✅ MÉTHODES UTILITAIRES
   private parseAIResponse(completion: any): any {
     try {
       if (!completion.content) {
         throw new Error('Empty response from AI');
       }
       
-      console.log('Parsing AI response:', completion.content);
+      console.log('📝 Parsing AI response:', completion.content);
       
       const parsedResponse = JSON.parse(completion.content);
       if (!parsedResponse.message) {
@@ -334,14 +361,14 @@ export class AIManager {
 
       return parsedResponse;
     } catch (error) {
-      console.error('Error parsing AI response:', error);
+      console.error('❌ Error parsing AI response:', error);
       throw new Error('Failed to parse AI response: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 
   private validateAndEnhanceResponse(response: any, currentStep: ConversationStep): AIResponse {
     try {
-      console.log('Validating and enhancing response:', response);
+      console.log('✅ Validating and enhancing response:', response);
 
       if (!response.message || typeof response.message !== 'string') {
         throw new Error('Invalid message in AI response');
@@ -354,21 +381,21 @@ export class AIManager {
       return {
         content: response.message,
         type: 'assistant',
-        choices: choices.length > 0 ? choices : ["Je veux l'acheter maintenant", "En savoir plus", "Parler à un conseiller"],
+        choices: choices.length > 0 ? choices : ["⚡ Commander maintenant", "❓ En savoir plus", "📞 Parler à un conseiller"],
         nextStep: response.nextStep || currentStep,
         recommendations: Array.isArray(response.recommendations) ? response.recommendations : [],
         buyingIntent: typeof response.buyingIntent === 'number' ? response.buyingIntent : 0,
         error: response.error
       };
     } catch (error) {
-      console.error('Error in validateAndEnhanceResponse:', error);
+      console.error('❌ Error in validateAndEnhanceResponse:', error);
       throw error;
     }
   }
 
   private validateAndEnhanceDashboardResponse(response: any, context: PageContext): AIResponse {
     try {
-      console.log('Validating and enhancing dashboard response:', response);
+      console.log('✅ Validating dashboard response:', response);
 
       if (!response.message || typeof response.message !== 'string') {
         throw new Error('Invalid message in AI response');
@@ -394,7 +421,7 @@ export class AIManager {
         suggestions: suggestions
       };
     } catch (error) {
-      console.error('Error in validateAndEnhanceDashboardResponse:', error);
+      console.error('❌ Error in validateAndEnhanceDashboardResponse:', error);
       throw error;
     }
   }
@@ -413,7 +440,7 @@ export class AIManager {
       const updatedHistory = [...history, message].slice(-5); 
       this.messageHistory.set(sessionId, updatedHistory);
     } catch (error) {
-      console.error('Error adding to history:', error);
+      console.error('❌ Error adding to history:', error);
       this.messageHistory.set(sessionId, [message]);
     }
   }
@@ -442,7 +469,7 @@ export class AIManager {
         updated_at: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Failed to persist conversation:', error);
+      console.error('❌ Failed to persist conversation:', error);
     }
   }
 }

@@ -219,56 +219,69 @@ export default function ChatMessage({
 
   // ✅ AMÉLIORATION: Gestion du paiement avec callback
     const handlePaymentClick = (url: string) => {
-      console.log('💳 Opening payment URL:', url);
-      
-      try {
-        // ✅ CORRECTION SPÉCIALE POUR WAVE MOBILE
-        if (url.includes('pay.wave.com')) {
-          console.log('🌊 Wave payment detected');
+    console.log('💳 Opening payment URL:', url);
+    
+    try {
+      // ✅ CORRECTION SPÉCIALE POUR WAVE MOBILE
+      if (url.includes('pay.wave.com')) {
+        console.log('🌊 Wave payment detected');
+        
+        // Détecter si on est sur mobile
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          console.log('📱 Mobile detected, using Wave app deep link');
           
-          // Détecter si on est sur mobile
-          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          // ✅ SOLUTION: Essayer d'abord l'URL scheme Wave
+          // Format: wave://pay?amount=XXXX&merchant=XXXX
+          const urlObj = new URL(url);
+          const amount = urlObj.searchParams.get('amount');
           
-          if (isMobile) {
-            console.log('📱 Mobile detected, using Wave deep link');
-            
-            // ✅ CORRECTION: Redirection immédiate vers Wave
-            window.location.href = url;
-            
-            // Fallback après 2 secondes si l'app ne s'ouvre pas
-            setTimeout(() => {
-              console.log('⚠️ Fallback: Opening Wave in browser');
-              const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-              if (!newWindow) {
-                // Si popup bloqué, rediriger dans le même onglet
-                window.location.href = url;
-              }
-            }, 2000);
-          } else {
-            // Desktop : ouvrir dans nouvel onglet
-            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-            if (!newWindow) {
-              window.location.href = url;
-            }
-          }
+          // Construire l'URL de deep link pour l'app Wave
+          const waveAppUrl = `wave://pay?amount=${amount}`;
+          
+          console.log('🔗 Trying Wave app deep link:', waveAppUrl);
+          
+          // Essayer d'ouvrir l'app Wave directement
+          window.location.href = waveAppUrl;
+          
+          // ✅ FALLBACK: Si l'app ne s'ouvre pas, essayer le lien web après 2 secondes
+          setTimeout(() => {
+            console.log('⚠️ Fallback: Opening Wave web page');
+            window.open(url, '_blank', 'noopener,noreferrer') || (window.location.href = url);
+          }, 2000);
+          
         } else {
-          // ✅ POUR STRIPE ET AUTRES PAIEMENTS
+          // ✅ DESKTOP : ouvrir dans nouvel onglet
+          console.log('🖥️ Desktop detected, opening in new tab');
           const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-          
           if (!newWindow) {
-            // Si le popup est bloqué, essayer avec location.href
             console.warn('⚠️ Popup blocked, redirecting in same tab');
             window.location.href = url;
           }
         }
-      } catch (error) {
-        console.error('❌ Error opening payment URL:', error);
-        // Fallback: copier l'URL dans le presse-papier
+      } else {
+        // ✅ POUR STRIPE ET AUTRES PAIEMENTS: toujours nouvel onglet
+        console.log('💳 Other payment method, opening in new tab');
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        
+        if (!newWindow) {
+          console.warn('⚠️ Popup blocked, redirecting in same tab');
+          window.location.href = url;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error opening payment URL:', error);
+      // Fallback: copier l'URL dans le presse-papier
+      if (navigator.clipboard) {
         navigator.clipboard.writeText(url).then(() => {
           alert('Lien de paiement copié dans le presse-papier. Collez-le dans votre navigateur.');
         });
+      } else {
+        alert(`Veuillez copier ce lien manuellement: ${url}`);
       }
-    };
+    }
+  };
 
   // Copier le numéro de commande
   const copyOrderId = async () => {
@@ -384,7 +397,7 @@ export default function ChatMessage({
                   
                   const isWaveButton = choice.includes('Wave') || choice.includes('🌊');
                   
-                  // ✅ CORRECTION: Éviter les boutons Wave dupliqués
+                  // ✅ CORRECTION: Éviter les boutons Wave dupliqués et améliorer le style
                   if (isWaveButton) {
                     // Vérifier si on a déjà un lien de paiement Wave
                     if (message.metadata?.paymentUrl && message.metadata.paymentUrl.includes('wave.com')) {
@@ -392,7 +405,7 @@ export default function ChatMessage({
                       return null; // Skip ce bouton car on a déjà le lien Wave
                     }
                     
-                    // Bouton Wave spécial avec logo et couleur
+                    // ✅ BOUTON WAVE AVEC NOUVEAU STYLE ET LOGO
                     return (
                       <motion.button
                         key={index}
@@ -402,15 +415,26 @@ export default function ChatMessage({
                         className="w-full text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3 font-semibold border-none cursor-pointer min-h-[48px]"
                         style={{
                           backgroundColor: '#4BD2FA',
-                          background: 'linear-gradient(135deg, #4BD2FA 0%, #3BC9E8 100%)'
+                          background: 'linear-gradient(135deg, #4BD2FA 0%, #3BC9E8 100%)',
+                          boxShadow: '0 4px 12px rgba(75, 210, 250, 0.3)'
                         }}
                       >
                         <img 
                           src="/images/payments/wave_2.svg" 
                           alt="Wave" 
-                          className="w-5 h-5 flex-shrink-0" 
+                          className="w-6 h-6 flex-shrink-0" 
+                          onError={(e) => {
+                            // Fallback si l'image ne charge pas
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
                         />
-                        <span>{choice.replace(/🌊|Wave/g, '').trim() || 'Payer avec Wave'}</span>
+                        <span className="font-bold tracking-wide">
+                          {choice.replace(/🌊|Wave/g, '').trim() || 'Payer avec Wave'}
+                        </span>
+                        <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center">
+                          <span className="text-xs">→</span>
+                        </div>
                       </motion.button>
                     );
                   }

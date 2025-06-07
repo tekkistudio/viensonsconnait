@@ -1,4 +1,4 @@
-// src/app/chat/payment-canceled/page.tsx - VERSION CORRIGÉE AVEC SUSPENSE
+// src/app/chat/payment-canceled/page.ts
 'use client';
 
 import { Suspense } from 'react';

@@ -1,44 +1,37 @@
-// app/api/chat/route.ts - VERSION CORRIGÉE AVEC MEILLEURE GESTION OPENAI
+// app/api/chat/route.ts - VERSION FINALE CORRIGÉE
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import OpenAI from "openai";
 import { OptimizedChatService } from "@/lib/services/OptimizedChatService";
 import { AIResponseHandler } from "@/lib/services/AIResponseHandler";
+import { RecommendationService } from "@/lib/services/recommendation.service";
+import { ProfileAnalyzer } from "@/lib/services/ProfileAnalyzer";
+import { PromptManager } from "@/lib/services/PromptManager";
 
 import type {
   ConversationStep,
   ChatMessage,
   AIResponse,
   ProductId,
+  ProfileAnalysisResult,
   MessageType,
   CustomerMessage,
   ChatOrderData
 } from '@/types/chat';
 
-// ✅ CORRECTION: Gestion d'erreur OpenAI améliorée
+import type { 
+  OrderData,
+  ProductRecommendation
+} from '@/types/order';
+
+// ✅ CORRECTION: Configuration OpenAI avec GPT-4o
 let openaiClient: OpenAI | null = null;
 
-function initializeOpenAI(): OpenAI | null {
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ OPENAI_API_KEY is not configured');
-    return null;
-  }
-
-  try {
-    return new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      maxRetries: 2,
-      timeout: 30000, // 30 secondes
-    });
-  } catch (error) {
-    console.error('❌ Failed to initialize OpenAI:', error);
-    return null;
-  }
-}
-
-// Initialiser OpenAI au démarrage
-if (!openaiClient) {
-  openaiClient = initializeOpenAI();
+if (!openaiClient && process.env.OPENAI_API_KEY) {
+  openaiClient = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  console.log('✅ OpenAI client initialized with GPT-4o');
 }
 
 const WHATSAPP_LINK = "https://wa.me/221781362728";
@@ -59,68 +52,290 @@ interface ExtendedChatRequest {
   storeId: string;
 }
 
-// ✅ FONCTION UTILITAIRE: Créer une réponse d'erreur standardisée
-function createErrorResponse(
-  message: string = "Je rencontre un problème technique. Voulez-vous réessayer ?",
-  choices: string[] = ["🔄 Réessayer", "📞 Contacter le support"]
-): AIResponse {
-  return {
-    content: `😔 **Problème temporaire**
+class EnhancedAIAssistant {
+  private static instance: EnhancedAIAssistant;
+  private profileAnalyzer: ProfileAnalyzer;
+  private promptManager: PromptManager;
+  private optimizedChatService: OptimizedChatService;
+  private aiResponseHandler: AIResponseHandler;
 
-${message}
+  // Messages libres qui nécessitent l'IA
+  private readonly freeTextPatterns = [
+    /^[^⚡❓📦💬🔄📞].+/,  // Ne commence pas par des émojis de boutons
+    /\?$/,                // Se termine par une question
+    /comment/i,           // Contient "comment"
+    /pourquoi/i,          // Contient "pourquoi"
+    /est-ce que/i,        // Contient "est-ce que"
+    /j'aimerais/i,        // Contient "j'aimerais"
+    /je veux/i,           // Contient "je veux"
+  ];
 
-Notre équipe technique travaille à résoudre cela. Vous pouvez :`,
-    type: "assistant",
-    choices,
-    nextStep: 'error_recovery' as ConversationStep,
-    error: 'technical_error'
-  };
+  private constructor() {
+    this.profileAnalyzer = ProfileAnalyzer.getInstance();
+    this.promptManager = PromptManager.getInstance();
+    this.optimizedChatService = OptimizedChatService.getInstance();
+    this.aiResponseHandler = AIResponseHandler.getInstance();
+  }
+
+  public static getInstance(): EnhancedAIAssistant {
+    if (!EnhancedAIAssistant.instance) {
+      EnhancedAIAssistant.instance = new EnhancedAIAssistant();
+    }
+    return EnhancedAIAssistant.instance;
+  }
+
+  // ✅ MÉTHODE PRINCIPALE CORRIGÉE
+  async generateResponse(
+    message: CustomerMessage,
+    context: {
+      productId: ProductId;
+      currentStep: ConversationStep;
+      orderData?: Partial<ChatOrderData>;
+      sessionId: string;
+      storeId: string;
+    }
+  ): Promise<AIResponse> {
+    try {
+      console.log('🚀 Enhanced AI Processing:', {
+        message: message.content.substring(0, 50),
+        currentStep: context.currentStep,
+        sessionId: context.sessionId
+      });
+
+      // ✅ CORRECTION 1: Redirection immédiate WhatsApp
+      if (message.content.toLowerCase().includes('parler à un humain')) {
+        return {
+          content: "Je vous redirige vers notre service client sur WhatsApp...",
+          type: "assistant",
+          choices: ['📞 WhatsApp (+221 78 136 27 28)'],
+          nextStep: context.currentStep,
+          // Pas de redirectUrl dans AIResponse
+        };
+      }
+
+      // ✅ CORRECTION 2: Détecter si c'est un bouton ou un message libre
+      const isFreeText = this.isFreeTextMessage(message.content);
+      console.log('🤖 Message type:', isFreeText ? 'FREE_TEXT' : 'BUTTON_CHOICE');
+
+      // ✅ CORRECTION 3: Gestion des commandes express
+      if (message.content.includes('Commander rapidement') || message.content.includes('⚡')) {
+        console.log('🚀 Starting express purchase via Enhanced AI');
+        const expressResponse = await this.optimizedChatService.startExpressPurchase(
+          context.sessionId, 
+          context.productId
+        );
+        return this.convertChatMessageToAIResponse(expressResponse, context.currentStep);
+      }
+
+      // ✅ CORRECTION 4: Gestion des étapes express
+      if (context.currentStep?.includes('express')) {
+        console.log('🔄 Processing express step via Enhanced AI:', context.currentStep);
+        const expressResponse = await this.optimizedChatService.handleExpressStep(
+          context.sessionId,
+          message.content,
+          context.currentStep
+        );
+        return this.convertChatMessageToAIResponse(expressResponse, context.currentStep);
+      }
+
+      // ✅ CORRECTION 5: Messages libres → IA GPT-4o
+      if (isFreeText) {
+        console.log('🤖 Processing free text with GPT-4o:', message.content);
+        return await this.handleFreeTextWithAI(message, context);
+      }
+
+      // ✅ CORRECTION 6: Boutons prédéfinis
+      const aiContext = {
+        productId: context.productId,
+        productName: await this.getProductName(context.productId),
+        sessionId: context.sessionId,
+        isExpressMode: false,
+        currentStep: context.currentStep,
+        userMessage: message.content,
+        conversationHistory: []
+      };
+
+      const aiResponse = await this.aiResponseHandler.handleFreeTextMessage(aiContext);
+      return this.convertChatMessageToAIResponse(aiResponse, context.currentStep);
+
+    } catch (error) {
+      console.error('❌ Enhanced AI Error:', error);
+      return this.createErrorResponse(error);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Détecter les messages libres
+  private isFreeTextMessage(content: string): boolean {
+    const predefinedChoices = [
+      'Commander rapidement', 'Poser une question', 'Infos livraison',
+      'En savoir plus', 'Comment y jouer', 'Quels bénéfices', 'Avis clients',
+      'Voir les témoignages', 'Parler à un humain', 'C\'est pour qui'
+    ];
+
+    // Si c'est un choix prédéfini, ce n'est pas du texte libre
+    if (predefinedChoices.some(choice => content.includes(choice))) {
+      return false;
+    }
+
+    // Vérifier les patterns de texte libre
+    return this.freeTextPatterns.some(pattern => pattern.test(content));
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Traitement IA GPT-4o pour texte libre
+  private async handleFreeTextWithAI(
+    message: CustomerMessage,
+    context: {
+      productId: ProductId;
+      currentStep: ConversationStep;
+      orderData?: Partial<ChatOrderData>;
+      sessionId: string;
+      storeId: string;
+    }
+  ): Promise<AIResponse> {
+    try {
+      if (!openaiClient) {
+        throw new Error('OpenAI client not initialized');
+      }
+
+      // Récupérer les infos produit
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('id, name, price, description, game_rules, chatbot_variables')
+        .eq('id', context.productId)
+        .single();
+
+      if (error || !product) {
+        throw new Error(`Product ${context.productId} not found`);
+      }
+
+      // ✅ PROMPT AMÉLIORÉ POUR GPT-4o
+      const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, experte en jeux de cartes relationnels.
+
+PRODUIT ACTUEL :
+- Nom : ${product.name}
+- Prix : ${product.price.toLocaleString()} FCFA
+- Description : ${product.description || 'Jeu de cartes pour renforcer les relations'}
+
+TON RÔLE :
+1. Répondre naturellement aux questions sur le jeu
+2. Guider vers l'achat de manière bienveillante
+3. Rassurer sur la qualité et l'efficacité
+4. Créer l'envie et l'urgence d'acheter
+
+RÈGLES DE RÉPONSE :
+- Maximum 3-4 phrases courtes
+- Toujours finir par une question ouverte
+- Proposer 3 boutons dont "⚡ Commander maintenant"
+- Être chaleureuse et persuasive
+- Utiliser des émojis avec modération
+
+CONTEXTE CONVERSATION :
+- Étape : ${context.currentStep}
+- Message client : "${message.content}"
+
+FORMAT JSON REQUIS :
+{
+  "message": "Ta réponse naturelle et engageante",
+  "choices": ["⚡ Commander maintenant", "Autre choix pertinent", "Troisième option"],
+  "nextStep": "étape_suivante",
+  "buyingIntent": 0.8
+}`;
+
+      console.log('🤖 Sending to GPT-4o...');
+
+      const completion = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message.content }
+        ],
+        temperature: 0.7,
+        max_tokens: 400,
+        response_format: { type: "json_object" }
+      });
+
+      const aiResponse = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      
+      console.log('✅ GPT-4o response received:', aiResponse);
+
+      return {
+        content: aiResponse.message || "Je suis là pour vous aider ! Que puis-je vous expliquer sur notre jeu ?",
+        type: "assistant",
+        choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question", "📞 Parler à un humain"],
+        nextStep: aiResponse.nextStep || context.currentStep,
+        buyingIntent: aiResponse.buyingIntent || 0.5
+      };
+
+    } catch (error) {
+      console.error('❌ GPT-4o processing error:', error);
+      
+      // Fallback intelligent
+      return {
+        content: `Merci pour votre question ! Je vois que vous vous intéressez à notre jeu **${await this.getProductName(context.productId)}**. C'est un excellent choix ! Que puis-je vous expliquer en détail ?`,
+        type: "assistant",
+        choices: [
+          "⚡ Commander maintenant",
+          "❓ Comment ça marche ?",
+          "⭐ Voir les avis clients"
+        ],
+        nextStep: context.currentStep,
+        buyingIntent: 0.6
+      };
+    }
+  }
+
+  // ✅ MÉTHODES UTILITAIRES AMÉLIORÉES
+  private convertChatMessageToAIResponse(
+    chatMessage: ChatMessage, 
+    fallbackStep: ConversationStep
+  ): AIResponse {
+    const responseType: 'assistant' | 'user' = 
+      chatMessage.type === 'redirect' ? 'assistant' : 
+      (chatMessage.type as 'assistant' | 'user');
+
+    return {
+      content: chatMessage.content,
+      type: responseType,
+      choices: chatMessage.choices || [],
+      nextStep: chatMessage.metadata?.nextStep || fallbackStep,
+      buyingIntent: chatMessage.metadata?.buyingIntent,
+      recommendations: chatMessage.metadata?.recommendations,
+      error: chatMessage.metadata?.error
+    };
+  }
+
+  private async getProductName(productId: string): Promise<string> {
+    try {
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('name')
+        .eq('id', productId)
+        .single();
+
+      return product?.name || 'notre jeu';
+    } catch (error) {
+      console.error('Error fetching product name:', error);
+      return 'notre jeu';
+    }
+  }
+
+  private createErrorResponse(error: any): AIResponse {
+    console.error('Creating error response for:', error);
+    
+    return {
+      content: "Je rencontre un petit problème technique. Voulez-vous réessayer ou parler à un conseiller ?",
+      type: 'assistant',
+      choices: ["🔄 Réessayer", "📞 Contacter le support", "⚡ Commander quand même"],
+      nextStep: 'error_recovery' as ConversationStep,
+      error: 'AI_ERROR'
+    };
+  }
 }
 
-// ✅ FONCTION: Valider la requête
-function validateChatRequest(requestData: any): { isValid: boolean; error?: string } {
-  if (!requestData.message || typeof requestData.message !== 'string') {
-    return { isValid: false, error: 'Message requis' };
-  }
-
-  if (!requestData.productId || typeof requestData.productId !== 'string') {
-    return { isValid: false, error: 'ProductId requis' };
-  }
-
-  if (!requestData.sessionId || typeof requestData.sessionId !== 'string') {
-    return { isValid: false, error: 'SessionId requis' };
-  }
-
-  return { isValid: true };
-}
-
-// ✅ FONCTION PRINCIPALE CORRIGÉE
+// ✅ FONCTION POST PRINCIPALE
 export async function POST(req: Request) {
   try {
-    console.log('📨 API Chat: Nouvelle requête reçue');
-
-    // Parse et validation de la requête
-    let requestData: ExtendedChatRequest;
-    try {
-      requestData = await req.json();
-    } catch (parseError) {
-      console.error('❌ Erreur parsing JSON:', parseError);
-      return NextResponse.json(
-        createErrorResponse("Format de requête invalide"),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // Validation des données
-    const validation = validateChatRequest(requestData);
-    if (!validation.isValid) {
-      console.error('❌ Validation échouée:', validation.error);
-      return NextResponse.json(
-        createErrorResponse(validation.error || "Données invalides"),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
+    const requestData: ExtendedChatRequest = await req.json();
     const { 
       message, 
       productId, 
@@ -130,173 +345,56 @@ export async function POST(req: Request) {
       storeId 
     } = requestData;
 
-    console.log('📝 Données validées:', {
-      message: message.substring(0, 50) + '...',
+    console.log('📨 Enhanced API Request:', {
+      message: message.substring(0, 50),
       productId,
       currentStep,
-      sessionId
+      sessionId: sessionId.substring(0, 10) + '...'
     });
 
-    // ✅ CORRECTION: Vérification OpenAI avant utilisation
-    if (!openaiClient) {
-      console.error('❌ OpenAI client not available');
-      return NextResponse.json(
-        createErrorResponse(
-          "Service IA temporairement indisponible. Veuillez réessayer dans quelques instants.",
-          ["🔄 Réessayer", "📞 Contacter le support", "💬 Parler à un humain"]
-        ),
-        { status: 503, headers: corsHeaders }
-      );
-    }
-
-    // Redirection directe vers WhatsApp si demandé
-    if (message.toLowerCase().includes('parler à un humain') || 
-        message.toLowerCase().includes('contacter le support')) {
+    // ✅ VALIDATION STRICTE
+    if (!message || !productId || !sessionId) {
       return NextResponse.json({
-        content: "Je vous redirige vers notre service client sur WhatsApp...",
+        content: "Paramètres manquants dans la requête",
         type: "assistant",
-        redirectUrl: WHATSAPP_LINK,
-        choices: [],
-        nextStep: currentStep
-      }, { headers: corsHeaders });
+        choices: ["🔄 Réessayer"],
+        nextStep: "error_recovery",
+        error: "MISSING_PARAMETERS"
+      }, { status: 400, headers: corsHeaders });
     }
 
-    // ✅ CORRECTION: Traitement via OptimizedChatService avec gestion d'erreur
-    try {
-      const optimizedService = OptimizedChatService.getInstance();
-      
-      // Vérifier si c'est une commande express
-      if (message.includes('Commander rapidement') || message.includes('⚡')) {
-        console.log('🚀 Démarrage commande express');
-        
-        const expressResponse = await optimizedService.startExpressPurchase(
-          sessionId, 
-          productId
-        );
-        
-        console.log('✅ Réponse express générée');
-        return NextResponse.json(expressResponse, { headers: corsHeaders });
+    // ✅ TRAITEMENT VIA ENHANCED AI
+    const enhancedAI = EnhancedAIAssistant.getInstance();
+    const aiResponse = await enhancedAI.generateResponse(
+      { content: message, type: 'user' },
+      {
+        productId,
+        currentStep: currentStep as ConversationStep,
+        orderData,
+        sessionId,
+        storeId: storeId || ''
       }
+    );
 
-      // Vérifier si nous sommes dans un flow express
-      if (currentStep?.includes('express')) {
-        console.log('🔄 Traitement étape express:', currentStep);
-        
-        const expressResponse = await optimizedService.handleExpressStep(
-          sessionId,
-          message,
-          currentStep
-        );
-        
-        console.log('✅ Étape express traitée');
-        return NextResponse.json(expressResponse, { headers: corsHeaders });
-      }
+    console.log('✅ Enhanced API Response:', {
+      type: aiResponse.type,
+      nextStep: aiResponse.nextStep,
+      hasChoices: !!aiResponse.choices?.length,
+      contentLength: aiResponse.content.length
+    });
 
-      // ✅ CORRECTION MAJEURE: Traitement des messages libres avec IA
-      console.log('🤖 Traitement message libre avec IA');
-      
-      // Vérifier si le message contient des choix prédéfinis
-      const predefinedChoices = [
-        'Je veux l\'acheter maintenant',
-        'Je veux voir les témoignages',
-        'Comment y jouer ?',
-        'Je veux en savoir plus',
-        'Voir la description du jeu',
-        'Voir les témoignages',
-        'Parler à un humain',
-        'Poser une question',
-        'Comment ça marche',
-        'C\'est pour qui',
-        'Quels bénéfices',
-        'Avis clients',
-        'Infos livraison',
-        'En savoir plus'
-      ];
-
-      const isPredefinedChoice = predefinedChoices.some(choice => 
-        message.includes(choice)
-      );
-
-      if (isPredefinedChoice) {
-        console.log('🔘 Traitement choix prédéfini');
-        
-        const choiceResponse = await optimizedService.handlePredefinedChoice(
-          sessionId,
-          message,
-          productId
-        );
-        
-        console.log('✅ Choix prédéfini traité');
-        return NextResponse.json(choiceResponse, { headers: corsHeaders });
-      }
-
-      // ✅ NOUVEAU: Message libre - utiliser l'IA
-      console.log('🧠 Traitement message libre avec IA avancée');
-      
-      try {
-        const aiResponse = await optimizedService.processUserInput(
-          sessionId,
-          message,
-          currentStep
-        );
-        
-        console.log('✅ IA: Réponse générée avec succès');
-        return NextResponse.json(aiResponse, { headers: corsHeaders });
-        
-      } catch (aiError) {
-        console.error('❌ Erreur IA:', aiError);
-        
-        // ✅ GESTION SPÉCIFIQUE DES ERREURS OPENAI
-        let errorMessage = "Erreur de traitement du message";
-        let errorChoices = ["🔄 Réessayer", "📞 Contacter le support"];
-        
-        if (aiError instanceof Error) {
-          if (aiError.message.includes('429')) {
-            errorMessage = "Trop de demandes simultanées. Veuillez patienter quelques secondes.";
-            errorChoices = ["⏰ Attendre et réessayer", "📞 Contacter le support"];
-          } else if (aiError.message.includes('quota')) {
-            errorMessage = "Service IA temporairement surchargé. Essayez dans quelques minutes.";
-            errorChoices = ["⏰ Réessayer plus tard", "📞 Contacter le support"];
-          } else if (aiError.message.includes('timeout')) {
-            errorMessage = "Délai d'attente dépassé. Veuillez réessayer.";
-          }
-        }
-        
-        return NextResponse.json(
-          createErrorResponse(errorMessage, errorChoices),
-          { status: 503, headers: corsHeaders }
-        );
-      }
-
-    } catch (serviceError) {
-      console.error('❌ Erreur OptimizedChatService:', serviceError);
-      
-      return NextResponse.json(
-        createErrorResponse(
-          "Erreur lors du traitement de votre demande. Nos équipes sont notifiées.",
-          ["🔄 Réessayer", "📞 Contacter le support", "💬 Parler à un humain"]
-        ),
-        { status: 500, headers: corsHeaders }
-      );
-    }
+    return NextResponse.json(aiResponse, { headers: corsHeaders });
 
   } catch (error) {
-    console.error("❌ Erreur API générale:", error);
+    console.error("❌ Enhanced API Error:", error);
     
-    // Log détaillé pour debug
-    console.error("Détails de l'erreur:", {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      timestamp: new Date().toISOString()
-    });
-    
-    return NextResponse.json(
-      createErrorResponse(
-        "Erreur système. Nos équipes techniques sont notifiées.",
-        ["🔄 Réessayer", "📞 Contacter le support", "💬 WhatsApp"]
-      ),
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({
+      content: "Je suis désolée, je rencontre un problème technique. Voulez-vous réessayer ?",
+      type: "assistant",
+      choices: ["🔄 Réessayer", "📞 Contacter le support"],
+      nextStep: "error_recovery",
+      error: "SERVER_ERROR"
+    }, { status: 500, headers: corsHeaders });
   }
 }
 

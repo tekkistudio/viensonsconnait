@@ -59,6 +59,7 @@ export type ConversationStep =
   | 'product_question'
   | 'target_audience'
   | 'game_rules'
+  | 'game_rules_shown'
   | 'usage_explained'
   | 'benefits_presented'
   | 'question_mode'
@@ -111,6 +112,8 @@ export type ConversationStep =
   | 'express_summary'
   | 'express_modify'
   | 'express_error'
+  | 'quantity_confirmed'
+  | 'quantity_selected'
   
   // ✅ ÉTAPES DE COLLECTE D'INFORMATIONS STANDARD
   | 'collect_quantity'
@@ -165,9 +168,11 @@ export type ConversationStep =
   | 'payment_processing'
   | 'payment_complete'
   | 'payment_error'
+  | 'wave_payment_process'
   
   // ✅ ÉTAPES POST-ACHAT
   | 'order_complete'
+  | 'order_details_shown'
   | 'post_purchase'
   | 'post_purchase_options'
   | 'order_tracking'
@@ -228,6 +233,16 @@ export interface MessageFlags {
   outOfStock?: boolean;
   isWelcome?: boolean;
   cityPreselected?: string;
+  quantitySelection?: boolean;
+  quantityModified?: boolean;
+  phoneValidationError?: boolean;
+  phoneValidated?: boolean;
+  newCustomer?: boolean;
+  allowAddressChange?: boolean;
+  cartCleared?: boolean;
+  productUnavailable?: boolean;
+  wavePayment?: boolean;
+  paymentValidated?: boolean;
   
   // Flags de l'ancien système
   inPurchaseFlow?: boolean;
@@ -243,7 +258,6 @@ export interface MessageFlags {
   paymentConfirmed?: boolean;
   accountCreationSkipped?: boolean;
   existingCustomerFound?: boolean;
-  newCustomer?: boolean;
   accountCreated?: boolean;
   emailRequested?: boolean;
   surveyCompleted?: boolean;
@@ -259,6 +273,20 @@ export interface MessageFlags {
   cityCollected?: boolean;
   addressCollected?: boolean;
   modificationRequested?: boolean;
+  
+  // ✅ AJOUT: Nouveaux flags pour l'IA
+  contextualResponse?: boolean;
+  persuasionMode?: boolean;
+  knowledgeCategory?: string;
+  userIntent?: string;
+  gameRulesShown?: boolean;
+  socialProofShown?: boolean;
+  objectionRaised?: boolean;
+  usageExplained?: boolean;
+  priceExplained?: boolean;
+  questionMode?: boolean;
+  supportMode?: boolean;
+  freeTextEnabled?: boolean;
   
   [key: string]: boolean | string | undefined; 
 }
@@ -475,7 +503,7 @@ export interface FormattedPhone {
 }
 
 // ==========================================
-// RÉPONSES IA
+// RÉPONSES IA - ✅ CORRIGÉE
 // ==========================================
 
 export interface AIResponse {
@@ -486,6 +514,7 @@ export interface AIResponse {
   recommendations?: any[];
   buyingIntent?: number;
   error?: string;
+  // ✅ AJOUT: Types pour le dashboard
   insights?: string[];
   actions?: string[];
   suggestions?: string[];
@@ -669,6 +698,17 @@ export interface RecommendationContext {
     totalSpent: number;
     lastPurchaseDate?: string;
   };
+}
+
+// ✅ AJOUT: Types manquants pour les services
+export interface ProductRecommendation {
+  id: string;
+  name: string;
+  price: number;
+  confidence: number;
+  reason: string;
+  imageUrl?: string;
+  description?: string;
 }
 
 // Interface pour l'analyse de profil

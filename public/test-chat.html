@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat IA - VIENS ON S'CONNAÎT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #FF7E93;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #FF6B9D;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            border-left: 4px solid #FF7E93;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Test du Chat IA - VIENS ON S'CONNAÎT</h1>
+        
+        <div class="test-section">
+            <h2>🔍 Test 1: Connexion OpenAI</h2>
+            <button onclick="testOpenAI()">Tester OpenAI GPT-4o</button>
+            <div id="openai-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>💰 Test 2: Conversion FCFA → EUR</h2>
+            <button onclick="testConversion()">Tester la conversion</button>
+            <div id="conversion-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🤖 Test 3: Chat IA (Questions libres)</h2>
+            <input type="text" id="custom-message" placeholder="Tapez votre question libre ici..." value="Est-ce que le jeu fonctionne vraiment pour améliorer les relations ?">
+            <button onclick="testChat()">Tester avec l'IA</button>
+            <div id="chat-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Test 4: Questions prédéfinies</h2>
+            <button onclick="testPredefined('Comment y jouer ?')">Comment y jouer ?</button>
+            <button onclick="testPredefined('Quels bénéfices ?')">Quels bénéfices ?</button>
+            <button onclick="testPredefined('⚡ Commander rapidement')">Commander rapidement</button>
+            <div id="predefined-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = window.location.origin;
+
+        async function testOpenAI() {
+            const resultDiv = document.getElementById('openai-result');
+            resultDiv.innerHTML = '🔄 Test en cours...';
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/test-openai`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="result success">
+                        ✅ <strong>OpenAI connecté avec succès!</strong><br>
+                        Modèle: ${data.model}<br>
+                        Réponse: "${data.message}"<br>
+                        Tokens utilisés: ${data.usage.total_tokens}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+                        ❌ <strong>Erreur OpenAI:</strong><br>
+                        ${data.error}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Erreur réseau: ${error.message}</div>`;
+            }
+        }
+
+        async function testConversion() {
+            const resultDiv = document.getElementById('conversion-result');
+            resultDiv.innerHTML = '🔄 Test en cours...';
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/test-conversion?amount=28000`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="result success">
+                        ✅ <strong>Conversion corrigée!</strong><br>
+                        ${data.testedAmount.formatted}<br>
+                        Pour Stripe: ${data.testedAmount.eurCentimes} centimes<br>
+                        Taux officiel: 1 EUR = ${data.officialRate} XOF
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function testChat() {
+            const message = document.getElementById('custom-message').value;
+            const resultDiv = document.getElementById('chat-result');
+            resultDiv.innerHTML = '🔄 Test de l\'IA en cours...';
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/test-chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        productId: "9657fe13-1686-4453-88e4-af4449b3e2ef"
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.chatResponse) {
+                    const chatResp = data.chatResponse;
+                    resultDiv.innerHTML = `<div class="result success">
+                        ✅ <strong>IA répond avec succès!</strong><br>
+                        <strong>Question:</strong> "${data.testMessage}"<br>
+                        <strong>Réponse:</strong> "${chatResp.content}"<br>
+                        <strong>Choix proposés:</strong> ${chatResp.choices ? chatResp.choices.join(', ') : 'Aucun'}<br>
+                        <strong>Prochaine étape:</strong> ${chatResp.nextStep}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+                        ❌ <strong>Erreur Chat IA:</strong><br>
+                        ${JSON.stringify(data, null, 2)}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function testPredefined(choice) {
+            const resultDiv = document.getElementById('predefined-result');
+            resultDiv.innerHTML = `🔄 Test "${choice}" en cours...`;
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/test-chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: choice,
+                        productId: "9657fe13-1686-4453-88e4-af4449b3e2ef"
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const chatResp = data.chatResponse;
+                    resultDiv.innerHTML = `<div class="result success">
+                        ✅ <strong>Bouton "${choice}" fonctionne!</strong><br>
+                        <strong>Réponse:</strong> "${chatResp.content.substring(0, 150)}..."<br>
+                        <strong>Choix proposés:</strong> ${chatResp.choices ? chatResp.choices.join(', ') : 'Aucun'}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Erreur: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-test au chargement
+        window.onload = function() {
+            console.log('🧪 Page de test chargée. Testez les différentes fonctionnalités.');
+        };
+    </script>
+</body>
+</html>

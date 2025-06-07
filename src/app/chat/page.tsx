@@ -1,4 +1,4 @@
-// src/app/chat/page.tsx - VERSION CORRIGÉE AVEC SUSPENSE
+// src/app/chat/page.tsx 
 'use client';
 
 import { Suspense } from 'react';

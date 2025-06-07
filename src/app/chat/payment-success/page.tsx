@@ -1,4 +1,4 @@
-// src/app/chat/payment-success/page.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/app/chat/payment-success/page.tsx 
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';

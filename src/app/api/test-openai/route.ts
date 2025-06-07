@@ -1,91 +1,56 @@
-// src/app/api/test-openai/route.ts - ROUTE DE TEST
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+// src/app/api/test-openai/route.ts
+import { NextResponse } from "next/server";
+import OpenAI from "openai";
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 Testing OpenAI connection...');
     
-    // Vérifier que la clé API est présente
-    const apiKey = process.env.OPENAI_API_KEY;
-    console.log('🔑 API Key status:', apiKey ? 'Present' : 'Missing');
-    console.log('🔑 API Key prefix:', apiKey ? apiKey.substring(0, 20) + '...' : 'None');
-    
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY is not configured' },
-        { status: 500 }
-      );
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({
+        success: false,
+        error: 'OPENAI_API_KEY not found in environment variables'
+      }, { status: 500 });
     }
 
-    // Initialiser OpenAI
     const openai = new OpenAI({
-      apiKey: apiKey,
+      apiKey: process.env.OPENAI_API_KEY
     });
 
-    console.log('🤖 OpenAI client initialized, testing connection...');
-
-    // Test simple avec un message court
+    // Test simple avec GPT-4o
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "Tu es Rose, vendeuse de jeux de cartes. Réponds brièvement."
+          content: "Tu es un assistant test. Réponds simplement 'Test réussi!' si tu reçois ce message."
         },
         {
-          role: "user",
-          content: "Dis juste 'Bonjour, je suis Rose !'"
+          role: "user", 
+          content: "Test de connexion"
         }
       ],
       max_tokens: 50,
-      temperature: 0.7,
+      temperature: 0
     });
 
-    console.log('✅ OpenAI response received:', completion.choices[0]?.message);
+    console.log('✅ OpenAI test successful:', completion.choices[0]?.message?.content);
 
     return NextResponse.json({
       success: true,
-      response: completion.choices[0]?.message?.content,
-      usage: completion.usage,
-      model: completion.model
+      message: completion.choices[0]?.message?.content,
+      model: "gpt-4o",
+      usage: completion.usage
     });
 
-  } catch (error) {
-    console.error('❌ OpenAI Test Error:', error);
+  } catch (error: any) {
+    console.error('❌ OpenAI test failed:', error);
     
-    let errorMessage = 'Unknown error';
-    let errorCode = 'UNKNOWN';
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      
-      // Analyser les types d'erreurs OpenAI
-      if (error.message.includes('API key')) {
-        errorCode = 'INVALID_API_KEY';
-      } else if (error.message.includes('quota')) {
-        errorCode = 'QUOTA_EXCEEDED';
-      } else if (error.message.includes('network') || error.message.includes('connection')) {
-        errorCode = 'NETWORK_ERROR';
-      } else if (error.message.includes('timeout')) {
-        errorCode = 'TIMEOUT';
-      }
-    }
-
-    return NextResponse.json(
-      { 
-        success: false,
-        error: errorMessage,
-        errorCode,
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      type: error.type || 'unknown_error',
+      code: error.code || 'unknown_code'
+    }, { status: 500 });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ 
-    message: 'OpenAI Test Endpoint - Use POST to test the connection' 
-  });
 }
