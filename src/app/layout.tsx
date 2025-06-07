@@ -16,8 +16,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'VIENS ON S\'CONNAÎT - Des jeux de cartes pour tisser des liens plus forts',
-  description: 'Découvrez nos jeux de société conçus pour renforcer vos relations avec votre partenaire, votre famille, vos amis, vos collègues, etc.',
+  title: 'VIENS ON S\'CONNAÎT - Des jeux de cartes pour tisser des liens plus forts avec vos proches',
+  description: 'Découvrez nos jeux de cartes conçus pour renforcer vos relations avec votre partenaire, votre famille, vos amis, vos collègues, etc.',
 }
 
 export default function RootLayout({

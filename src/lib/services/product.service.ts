@@ -1,38 +1,11 @@
 // src/lib/services/product.service.ts
 import { supabase } from '@/lib/supabase';
-import type { Product, ProductMedia, CloudinaryImage } from '@/types/product';
+import type { Product, ProductMedia, CloudinaryImage, DatabaseProduct } from '@/types/product';
 
 const FALLBACK_IMAGE = {
   url: 'https://res.cloudinary.com/dq6pustuw/image/upload/v1738642238/products/placeholder.jpg',
   publicId: 'products/placeholder'
 };
-
-interface DatabaseProduct {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  compare_at_price?: number;
-  status: string;
-  metadata?: {
-    category?: string;
-    players?: string;
-    duration?: string;
-    language?: string;
-    min_age?: number;
-    stats?: {
-      sold?: number;
-      satisfaction?: number;
-      reviews?: number;
-    };
-    benefits?: string[];
-    topics?: string[];
-    howToPlay?: string;
-    testimonials?: string;
-    images?: CloudinaryImage[];
-  };
-  created_at: string;
-}
 
 export class ProductService {
   private getProductImages(metadata?: DatabaseProduct['metadata']): {
@@ -91,6 +64,7 @@ export class ProductService {
         duration: metadata.duration || '30-60 minutes',
         language: metadata.language || 'Français',
         min_age: metadata.min_age || 18,
+        display_order: metadata.display_order || dbProduct.display_order,
         stats: {
           sold: metadata.stats?.sold || 0,
           satisfaction: metadata.stats?.satisfaction || 98,
@@ -115,8 +89,26 @@ export class ProductService {
           text: '-15%'
         }
       ] : [],
-      createdAt: dbProduct.created_at
+      createdAt: dbProduct.created_at,
+      status: dbProduct.status,
+      display_order: dbProduct.display_order || metadata.display_order
     };
+  }
+
+  // ✅ CORRECTION : Méthode utilitaire pour trier les produits côté client
+  private sortProductsByDisplayOrder(products: DatabaseProduct[]): DatabaseProduct[] {
+    return products.sort((a, b) => {
+      // Les produits avec display_order null vont à la fin
+      const orderA = a.display_order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.display_order ?? Number.MAX_SAFE_INTEGER;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // Si même display_order, trier par date de création (plus récent en premier)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }
 
   async getProductBySlug(slug: string): Promise<Product | null> {
@@ -148,7 +140,10 @@ export class ProductService {
       
       if (error) throw error;
       
-      return (data || []).map(product => 
+      // ✅ CORRECTION : Tri côté client pour gérer les valeurs nulles
+      const sortedProducts = this.sortProductsByDisplayOrder(data || []);
+      
+      return sortedProducts.map(product => 
         this.mapDatabaseProductToProduct(product as DatabaseProduct)
       );
     } catch (error) {
@@ -197,12 +192,15 @@ export class ProductService {
         return [];
       }
 
-      let relatedProducts = allProducts.filter(product => 
+      // ✅ CORRECTION : Tri côté client
+      const sortedProducts = this.sortProductsByDisplayOrder(allProducts);
+
+      let relatedProducts = sortedProducts.filter(product => 
         product.metadata?.category === category
       );
 
       if (relatedProducts.length < 3) {
-        const otherProducts = allProducts
+        const otherProducts = sortedProducts
           .filter(product => product.metadata?.category !== category)
           .sort(() => 0.5 - Math.random());
 
@@ -219,6 +217,156 @@ export class ProductService {
     } catch (error) {
       console.error('Unexpected error in getRelatedProducts:', error);
       return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour mettre à jour l'ordre d'affichage
+  async updateProductDisplayOrder(productId: string, displayOrder: number): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ display_order: displayOrder })
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Error updating product display order:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateProductDisplayOrder:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour mettre à jour un produit (pour l'admin)
+  async updateProduct(productId: string, updates: Partial<DatabaseProduct>): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Error updating product:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateProduct:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour obtenir tous les produits (y compris inactifs) pour l'admin
+  async getAllProductsForAdmin(): Promise<Product[]> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // ✅ CORRECTION : Tri côté client pour l'admin aussi
+      const sortedProducts = this.sortProductsByDisplayOrder(data || []);
+      
+      return sortedProducts.map(product => 
+        this.mapDatabaseProductToProduct(product as DatabaseProduct)
+      );
+    } catch (error) {
+      console.error('Error fetching all products for admin:', error);
+      return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour obtenir les produits par catégorie
+  async getProductsByCategory(category: string): Promise<Product[]> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'active');
+      
+      if (error) throw error;
+      
+      const filteredProducts = (data || []).filter(product => 
+        product.metadata?.category === category
+      );
+      
+      const sortedProducts = this.sortProductsByDisplayOrder(filteredProducts);
+      
+      return sortedProducts.map(product => 
+        this.mapDatabaseProductToProduct(product as DatabaseProduct)
+      );
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour rechercher des produits
+  async searchProducts(query: string): Promise<Product[]> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'active')
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+      
+      if (error) throw error;
+      
+      const sortedProducts = this.sortProductsByDisplayOrder(data || []);
+      
+      return sortedProducts.map(product => 
+        this.mapDatabaseProductToProduct(product as DatabaseProduct)
+      );
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour obtenir les statistiques des produits
+  async getProductStats(): Promise<{
+    totalProducts: number;
+    activeProducts: number;
+    inactiveProducts: number;
+    averagePrice: number;
+  }> {
+    try {
+      const { data: allProducts, error: allError } = await supabase
+        .from('products')
+        .select('price, status');
+
+      if (allError) throw allError;
+
+      const totalProducts = allProducts?.length || 0;
+      const activeProducts = allProducts?.filter(p => p.status === 'active').length || 0;
+      const inactiveProducts = totalProducts - activeProducts;
+      
+      const averagePrice = totalProducts > 0 
+        ? allProducts.reduce((sum, p) => sum + (p.price || 0), 0) / totalProducts
+        : 0;
+
+      return {
+        totalProducts,
+        activeProducts,
+        inactiveProducts,
+        averagePrice: Math.round(averagePrice)
+      };
+    } catch (error) {
+      console.error('Error getting product stats:', error);
+      return {
+        totalProducts: 0,
+        activeProducts: 0,
+        inactiveProducts: 0,
+        averagePrice: 0
+      };
     }
   }
 }

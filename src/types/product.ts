@@ -18,6 +18,8 @@ export interface ProductMetadata {
   duration: string;
   language: string;
   min_age: number;
+  // ✅ AJOUT : Champ pour gérer l'ordre d'affichage
+  display_order?: number;
   stats?: {
     sold: number;
     satisfaction: number;
@@ -65,6 +67,9 @@ export interface Product {
   };
   badges?: ProductBadge[];
   createdAt: string;
+  // ✅ AJOUT : Propriétés pour le tri et le statut
+  status?: 'active' | 'draft' | 'archived';
+  display_order?: number;
 }
 
 // Interface séparée pour la gestion des métadonnées dans l'admin
@@ -74,6 +79,8 @@ export interface AdminProductMetadata {
   duration?: string;
   language?: string;
   min_age?: number;
+  // ✅ AJOUT : Ordre d'affichage pour l'admin
+  display_order?: number;
   stats?: {
     sold?: number;
     satisfaction?: number;
@@ -99,6 +106,39 @@ export interface AdminProduct {
   game_rules?: string; 
   createdAt?: string;
   updatedAt?: string;
+  // ✅ AJOUT : Ordre d'affichage direct
+  display_order?: number;
+}
+
+// ✅ NOUVEAU : Interface pour les données de base de données
+export interface DatabaseProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  compare_at_price?: number;
+  status: 'active' | 'draft' | 'archived';
+  display_order?: number;
+  metadata?: {
+    category?: string;
+    players?: string;
+    duration?: string;
+    language?: string;
+    min_age?: number;
+    display_order?: number;
+    stats?: {
+      sold?: number;
+      satisfaction?: number;
+      reviews?: number;
+    };
+    benefits?: string[];
+    topics?: string[];
+    howToPlay?: string;
+    testimonials?: string;
+    images?: CloudinaryImage[];
+  };
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface ProductViewStats {

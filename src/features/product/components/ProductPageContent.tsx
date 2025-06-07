@@ -238,7 +238,7 @@ export default function ProductPageContent({ productId, product }: ProductPageCo
                 </div>
                 
                 {/* Description courte et bien formatée */}
-                <div className="text-gray-700 text-sm leading-relaxed">
+                <div className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
                   {product.description 
                     ? product.description.length > 250 
                       ? `${product.description.substring(0, 250).trim()}...`

@@ -15,7 +15,7 @@ import { FAQSection } from './sections/FAQSection';
 
 const HERO_DATA = {
   title: "Tissez des liens plus forts, une carte à la fois",
-  description: "Découvrez nos jeux de société conçus pour renforcer vos relations avec votre partenaire, votre famille, vos amis, vos collègues, etc.",
+  description: "Découvrez nos jeux de cartes conçus pour renforcer vos relations avec votre partenaire, votre famille, vos amis, vos collègues, etc.",
   videoUrl: "https://player.vimeo.com/video/1031269898",
   videoCoverImage: "/images/video-cover.png"
 };

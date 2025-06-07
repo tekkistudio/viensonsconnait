@@ -1,4 +1,4 @@
-// src/features/home/components/sections/ProductsGridSection.tsx - ESPACEMENT CORRIGÉ
+// src/features/home/components/sections/ProductsGridSection.tsx - VERSION AMÉLIORÉE
 "use client";
 
 import { useState, useEffect } from "react";
@@ -32,11 +32,17 @@ export function ProductsGridSection({
         setError(null);
         const data = await productService.getAllProducts();
         
+        let filteredProducts = data;
+        
+        // Filtrer par catégorie si spécifiée
         if (category) {
-          setProducts(data.filter((p: Product) => p.metadata?.category === category));
-        } else {
-          setProducts(data);
+          filteredProducts = data.filter((p: Product) => p.metadata?.category === category);
         }
+        
+        // ✅ NOUVEAU : Tri des produits selon l'ordre d'affichage défini en admin
+        const sortedProducts = sortProductsByDisplayOrder(filteredProducts);
+        
+        setProducts(sortedProducts);
       } catch (err) {
         console.error('Error loading products:', err);
         setError('Erreur lors du chargement des produits');
@@ -47,6 +53,30 @@ export function ProductsGridSection({
 
     loadProducts();
   }, [category]);
+
+  // ✅ CORRECTION : Fonction de tri des produits avec les bons types
+  const sortProductsByDisplayOrder = (products: Product[]) => {
+    return products.sort((a, b) => {
+      // 1. Priorité : display_order (si défini dans l'admin)
+      const orderA = a.display_order ?? a.metadata?.display_order ?? 999;
+      const orderB = b.display_order ?? b.metadata?.display_order ?? 999;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB; // Ordre croissant (1, 2, 3...)
+      }
+      
+      // 2. Si pas de display_order : produits actifs en premier
+      if (a.status !== b.status) {
+        if (a.status === 'active') return -1;
+        if (b.status === 'active') return 1;
+      }
+      
+      // 3. En dernier : tri par date de création (plus récent en premier)
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA; // Plus récent en premier
+    });
+  };
 
   const toggleLayout = () => setLayout(layout === "grid" ? "list" : "grid");
 
@@ -67,16 +97,18 @@ export function ProductsGridSection({
   }
 
   return (
-    /* ✅ CORRECTION: Espacement considérablement réduit sur mobile et desktop */
-    <section className={`w-full pt-6 md:pt-12 pb-8 md:pb-16 ${className}`}>
+    /* ✅ CORRECTION 1: Espacement considérablement réduit sur mobile et desktop */
+    <section className={`w-full pt-3 md:pt-6 pb-8 md:pb-16 ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* ✅ CORRECTION: Marge réduite entre le début de la section et le titre */}
-        <div className="flex items-center justify-between mb-6 md:mb-8">
+        {/* ✅ CORRECTION 1: Marge réduite entre le début de la section et le titre */}
+        <div className="flex items-center justify-between mb-4 md:mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-brand-blue">Nos Jeux</h2>
-          {!isMobile && (
+          
+          {/* ✅ CORRECTION 2: Bouton grid/list visible UNIQUEMENT sur mobile */}
+          {isMobile && (
             <button
               onClick={toggleLayout}
-              className="p-2 rounded-lg hover:bg-gray-100"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               aria-label={`Afficher en ${layout === "grid" ? "liste" : "grille"}`}
             >
               {layout === "grid" ? (
@@ -98,18 +130,18 @@ export function ProductsGridSection({
                 : "grid-cols-1"
             }`}
           >
-            {products.map((product) => (
+            {products.map((product, index) => (
               <ProductCard
                 key={product.id}
                 product={product}
-                priority={true}
+                priority={index < 3} // ✅ AMÉLIORATION : Priority uniquement pour les 3 premiers
                 isMobile={isMobile}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-8 md:py-12 text-gray-500">
-            Aucun jeu disponible
+            {category ? `Aucun jeu disponible dans cette catégorie` : 'Aucun jeu disponible'}
           </div>
         )}
       </div>

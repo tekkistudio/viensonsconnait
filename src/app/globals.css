@@ -499,3 +499,176 @@
   text-overflow: ellipsis;
   word-wrap: break-word;
 }
+
+/* ===== STYLES HEADER ET NAVIGATION ===== */
+@layer components {
+  /* ✅ NOUVEAU : Styles pour le dropdown menu */
+  .dropdown-container {
+    position: relative;
+  }
+  
+  .dropdown-container .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    width: 16rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    z-index: 50;
+    transform-origin: top;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* ✅ NOUVEAU : Animation pour le menu mobile */
+  .mobile-menu-enter {
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  .mobile-menu-exit {
+    animation: slideUp 0.3s ease-in;
+  }
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      max-height: 100vh;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 1;
+      max-height: 100vh;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      max-height: 0;
+      transform: translateY(-10px);
+    }
+  }
+  
+  /* ✅ NOUVEAU : Styles pour les liens de navigation */
+  .nav-link {
+    @apply text-white hover:text-brand-pink transition-colors duration-200;
+  }
+  
+  .nav-link-active {
+    @apply text-brand-pink;
+  }
+  
+  /* ✅ NOUVEAU : Styles pour les sous-menus */
+  .submenu-item {
+    @apply flex items-center gap-3 p-3 text-gray-900 rounded-md hover:bg-gray-50 transition-all duration-200;
+  }
+  
+  .submenu-item:hover {
+    transform: translateX(4px);
+  }
+  
+  .submenu-image {
+    @apply w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 relative;
+  }
+  
+  .submenu-image img {
+    @apply object-cover transition-transform duration-200;
+  }
+  
+  .submenu-item:hover .submenu-image img {
+    transform: scale(1.05);
+  }
+}
+
+/* ===== STYLES RESPONSIVE POUR HEADER ===== */
+@media (max-width: 768px) {
+  /* ✅ CORRECTION : Menu mobile avec hauteur optimisée */
+  .mobile-menu {
+    max-height: 80vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* ✅ NOUVEAU : Padding bottom pour éviter la coupure */
+    padding-bottom: 2rem;
+  }
+  
+  /* ✅ AMÉLIORATION : Styles pour les items du menu mobile */
+  .mobile-menu-item {
+    @apply rounded-lg transition-colors duration-200;
+  }
+  
+  .mobile-menu-item:hover {
+    @apply bg-white/5;
+  }
+  
+  .mobile-nav-link {
+    @apply block text-lg text-white hover:text-brand-pink transition-colors py-3 px-2 rounded-lg;
+  }
+  
+  .mobile-submenu-item {
+    @apply flex items-center gap-3 text-white/80 hover:text-brand-pink transition-colors py-2 px-2 rounded-lg hover:bg-white/5;
+  }
+  
+  /* ✅ NOUVEAU : Amélioration de l'espacement pour éviter la coupure */
+  .mobile-nav-spacing {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+    min-height: auto;
+  }
+  
+  /* ✅ NOUVEAU : Container pour le menu mobile avec height dynamique */
+  .mobile-menu-container {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+  
+  /* ✅ NOUVEAU : Spacing pour le country selector en bas */
+  .mobile-country-selector {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ===== Z-INDEX MANAGEMENT ===== */
+.header-container {
+  z-index: 40;
+}
+
+.dropdown-menu {
+  z-index: 50;
+}
+
+.mobile-menu-overlay {
+  z-index: 45;
+}
+
+.country-selector-modal {
+  z-index: 60;
+}
+
+/* ===== ACCESSIBILITÉ ===== */
+@layer utilities {
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-brand-blue;
+  }
+  
+  .hover-lift {
+    @apply hover:transform hover:-translate-y-0.5 transition-transform duration-200;
+  }
+  
+  .smooth-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}

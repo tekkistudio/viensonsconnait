@@ -33,7 +33,7 @@ export function HeroSection({
       {/* Fond décoratif */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-transparent opacity-10" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-brand-pink/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-brand-pink/50" />
         <svg
           className="absolute right-0 h-full w-1/2 transform translate-x-1/4 opacity-30"
           viewBox="0 0 100 100"
