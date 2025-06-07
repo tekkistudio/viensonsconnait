@@ -75,8 +75,8 @@ export default function Header() {
               <Image 
                 src="/images/logos/logo-white.svg" 
                 alt="VIENS ON S'CONNAÎT"
-                width={140}
-                height={40}
+                width={150}
+                height={50}
                 className="h-10 md:h-12 w-auto"
                 priority
               />

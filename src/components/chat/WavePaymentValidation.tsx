@@ -82,7 +82,7 @@ const WavePaymentValidation: React.FC<WavePaymentValidationProps> = ({
             <div className="text-sm">
               <p className="font-medium text-blue-800 mb-2">Instructions :</p>
               <ol className="text-blue-700 space-y-1 list-decimal list-inside">
-                <li>Effectuez le paiement sur Wave</li>
+                <li>Effectuez le paiement</li>
                 <li>Notez l'ID de transaction (commence par T)</li>
                 <li>Saisissez l'ID ci-dessous pour validation</li>
               </ol>

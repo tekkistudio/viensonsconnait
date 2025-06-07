@@ -512,18 +512,16 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
         type: 'assistant',
         content: `⚡ **Commande Express Activée** ⚡
 
-🎯 **${product.name}**
-💰 ${product.price.toLocaleString()} FCFA l'unité
-📦 Livraison incluse selon votre zone
+Jeu : **${product.name}**
+Prix : ${product.price.toLocaleString()} FCFA l'unité
+Livraison : **incluse selon votre adresse**
 
-**Combien d'exemplaires souhaitez-vous commander ?**
-
-💡 *Vous pouvez commander jusqu'à ${Math.min(product.stock_quantity, 10)} exemplaires*`,
+**Combien d'exemplaires souhaitez-vous commander ?**`,
         choices: [
           '1 exemplaire',
           '2 exemplaires', 
           '3 exemplaires',
-          '🔢 Autre quantité'
+          'Autre quantité'
         ],
         assistant: this.getBotInfo(),
         metadata: {
@@ -619,7 +617,7 @@ Exemple : "Je veux 2 exemplaires" ou "Finalement 3"`,
             '1 exemplaire',
             '2 exemplaires',
             '3 exemplaires',
-            '🔢 Autre quantité'
+            'Autre quantité'
           ],
           assistant: this.getBotInfo(),
           metadata: {
@@ -644,7 +642,7 @@ Veuillez choisir entre 1 et ${maxQuantity} exemplaires.`,
             '1 exemplaire',
             '2 exemplaires',
             '3 exemplaires',
-            '🔢 Autre quantité'
+            'Autre quantité'
           ],
           assistant: this.getBotInfo(),
           metadata: {
@@ -797,12 +795,10 @@ Exemple : "5" ou "5 exemplaires"`,
           type: 'assistant',
           content: `✅ **Quantité confirmée : ${orderState.data.quantity} exemplaire${orderState.data.quantity > 1 ? 's' : ''}**
 
-🎯 **${product.name}**
-💰 ${totalAmount.toLocaleString()} FCFA (${orderState.data.quantity} × ${product.price.toLocaleString()} FCFA)
+Jeu : **${product.name}**
+Prix total : ${totalAmount.toLocaleString()} FCFA (${orderState.data.quantity} × ${product.price.toLocaleString()} FCFA)
 
-Sur quel numéro devons-nous vous joindre pour la livraison ?
-
-💡 *Formats acceptés : +221 77 123 45 67, 77 123 45 67*`,
+Sur quel numéro vous joindre pour la livraison ?`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1020,14 +1016,14 @@ Exemple : +221 77 123 45 67`,
 
         return {
           type: 'assistant',
-          content: `👋 **Ravi de vous revoir ${existingCustomer.first_name || 'cher client'} !**
+          content: `👋 Ravi de vous revoir, **${existingCustomer.first_name || 'cher client'} !**
 
-${countryFlag} **Numéro confirmé :** ${formattedPhone.formatted}
+${countryFlag} Numéro confirmé : **${formattedPhone.formatted}**
 
-📍 **Votre adresse enregistrée :**
-${existingCustomer.address || 'Adresse non renseignée'}, ${existingCustomer.city || 'Ville non renseignée'}
+📍 Votre adresse enregistrée :
+**${existingCustomer.address || 'Adresse non renseignée'}, ${existingCustomer.city || 'Ville non renseignée'}**
 
-Utiliser la même adresse ou en changer ?`,
+Voulez-vous utiliser la même adresse ou la changer ?`,
           choices: [
             '✅ Garder cette adresse', 
             '📍 Changer d\'adresse'
@@ -1138,7 +1134,7 @@ Exemple : "Aminata Diop"`,
 📍 A quelle adresse livrer votre commande ?
 *Format : Adresse, Ville*
 
-Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
+Exemple : "Ouest-Foire, Dakar"`,
         choices: [],
         assistant: this.getBotInfo(),
         metadata: {
@@ -1181,7 +1177,7 @@ ${orderState.data.address}, ${orderState.data.city}
 💳 Comment payez-vous ?`,
           choices: [
             this.createWaveButton(),
-            '💳 Carte bancaire', 
+            '💳 Payer par Carte bancaire', 
             '🛵 Payer à la livraison'
           ],
           assistant: this.getBotInfo(),
@@ -1200,7 +1196,7 @@ ${orderState.data.address}, ${orderState.data.city}
           content: `📍 **Nouvelle adresse de livraison**
 *Format : Adresse, Ville*
 
-Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
+Exemple : "Ouest-Foire, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1219,7 +1215,7 @@ Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
           type: 'assistant',
           content: `❌ Adresse trop courte. Soyez plus précis :
 
-Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
+Exemple : "Ouest-Foire, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1237,7 +1233,7 @@ Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
           type: 'assistant',
           content: `❌ Format incorrect. Utilisez : **Adresse, Ville**
 
-Exemple : "Rue 10 x Rue 15 Médina, Dakar"`,
+Exemple : "Ouest-Foire, Dakar"`,
           choices: [],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1269,7 +1265,7 @@ ${parts[0]}, ${parts[1]}
 💳 Comment payez-vous ?`,
         choices: [
           this.createWaveButton(),
-          '💳 Carte bancaire', 
+          '💳 Payer par Carte bancaire', 
           '🛵 Payer à la livraison'
         ],
         assistant: this.getBotInfo(),
@@ -1289,7 +1285,7 @@ ${parts[0]}, ${parts[1]}
 
   // ✅ NOUVELLE MÉTHODE: Créer le bouton Wave avec logo et couleur
   private createWaveButton(): string {
-    return '🌊 Wave';
+    return 'Payer avec Wave';
   }
 
   private async handleExpressPayment(
@@ -1350,13 +1346,13 @@ ${parts[0]}, ${parts[1]}
 
 🔗 **Étapes :**
 1. Cliquez sur le bouton Wave ci-dessous
-2. Effectuez le paiement sur Wave
+2. Effectuez le paiement
 3. Copiez l'ID de transaction (commence par T)
 4. Revenez ici pour confirmer avec votre ID
 
-👆 Cliquez pour payer avec Wave :`,
+👇🏽 Cliquez pour payer avec Wave :`,
           choices: [
-            `🌊 Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
+            `Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
           ],
           assistant: this.getBotInfo(),
           metadata: {
@@ -1456,9 +1452,8 @@ Je peux répondre à toutes vos questions sur nos jeux, votre commande, ou nos s
 
 Comment puis-je vous aider ?`,
           choices: [
-            '📞 WhatsApp (+221 78 136 27 28)',
-            '📧 Envoyer un email',
-            '❓ Poser ma question ici',
+            '💬 Parler à quelqu\'un',
+            '❓ Poser une question',
             '🔙 Retour au menu'
           ],
           assistant: this.getBotInfo(),
