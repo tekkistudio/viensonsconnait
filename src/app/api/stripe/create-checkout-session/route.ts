@@ -1,17 +1,17 @@
-// src/app/api/stripe/create-checkout-session/route.ts - VERSION CORRIGÉE
+// src/app/api/stripe/create-checkout-session/route.ts - VERSION CORRIGÉE ET SIMPLIFIÉE
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { convertCFAToEUR, debugConversion } from '@/lib/utils/currency';
 
+// ✅ Initialiser Stripe avec version API stable
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia'
+  apiVersion: '2025-02-24.acacia'
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
-      amount, // ✅ Montant en FCFA
+      amount, // Montant en FCFA
       currency = 'eur', 
       orderId, 
       customerName,
@@ -19,40 +19,47 @@ export async function POST(request: NextRequest) {
       cancelUrl 
     } = body;
 
-    console.log('🏦 Stripe session creation request:', { 
+    console.log('🏦 Creating Stripe session:', { 
       originalAmount: amount, 
       currency, 
       orderId 
     });
 
-    // ✅ CORRECTION PRINCIPALE: Conversion FCFA → EUR
-    let finalAmount: number;
-    
-    if (currency === 'eur') {
-      // Si le montant arrive en FCFA, on le convertit
-      if (amount > 1000) { // Probablement en FCFA
-        finalAmount = convertCFAToEUR(amount);
-        console.log(`💱 Converting ${amount} FCFA to ${finalAmount/100}€ (${finalAmount} centimes)`);
-        
-        // ✅ DEBUG pour vérifier la conversion
-        debugConversion(amount);
-      } else {
-        // Le montant est déjà en centimes d'EUR
-        finalAmount = amount;
-      }
-    } else {
-      finalAmount = amount;
-    }
-
-    // Validation du montant minimum Stripe (50 centimes)
-    if (finalAmount < 50) {
+    // ✅ VALIDATION des paramètres obligatoires
+    if (!amount || !orderId) {
       return NextResponse.json(
-        { error: 'Le montant minimum pour Stripe est de 0,50€' },
+        { error: 'Paramètres manquants: amount et orderId requis' },
         { status: 400 }
       );
     }
 
-    // ✅ Créer la session Stripe
+    // ✅ CONVERSION FCFA → EUR (1 EUR ≈ 655 FCFA)
+    let finalAmountInCentimes: number;
+    
+    if (amount > 1000) {
+      // Le montant est probablement en FCFA, on le convertit
+      const FCFA_TO_EUR_RATE = 0.00153; // 1 FCFA = 0.00153 EUR
+      const eurAmount = amount * FCFA_TO_EUR_RATE;
+      finalAmountInCentimes = Math.round(eurAmount * 100); // Convertir en centimes
+      
+      console.log(`💱 Conversion: ${amount} FCFA → ${eurAmount.toFixed(2)} EUR (${finalAmountInCentimes} centimes)`);
+    } else {
+      // Le montant est déjà en centimes d'EUR
+      finalAmountInCentimes = amount;
+    }
+
+    // ✅ VALIDATION du montant minimum Stripe (50 centimes = 0,50€)
+    if (finalAmountInCentimes < 50) {
+      return NextResponse.json(
+        { 
+          error: 'Montant trop faible',
+          details: `Minimum requis: 0,50€. Montant reçu: ${finalAmountInCentimes/100}€`
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ CRÉER la session Stripe
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -60,31 +67,26 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: 'VIENS ON S\'CONNAÎT - Jeu de cartes relationnel',
-              description: `Commande #${orderId}`,
-              images: ['https://your-domain.com/images/product-image.jpg'], // ✅ Ajouter image produit
+              name: 'VIENS ON S\'CONNAÎT - Jeu de cartes',
+              description: `Commande #${orderId} - Jeu pour renforcer les relations`,
             },
-            unit_amount: finalAmount, // ✅ Montant en centimes d'EUR
+            unit_amount: finalAmountInCentimes,
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: successUrl || `${request.nextUrl.origin}/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
-      cancel_url: cancelUrl || `${request.nextUrl.origin}/cancel?order_id=${orderId}`,
+      success_url: successUrl || `${request.nextUrl.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+      cancel_url: cancelUrl || `${request.nextUrl.origin}/payment-cancel?order_id=${orderId}`,
       metadata: {
         orderId: orderId.toString(),
         customerName: customerName || 'Client',
-        source: 'chatbot',
+        source: 'chatbot_viens_on_s_connait',
         originalAmountFCFA: amount.toString()
       },
-      customer_email: undefined, // Permettre à l'utilisateur de saisir son email
-      billing_address_collection: 'required',
-      shipping_address_collection: {
-        allowed_countries: ['SN', 'CI', 'FR', 'BE', 'CH', 'CA'], // ✅ Pays supportés
-      },
+      billing_address_collection: 'auto',
       payment_intent_data: {
-        description: `Commande VIENS ON S'CONNAÎT #${orderId}`,
+        description: `VIENS ON S'CONNAÎT - Commande #${orderId}`,
         metadata: {
           orderId: orderId.toString(),
           source: 'chatbot'
@@ -92,36 +94,47 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log('✅ Stripe session created successfully:', {
+    console.log('✅ Stripe session created:', {
       sessionId: session.id,
       url: session.url,
-      amountInCentimes: finalAmount,
-      amountInEur: finalAmount / 100
+      amountCentimes: finalAmountInCentimes,
+      amountEUR: finalAmountInCentimes / 100
     });
 
     return NextResponse.json({
       id: session.id,
       url: session.url,
-      amount: finalAmount,
-      currency: 'eur'
+      amount: finalAmountInCentimes,
+      currency: 'eur',
+      success: true
     });
 
   } catch (error) {
     console.error('❌ Stripe session creation error:', error);
     
+    const errorMessage = error instanceof Stripe.errors.StripeError 
+      ? error.message 
+      : error instanceof Error 
+        ? error.message 
+        : 'Erreur inconnue';
+    
     return NextResponse.json(
       { 
-        error: 'Erreur lors de la création de la session de paiement',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Erreur lors de la création du paiement Stripe',
+        details: errorMessage,
+        success: false
       },
       { status: 500 }
     );
   }
 }
 
-// ✅ GESTION des autres méthodes HTTP
+// ✅ Gestion des autres méthodes HTTP
 export async function GET() {
-  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  return NextResponse.json(
+    { error: 'Méthode non autorisée. Utilisez POST.' }, 
+    { status: 405 }
+  );
 }
 
 export async function OPTIONS() {

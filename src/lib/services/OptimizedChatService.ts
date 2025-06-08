@@ -1338,27 +1338,38 @@ ${parts[0]}, ${parts[1]}
           type: 'assistant',
           content: `💰 **Paiement par Wave**
 
-📋 Commande : **${orderId}**
-👤 Client : **${orderState.data.name}**
-💰 Montant : **${orderTotal.toLocaleString()} FCFA**
+        📋 Commande : **${orderId}**
+        👤 Client : **${orderState.data.name}**
+        💰 Montant : **${orderTotal.toLocaleString()} FCFA**
 
-🔗 **Étapes :**
-1. Cliquez sur le bouton Wave ci-dessous
-2. Effectuez le paiement
-3. Copiez l'ID de transaction
-4. Revenez ici pour confirmer votre paiement
+        🔗 **Étapes :**
+        1. Cliquez sur le bouton Wave ci-dessous
+        2. Effectuez le paiement
+        3. Copiez l'ID de transaction
+        4. Revenez ici pour confirmer votre paiement
 
-👇🏽 Cliquez pour payer avec Wave :`,
+        👇🏽 Cliquez pour payer avec Wave :`,
           choices: [
-            `Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
+            `🌊 Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
           ],
           assistant: this.getBotInfo(),
           metadata: {
             nextStep: 'wave_payment_process' as ConversationStep,
-            paymentUrl: waveUrl,
+            paymentUrl: `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${orderTotal}`,
             orderId,
             paymentAmount: orderTotal,
             paymentMethod: 'Wave',
+            // ✅ CORRECTION: Ajouter les données de commande complètes
+            orderData: {
+              order_id: orderId,
+              session_id: sessionId,
+              total_amount: orderTotal,
+              totalAmount: orderTotal,
+              first_name: this.extractFirstName(orderState.data.name),
+              last_name: this.extractLastName(orderState.data.name),
+              name: orderState.data.name
+            },
+            customerName: orderState.data.name,
             flags: { 
               expressMode: true, 
               paymentInitiated: true,

@@ -327,26 +327,45 @@ export interface OrderMetadata {
 // ==========================================
 
 export interface ChatOrderData {
+  // ✅ IDENTIFIANTS
   session_id: string;
+  id?: string; // Identifiant de commande
+  order_id?: string; // Autre format d'identifiant
+  
+  // ✅ PRODUIT
   product_id?: string;
+  
+  // ✅ INFORMATIONS CLIENT
   first_name: string;
   last_name: string;
+  name?: string; // Nom complet (prénom + nom)
   phone: string;
   city: string;
   address: string;
   email?: string;
+  
+  // ✅ PAIEMENT
   payment_method?: PaymentProvider;
+  
+  // ✅ MONTANTS
   subtotal?: number;
   subtotal_amount?: number; // Compatibilité ancien système
   delivery_cost?: number;
   total_amount?: number;
   totalAmount?: number; // Compatibilité ancien système
+  
+  // ✅ STATUTS
   status: 'pending' | 'confirmed' | 'cancelled';
   payment_status?: PaymentStatus;
   paymentStatus?: PaymentStatus; // Compatibilité ancien système
+  
+  // ✅ ARTICLES
   items: ChatOrderItem[];
+  
+  // ✅ MÉTADONNÉES
   metadata?: OrderMetadata;
-  // Propriétés de l'ancien système
+  
+  // ✅ Propriétés de l'ancien système (compatibilité)
   formStep?: ConversationStep;
   currentItem?: ChatOrderItem;
   contactInfo?: string;

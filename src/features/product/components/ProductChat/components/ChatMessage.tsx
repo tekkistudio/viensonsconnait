@@ -43,45 +43,79 @@ const isDirectPaymentButton = (choice: string): boolean => {
   );
 };
 
-// ✅ FONCTION AMÉLIORÉE: Gestion des paiements avec détection intelligente
+// ✅ FONCTION CORRIGÉE: Gestion des paiements avec détection intelligente
 const handleDirectPayment = async (choice: string, metadata?: any): Promise<boolean> => {
   console.log('💳 Processing direct payment:', { choice, metadata });
   
   try {
-    // ✅ WAVE: Gestion spéciale avec deep link mobile
+    // ✅ WAVE: Gestion spéciale avec deep link mobile et desktop
     if (choice.toLowerCase().includes('wave') || choice.includes('🌊')) {
       console.log('🌊 Wave payment detected');
       
       let paymentUrl = '';
+      let paymentAmount = 0;
       
-      // Récupérer l'URL depuis les métadonnées ou construire
-      if (metadata?.paymentUrl && metadata.paymentUrl.includes('wave.com')) {
-        paymentUrl = metadata.paymentUrl;
-      } else if (metadata?.paymentAmount) {
-        paymentUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${metadata.paymentAmount}`;
+      // ✅ CORRECTION 1: Récupérer le montant depuis plusieurs sources possibles
+      if (metadata?.paymentAmount) {
+        paymentAmount = metadata.paymentAmount;
+      } else if (metadata?.orderData?.total_amount) {
+        paymentAmount = metadata.orderData.total_amount;
+      } else if (metadata?.orderData?.totalAmount) {
+        paymentAmount = metadata.orderData.totalAmount;
       } else {
-        console.error('❌ No Wave payment amount found');
+        // Extraire le montant depuis le texte du bouton
+        const amountMatch = choice.match(/(\d+(?:,\d{3})*)/);
+        if (amountMatch) {
+          paymentAmount = parseInt(amountMatch[1].replace(/,/g, ''));
+        }
+      }
+      
+      if (!paymentAmount || paymentAmount <= 0) {
+        console.error('❌ No valid payment amount found');
+        alert('Erreur: Montant de paiement non trouvé');
         return false;
       }
+      
+      // ✅ CORRECTION 2: Construire l'URL Wave avec le bon format
+      if (metadata?.paymentUrl && metadata.paymentUrl.includes('wave.com')) {
+        paymentUrl = metadata.paymentUrl;
+      } else {
+        paymentUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${paymentAmount}`;
+      }
+      
+      console.log('🌊 Wave payment details:', { paymentAmount, paymentUrl });
       
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // Mobile: Essayer l'app Wave puis fallback web
-        const amount = metadata?.paymentAmount || 0;
-        const waveAppUrl = `wave://pay?amount=${amount}`;
+        // ✅ Mobile: Essayer l'app Wave puis fallback web
+        console.log('📱 Mobile detected, trying Wave app');
         
-        console.log('📱 Trying Wave app:', waveAppUrl);
-        window.location.href = waveAppUrl;
+        // Essayer d'ouvrir l'app Wave
+        const waveAppUrl = `wave://pay?amount=${paymentAmount}`;
         
-        // Fallback après 2 secondes si l'app ne s'ouvre pas
-        setTimeout(() => {
-          console.log('⚠️ Wave app fallback, opening web');
+        try {
+          // Créer un lien invisible pour tester l'app
+          const link = document.createElement('a');
+          link.href = waveAppUrl;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Fallback vers le web après 2 secondes si l'app ne s'ouvre pas
+          setTimeout(() => {
+            console.log('⚠️ Wave app fallback, opening web');
+            window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
+          }, 2000);
+          
+        } catch (error) {
+          console.log('⚠️ Wave app failed, opening web directly');
           window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
-        }, 2000);
+        }
       } else {
-        // Desktop: Ouvrir directement dans nouvel onglet
-        console.log('🖥️ Desktop Wave payment');
+        // ✅ Desktop: Ouvrir directement dans nouvel onglet
+        console.log('🖥️ Desktop detected, opening Wave web');
         const newWindow = window.open(paymentUrl, '_blank', 'noopener,noreferrer');
         if (!newWindow) {
           window.location.href = paymentUrl;
@@ -95,42 +129,86 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
     if (choice.toLowerCase().includes('carte bancaire') || choice.includes('💳')) {
       console.log('💳 Card payment detected');
       
-      if (!metadata?.orderId || !metadata?.paymentAmount) {
-        console.error('❌ Missing order data for card payment');
-        alert('Erreur: Données de commande manquantes');
+      let orderId = '';
+      let paymentAmount = 0;
+      let customerName = '';
+      
+      // ✅ CORRECTION 3: Récupérer les données de commande depuis plusieurs sources
+      if (metadata?.orderId) {
+        orderId = metadata.orderId;
+      } else if (metadata?.orderData?.id) {
+        orderId = metadata.orderData.id;
+      } else if (metadata?.orderData?.session_id) {
+        orderId = metadata.orderData.session_id;
+      }
+      
+      if (metadata?.paymentAmount) {
+        paymentAmount = metadata.paymentAmount;
+      } else if (metadata?.orderData?.total_amount) {
+        paymentAmount = metadata.orderData.total_amount;
+      } else if (metadata?.orderData?.totalAmount) {
+        paymentAmount = metadata.orderData.totalAmount;
+      }
+      
+      if (metadata?.customerName) {
+        customerName = metadata.customerName;
+      } else if (metadata?.orderData?.first_name && metadata?.orderData?.last_name) {
+        customerName = `${metadata.orderData.first_name} ${metadata.orderData.last_name}`;
+      } else if (metadata?.orderData?.name) {
+        customerName = metadata.orderData.name;
+      }
+      
+      // ✅ VALIDATION: Vérifier que nous avons les données nécessaires
+      if (!orderId || !paymentAmount || paymentAmount <= 0) {
+        console.error('❌ Missing required data for card payment:', {
+          orderId,
+          paymentAmount,
+          customerName,
+          metadata
+        });
+        
+        alert('Erreur: Données de commande manquantes. Veuillez recommencer votre commande.');
         return false;
       }
       
+      console.log('💳 Card payment details:', { orderId, paymentAmount, customerName });
+      
       try {
+        // ✅ CORRECTION 4: Appel API Stripe avec conversion FCFA → EUR
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            amount: Math.round(metadata.paymentAmount * 0.00153 * 100), // FCFA → EUR centimes
+            amount: Math.round(paymentAmount * 0.00153 * 100), // FCFA → EUR centimes
             currency: 'eur',
-            orderId: metadata.orderId,
-            customerName: metadata.customerName || 'Client',
-            successUrl: `${window.location.origin}/chat/payment-success?order_id=${metadata.orderId}`,
-            cancelUrl: `${window.location.origin}/chat/payment-canceled?order_id=${metadata.orderId}`
+            orderId: orderId,
+            customerName: customerName || 'Client',
+            successUrl: `${window.location.origin}/chat/payment-success?order_id=${orderId}`,
+            cancelUrl: `${window.location.origin}/chat/payment-canceled?order_id=${orderId}`
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`Stripe API error: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`Stripe API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
 
         const session = await response.json();
         console.log('✅ Stripe session created:', session.id);
         
-        // Rediriger vers Stripe Checkout
-        window.location.href = session.url;
-        return true;
+        // ✅ Rediriger vers Stripe Checkout
+        if (session.url) {
+          window.location.href = session.url;
+          return true;
+        } else {
+          throw new Error('No checkout URL received from Stripe');
+        }
         
       } catch (stripeError) {
         console.error('❌ Stripe payment error:', stripeError);
-        alert('Erreur lors de la création du paiement Stripe. Veuillez réessayer.');
+        alert(`Erreur lors de la création du paiement: ${stripeError instanceof Error ? stripeError.message : 'Erreur inconnue'}`);
         return false;
       }
     }
@@ -140,35 +218,41 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
       console.log('🛵 Cash on delivery selected');
       
       // Pour le paiement à la livraison, on peut directement confirmer la commande
-      if (metadata?.orderId) {
+      if (metadata?.orderId || metadata?.orderData?.id) {
         try {
+          const orderId = metadata.orderId || metadata.orderData.id;
+          
           const response = await fetch('/api/orders/confirm-cash-payment', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              orderId: metadata.orderId
+              orderId: orderId
             }),
           });
           
           if (response.ok) {
             console.log('✅ Cash payment confirmed');
             return true;
+          } else {
+            console.warn('⚠️ Cash payment confirmation failed, falling back to chat');
           }
         } catch (error) {
           console.error('❌ Error confirming cash payment:', error);
         }
       }
       
-      // Si pas d'orderId, laisser le chatbot gérer
+      // Si pas d'orderId ou erreur, laisser le chatbot gérer
       return false;
     }
     
+    console.log('⚠️ Payment method not recognized:', choice);
     return false;
     
   } catch (error) {
     console.error('❌ Error in handleDirectPayment:', error);
+    alert(`Erreur de paiement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     return false;
   }
 };

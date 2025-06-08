@@ -36,7 +36,7 @@ export class PaymentGateway {
       // Initialiser Stripe uniquement côté serveur
       if (typeof window === 'undefined' && PAYMENT_CONFIG.stripe.secretKey) {
         this.stripeInstance = new Stripe(PAYMENT_CONFIG.stripe.secretKey, {
-          apiVersion: '2024-12-18.acacia' as const,
+          apiVersion: '2025-02-24.acacia' as const,
           typescript: true,
           appInfo: {
             name: 'VOSC Chat',
