@@ -1,4 +1,4 @@
-// src/lib/services/SessionManager.ts
+// src/lib/services/SessionManager.ts - VERSION CORRIGÉE
 import { supabase } from '@/lib/supabase';
 
 interface SessionData {
@@ -23,12 +23,14 @@ export class SessionManager {
     return this.instance;
   }
 
-  // Créer ou récupérer une session
+  // ✅ CORRECTION: Créer ou récupérer une session avec gestion d'erreur améliorée
   async getOrCreateSession(productId: string, storeId: string): Promise<string> {
-    // Générer un sessionId unique
+    // Générer un sessionId unique et plus simple
     const sessionId = `${productId}_${storeId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
+      console.log('📝 Creating session:', { productId, storeId, sessionId });
+
       // Vérifier si une session existe déjà pour ce produit
       const existingSessionId = this.findExistingSession(productId, storeId);
       if (existingSessionId) {
@@ -48,15 +50,21 @@ export class SessionManager {
       // Sauvegarder en mémoire
       this.sessions.set(sessionId, sessionData);
 
-      // Sauvegarder en base de données
-      await this.saveSessionToDatabase(sessionData);
+      // ✅ CORRECTION: Sauvegarder en base avec gestion d'erreur robuste
+      try {
+        await this.saveSessionToDatabase(sessionData);
+        console.log('✅ Session saved successfully:', sessionId);
+      } catch (dbError) {
+        console.warn('⚠️ Database save failed, but session created in memory:', dbError);
+        // Ne pas faire échouer la création de session pour ça
+      }
 
-      console.log('✅ New session created:', sessionId);
       return sessionId;
 
     } catch (error) {
       console.error('❌ Error creating session:', error);
-      // Retourner un sessionId même en cas d'erreur
+      // ✅ CORRECTION: Retourner un sessionId même en cas d'erreur
+      console.log('🔄 Fallback: creating minimal session');
       return sessionId;
     }
   }
@@ -78,7 +86,12 @@ export class SessionManager {
       };
       
       this.sessions.set(sessionId, sessionData);
-      await this.saveSessionToDatabase(sessionData);
+      
+      try {
+        await this.saveSessionToDatabase(sessionData);
+      } catch (error) {
+        console.warn('⚠️ Could not save session to database:', error);
+      }
     }
   }
 
@@ -96,26 +109,52 @@ export class SessionManager {
     return null;
   }
 
-  // Sauvegarder en base de données
+  // ✅ CORRECTION: Sauvegarder en base avec validation des données
   private async saveSessionToDatabase(sessionData: SessionData): Promise<void> {
     try {
+      // ✅ VALIDATION: S'assurer que toutes les données requises sont présentes
+      if (!sessionData.sessionId || !sessionData.productId || !sessionData.storeId) {
+        throw new Error('Missing required session data');
+      }
+
+      // ✅ CORRECTION: Données simplifiées pour éviter les erreurs de sérialisation
+      const dbData = {
+        id: sessionData.sessionId,
+        product_id: sessionData.productId,
+        store_id: sessionData.storeId,
+        session_data: {
+          sessionId: sessionData.sessionId,
+          productId: sessionData.productId,
+          storeId: sessionData.storeId,
+          isInitialized: sessionData.isInitialized,
+          createdAt: sessionData.createdAt
+        },
+        created_at: sessionData.createdAt,
+        updated_at: new Date().toISOString(),
+        status: 'active'
+      };
+
+      console.log('💾 Saving session to database:', dbData.id);
+
       const { error } = await supabase
         .from('conversations')
-        .upsert({
-          id: sessionData.sessionId,
-          product_id: sessionData.productId,
-          store_id: sessionData.storeId,
-          session_data: sessionData,
-          created_at: sessionData.createdAt,
-          updated_at: new Date().toISOString(),
-          status: 'active'
-        }, { onConflict: 'id' });
+        .upsert(dbData, { onConflict: 'id' });
 
       if (error) {
-        console.error('❌ Error saving session to database:', error);
+        console.error('❌ Database error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
       }
+
+      console.log('✅ Session saved to database successfully');
+
     } catch (error) {
       console.error('❌ Error in saveSessionToDatabase:', error);
+      throw error; // Re-throw pour que l'appelant puisse gérer
     }
   }
 
@@ -129,6 +168,60 @@ export class SessionManager {
       }
     }
   }
-}
 
-export default SessionManager;
+  // ✅ NOUVELLE MÉTHODE: Récupérer une session depuis la base
+  async getSessionFromDatabase(sessionId: string): Promise<SessionData | null> {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (error || !data) {
+        console.log('📝 No session found in database:', sessionId);
+        return null;
+      }
+
+      // Reconstituer la SessionData
+      const sessionData: SessionData = {
+        sessionId: data.id,
+        productId: data.product_id,
+        storeId: data.store_id,
+        isInitialized: true,
+        createdAt: data.created_at,
+        metadata: data.session_data
+      };
+
+      // Sauvegarder en mémoire pour les accès futurs
+      this.sessions.set(sessionId, sessionData);
+
+      return sessionData;
+
+    } catch (error) {
+      console.error('❌ Error getting session from database:', error);
+      return null;
+    }
+  }
+
+  // ✅ MÉTHODE UTILITAIRE: Vérifier la santé du service
+  async healthCheck(): Promise<{ healthy: boolean; sessionsCount: number }> {
+    try {
+      // Test simple de connexion à la base
+      const { error } = await supabase
+        .from('conversations')
+        .select('id')
+        .limit(1);
+
+      return {
+        healthy: !error,
+        sessionsCount: this.sessions.size
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        sessionsCount: this.sessions.size
+      };
+    }
+  }
+}

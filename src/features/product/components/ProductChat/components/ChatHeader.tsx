@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatHeader.tsx
+// src/features/product/components/ProductChat/components/ChatHeader.tsx - VERSION CORRIGÉE
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ShoppingBag, Star } from 'lucide-react';
@@ -25,7 +25,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   oldPrice 
 }) => {
   const { convertPrice } = useCountryStore();
-  const { orderData } = useChatStore();
+  const { orderData, messages } = useChatStore(); // ✅ CORRECTION: Ajouter messages
   
   const [stats, setStats] = useState<RealTimeStats>({
     viewsCount: 0,
@@ -35,10 +35,67 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [rating, setRating] = useState(initialRating);
   const [productImage, setProductImage] = useState<string>('');
 
-  // Calculer les statistiques du panier
-  const cartItems = orderData?.items || [];
-  const cartItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = orderData?.total_amount || 0;
+  // ✅ CORRECTION PRINCIPALE: Logique améliorée pour détecter les items du panier
+  const getCartInfo = () => {
+    // Méthode 1: Directement depuis orderData.items
+    if (orderData?.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
+      const totalItems = orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      const totalAmount = orderData.total_amount || orderData.subtotal || 0;
+      
+      return {
+        hasItems: true,
+        itemsCount: totalItems,
+        items: orderData.items,
+        totalAmount: totalAmount
+      };
+    }
+
+    // Méthode 2: Analyser les messages pour détecter une commande en cours
+    if (messages && messages.length > 0) {
+      // Chercher le dernier message avec des données de commande
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message.metadata?.orderData?.items && Array.isArray(message.metadata.orderData.items)) {
+          const items = message.metadata.orderData.items;
+          const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+          const totalAmount = message.metadata.orderData.total_amount || 
+                            message.metadata.orderData.subtotal || 
+                            items.reduce((sum: number, item: any) => sum + (item.totalPrice || item.price * item.quantity), 0);
+          
+          return {
+            hasItems: true,
+            itemsCount: totalItems,
+            items: items,
+            totalAmount: totalAmount
+          };
+        }
+      }
+    }
+
+    // Méthode 3: Vérifier si on a au moins un montant total sans items détaillés
+    if (orderData?.total_amount && orderData.total_amount > 0) {
+      return {
+        hasItems: true,
+        itemsCount: 1,
+        items: [{ 
+          name: title.replace('Le Jeu ', ''), 
+          quantity: 1, 
+          price: orderData.total_amount,
+          totalPrice: orderData.total_amount 
+        }],
+        totalAmount: orderData.total_amount
+      };
+    }
+
+    return {
+      hasItems: false,
+      itemsCount: 0,
+      items: [],
+      totalAmount: 0
+    };
+  };
+
+  const cartInfo = getCartInfo();
 
   useEffect(() => {
     let isSubscribed = true;
@@ -52,7 +109,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       try {
         console.log('ChatHeader: Fetching stats for productId:', productId);
 
-        // Récupérer les stats ET l'image du produit
         const [statsResult, reviewsCount, averageRating, productData] = await Promise.all([
           productStatsService.getProductStats(productId),
           testimonialsService.getTestimonialsCountByProduct(productId),
@@ -83,7 +139,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           setRating(averageRating);
         }
 
-        // Définir l'image du produit
         if (productData.data?.images && productData.data.images.length > 0) {
           setProductImage(productData.data.images[0]);
         }
@@ -102,6 +157,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       isSubscribed = false;
     };
   }, [productId]);
+
+  // ✅ AJOUT: Logging pour debug
+  useEffect(() => {
+    console.log('🛒 ChatHeader - Cart Info Debug:', {
+      cartInfo,
+      orderData,
+      hasOrderDataItems: !!(orderData?.items),
+      orderDataItemsLength: orderData?.items?.length,
+      messagesLength: messages?.length
+    });
+  }, [cartInfo, orderData, messages]);
 
   const formattedPrice = typeof price === 'string' 
     ? convertPrice(parseInt(price.replace(/[^0-9]/g, ''))).formatted
@@ -173,27 +239,39 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* Barre de commande intégrée */}
-      {cartItemsCount > 0 && (
+      {/* ✅ CORRECTION: Barre de commande avec logique améliorée */}
+      {cartInfo.hasItems && cartInfo.itemsCount > 0 && (
         <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-[#FF7E93] rounded-full">
                 <ShoppingBag className="w-4 h-4 text-white" />
+                {/* Badge avec nombre d'articles */}
+                {cartInfo.itemsCount > 1 && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {cartInfo.itemsCount}
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-[#132D5D]">
-                  Ma commande ({cartItemsCount} article{cartItemsCount > 1 ? 's' : ''})
+                  Ma commande ({cartInfo.itemsCount} article{cartInfo.itemsCount > 1 ? 's' : ''})
                 </p>
-                <p className="text-xs text-gray-600">
-                  {cartItems.map(item => `${item.name} x${item.quantity}`).join(', ')}
+                <p className="text-xs text-gray-600 truncate max-w-[200px]">
+                  {cartInfo.items.length > 0 ? (
+                    cartInfo.items.map((item: any) => 
+                      `${item.name || 'Produit'} x${item.quantity || 1}`
+                    ).join(', ')
+                  ) : (
+                    'Commande en cours...'
+                  )}
                 </p>
               </div>
             </div>
             
             <div className="text-right">
               <p className="text-lg font-bold text-[#FF7E93]">
-                {cartTotal.toLocaleString()} FCFA
+                {cartInfo.totalAmount.toLocaleString()} FCFA
               </p>
               <p className="text-xs text-gray-500">Total</p>
             </div>

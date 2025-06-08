@@ -1,9 +1,10 @@
-// src/stores/chatStore.ts - VERSION CORRIGÉE AVEC TYPESCRIPT STRICT
+// src/stores/chatStore.ts - VERSION CORRIGÉE AVEC PROTECTION JSON
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ChatMessage, ConversationStep, ChatOrderData } from '@/types/chat';
 import type { PaymentProvider } from '@/types/order';
 import { v4 as uuidv4 } from 'uuid';
+import { safeJsonParse, safeJsonStringify, protectedSessionStorageGet, protectedLocalStorageSet } from '@/lib/utils/json-safety'; // ✅ NOUVEAU
 
 // ✅ INTERFACES COMPLÈTES CORRIGÉES
 interface PaymentState {
@@ -79,7 +80,7 @@ interface ChatState {
     showSessionRestored: boolean;
   };
 
-  // ✅ CORRECTION: Actions avec types stricts
+  // Actions avec types stricts
   initializeSession: (productId?: string, storeId?: string, providedSessionId?: string) => void;
   addMessage: (message: ChatMessage) => void;
   updateTypingStatus: (isTyping: boolean) => void;
@@ -119,6 +120,46 @@ interface ChatState {
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 heures
 const CONTINUE_MESSAGE_THRESHOLD = 10 * 60 * 1000; // 10 minutes
 const MAX_STORED_MESSAGES = 100;
+
+// ✅ CORRECTION: Storage sécurisé avec protection JSON
+const safeStorage = {
+  getItem: (name: string): string | null => {
+    try {
+      if (typeof window === 'undefined') return null;
+      
+      const item = window.sessionStorage.getItem(name);
+      if (!item || item === 'undefined' || item === 'null') {
+        return null;
+      }
+      
+      return item;
+    } catch (error) {
+      console.warn(`⚠️ Storage getItem error for ${name}:`, error);
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    try {
+      if (typeof window === 'undefined') return;
+      
+      // Valider que c'est du JSON valide avant de sauvegarder
+      if (value && value !== 'undefined' && value !== 'null') {
+        JSON.parse(value); // Test de validation
+        window.sessionStorage.setItem(name, value);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Storage setItem error for ${name}:`, error);
+    }
+  },
+  removeItem: (name: string): void => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.sessionStorage.removeItem(name);
+    } catch (error) {
+      console.warn(`⚠️ Storage removeItem error for ${name}:`, error);
+    }
+  }
+};
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -179,202 +220,222 @@ export const useChatStore = create<ChatState>()(
         showSessionRestored: false
       },
 
-      // ✅ CORRECTION: initializeSession avec sessionId optionnel
+      // ✅ CORRECTION: initializeSession avec gestion d'erreur JSON
       initializeSession: (productId?: string, storeId?: string, providedSessionId?: string) => {
-        const state = get();
-        const now = new Date().toISOString();
-        
-        // Vérifier si une session existe déjà
-        const existingSession = state.messages.length > 0;
-        const sessionAge = Date.now() - new Date(state.sessionStats.startTime).getTime();
-        
-        // Gestion intelligente de la reprise de session
-        if (existingSession && sessionAge < SESSION_TIMEOUT) {
-          console.log('📱 Session existante détectée, restauration...', {
-            sessionAge: Math.floor(sessionAge / 1000 / 60),
-            messageCount: state.messages.length
-          });
+        try {
+          const state = get();
+          const now = new Date().toISOString();
           
-          set({
-            productId: productId || state.productId,
-            storeId: storeId || state.storeId,
-            sessionId: providedSessionId || state.sessionId, // ✅ CORRECTION: Utiliser sessionId fourni
-            lastActivity: now,
-            sessionStats: {
-              ...state.sessionStats,
-              wasRestored: true,
-              lastActivity: now
-            },
-            flags: {
-              ...state.flags,
-              isInitialized: true,
-              showSessionRestored: sessionAge > CONTINUE_MESSAGE_THRESHOLD
-            }
-          });
+          // Vérifier si une session existe déjà
+          const existingSession = state.messages.length > 0;
+          const sessionAge = Date.now() - new Date(state.sessionStats.startTime).getTime();
           
-          return;
-        }
-        
-        if (sessionAge >= SESSION_TIMEOUT) {
-          console.log('⏰ Session expirée, création d\'une nouvelle session');
-        }
-        
-        // ✅ CORRECTION: Utiliser sessionId fourni ou générer nouveau
-        const newSessionId = providedSessionId || uuidv4();
-        console.log(`🆕 Initializing new chat session: ${newSessionId}`);
-        
-        set({
-          sessionId: newSessionId,
-          messages: [],
-          isTyping: false,
-          currentStep: null,
-          orderData: {},
-          isExpressMode: false,
-          productId: productId || null,
-          storeId: storeId || null,
-          startedAt: now,
-          lastActivity: now,
-          conversationContext: {
-            userIntent: 'browsing',
-            mentionedTopics: [],
-            concerns: [],
-            interests: [],
-            messageCount: 0,
-            freeTextEnabled: true
-          },
-          sessionStats: {
-            startTime: now,
-            lastActivity: now,
-            totalMessages: 0,
-            userMessages: 0,
-            assistantMessages: 0,
-            sessionDuration: 0,
-            wasRestored: false
-          },
-          payment: {
-            selectedMethod: null,
-            status: 'idle',
-            error: null,
-            clientSecret: null
-          },
-          paymentModal: {
-            isOpen: false,
-            iframeUrl: '',
-            provider: undefined
-          },
-          flags: {
-            hasError: false,
-            stockReserved: false,
-            orderCompleted: false,
-            paymentInitiated: false,
-            isInitialized: true,
-            canAcceptFreeText: true,
-            showSessionRestored: false
-          }
-        });
-      },
-
-      // ✅ CORRECTION: addMessage avec gestion d'état TypeScript-safe
-      addMessage: (message: ChatMessage) => {
-        const state = get();
-        const now = new Date().toISOString();
-        
-        // Éviter les doublons
-        const messageExists = state.messages.some(
-          m => m.timestamp === message.timestamp && m.content === message.content
-        );
-        
-        if (messageExists) {
-          console.log('⚠️ Message already exists, skipping duplicate');
-          return;
-        }
-
-        console.log('📝 Adding message:', message.type, message.content.substring(0, 50) + '...');
-        
-        set((currentState) => {
-          const newMessages = [...currentState.messages, message];
-          const limitedMessages = newMessages.slice(-MAX_STORED_MESSAGES);
-          
-          // Mise à jour des statistiques
-          const isUserMessage = message.type === 'user';
-          const newStats: SessionStats = {
-            ...currentState.sessionStats,
-            lastActivity: now,
-            totalMessages: currentState.sessionStats.totalMessages + 1,
-            userMessages: currentState.sessionStats.userMessages + (isUserMessage ? 1 : 0),
-            assistantMessages: currentState.sessionStats.assistantMessages + (isUserMessage ? 0 : 1),
-            sessionDuration: Date.now() - new Date(currentState.sessionStats.startTime).getTime()
-          };
-          
-          // Analyse du contexte conversationnel
-          let updatedContext: ConversationContext = { ...currentState.conversationContext };
-          
-          if (isUserMessage) {
-            updatedContext.messageCount += 1;
-            updatedContext.lastUserMessage = message.content;
+          // Gestion intelligente de la reprise de session
+          if (existingSession && sessionAge < SESSION_TIMEOUT) {
+            console.log('📱 Session existante détectée, restauration...', {
+              sessionAge: Math.floor(sessionAge / 1000 / 60),
+              messageCount: state.messages.length
+            });
             
-            // Analyse automatique des intentions
-            const content = message.content.toLowerCase();
-            
-            if (content.includes('intéresse') || content.includes('aime')) {
-              updatedContext.userIntent = 'interested';
-            }
-            
-            if (content.includes('cher') || content.includes('prix') || content.includes('doute')) {
-              if (!updatedContext.concerns.includes('price_concern')) {
-                updatedContext.concerns.push('price_concern');
-              }
-            }
-            
-            if (content.includes('acheter') || content.includes('commander') || content.includes('prendre')) {
-              updatedContext.userIntent = 'ready_to_buy';
-            }
-          }
-
-          // ✅ CORRECTION TypeScript: Construction d'état explicite
-          const newState: ChatState = {
-            ...currentState,
-            messages: limitedMessages,
-            lastActivity: now,
-            sessionStats: newStats,
-            conversationContext: updatedContext
-          };
-
-          // Mise à jour conditionnelle des métadonnées
-          if (message.metadata?.nextStep && message.metadata.nextStep !== currentState.currentStep) {
-            newState.currentStep = message.metadata.nextStep;
-          }
-
-          if (message.metadata?.orderData) {
-            newState.orderData = {
-              ...currentState.orderData,
-              ...message.metadata.orderData
-            };
-          }
-
-          if (message.metadata?.flags) {
-            const updatedFlags = { ...currentState.flags };
-            let flagsChanged = false;
-            
-            if (message.metadata.flags.expressMode !== undefined && 
-                message.metadata.flags.expressMode !== currentState.isExpressMode) {
-              newState.isExpressMode = message.metadata.flags.expressMode;
-            }
-            
-            Object.entries(message.metadata.flags).forEach(([key, value]) => {
-              if (key in updatedFlags && (updatedFlags as any)[key] !== value) {
-                (updatedFlags as any)[key] = value;
-                flagsChanged = true;
+            set({
+              productId: productId || state.productId,
+              storeId: storeId || state.storeId,
+              sessionId: providedSessionId || state.sessionId,
+              lastActivity: now,
+              sessionStats: {
+                ...state.sessionStats,
+                wasRestored: true,
+                lastActivity: now
+              },
+              flags: {
+                ...state.flags,
+                isInitialized: true,
+                showSessionRestored: sessionAge > CONTINUE_MESSAGE_THRESHOLD
               }
             });
             
-            if (flagsChanged) {
-              newState.flags = updatedFlags;
+            return;
+          }
+          
+          if (sessionAge >= SESSION_TIMEOUT) {
+            console.log('⏰ Session expirée, création d\'une nouvelle session');
+          }
+          
+          // Utiliser sessionId fourni ou générer nouveau
+          const newSessionId = providedSessionId || uuidv4();
+          console.log(`🆕 Initializing new chat session: ${newSessionId}`);
+          
+          set({
+            sessionId: newSessionId,
+            messages: [],
+            isTyping: false,
+            currentStep: null,
+            orderData: {},
+            isExpressMode: false,
+            productId: productId || null,
+            storeId: storeId || null,
+            startedAt: now,
+            lastActivity: now,
+            conversationContext: {
+              userIntent: 'browsing',
+              mentionedTopics: [],
+              concerns: [],
+              interests: [],
+              messageCount: 0,
+              freeTextEnabled: true
+            },
+            sessionStats: {
+              startTime: now,
+              lastActivity: now,
+              totalMessages: 0,
+              userMessages: 0,
+              assistantMessages: 0,
+              sessionDuration: 0,
+              wasRestored: false
+            },
+            payment: {
+              selectedMethod: null,
+              status: 'idle',
+              error: null,
+              clientSecret: null
+            },
+            paymentModal: {
+              isOpen: false,
+              iframeUrl: '',
+              provider: undefined
+            },
+            flags: {
+              hasError: false,
+              stockReserved: false,
+              orderCompleted: false,
+              paymentInitiated: false,
+              isInitialized: true,
+              canAcceptFreeText: true,
+              showSessionRestored: false
             }
+          });
+        } catch (error) {
+          console.error('❌ Error in initializeSession:', error);
+          // Fallback minimal en cas d'erreur
+          set({
+            sessionId: uuidv4(),
+            flags: { ...get().flags, isInitialized: true, hasError: true }
+          });
+        }
+      },
+
+      // ✅ CORRECTION: addMessage avec validation JSON
+      addMessage: (message: ChatMessage) => {
+        try {
+          const state = get();
+          const now = new Date().toISOString();
+          
+          // Validation du message
+          if (!message || !message.content || !message.type) {
+            console.warn('⚠️ Invalid message structure:', message);
+            return;
+          }
+          
+          // Éviter les doublons
+          const messageExists = state.messages.some(
+            m => m.timestamp === message.timestamp && m.content === message.content
+          );
+          
+          if (messageExists) {
+            console.log('⚠️ Message already exists, skipping duplicate');
+            return;
           }
 
-          return newState;
-        });
+          console.log('📝 Adding message:', message.type, message.content.substring(0, 50) + '...');
+          
+          set((currentState) => {
+            const newMessages = [...currentState.messages, message];
+            const limitedMessages = newMessages.slice(-MAX_STORED_MESSAGES);
+            
+            // Mise à jour des statistiques
+            const isUserMessage = message.type === 'user';
+            const newStats: SessionStats = {
+              ...currentState.sessionStats,
+              lastActivity: now,
+              totalMessages: currentState.sessionStats.totalMessages + 1,
+              userMessages: currentState.sessionStats.userMessages + (isUserMessage ? 1 : 0),
+              assistantMessages: currentState.sessionStats.assistantMessages + (isUserMessage ? 0 : 1),
+              sessionDuration: Date.now() - new Date(currentState.sessionStats.startTime).getTime()
+            };
+            
+            // Analyse du contexte conversationnel
+            let updatedContext: ConversationContext = { ...currentState.conversationContext };
+            
+            if (isUserMessage) {
+              updatedContext.messageCount += 1;
+              updatedContext.lastUserMessage = message.content;
+              
+              // Analyse automatique des intentions
+              const content = message.content.toLowerCase();
+              
+              if (content.includes('intéresse') || content.includes('aime')) {
+                updatedContext.userIntent = 'interested';
+              }
+              
+              if (content.includes('cher') || content.includes('prix') || content.includes('doute')) {
+                if (!updatedContext.concerns.includes('price_concern')) {
+                  updatedContext.concerns.push('price_concern');
+                }
+              }
+              
+              if (content.includes('acheter') || content.includes('commander') || content.includes('prendre')) {
+                updatedContext.userIntent = 'ready_to_buy';
+              }
+            }
+
+            // Construction d'état explicite
+            const newState: ChatState = {
+              ...currentState,
+              messages: limitedMessages,
+              lastActivity: now,
+              sessionStats: newStats,
+              conversationContext: updatedContext
+            };
+
+            // Mise à jour conditionnelle des métadonnées
+            if (message.metadata?.nextStep && message.metadata.nextStep !== currentState.currentStep) {
+              newState.currentStep = message.metadata.nextStep;
+            }
+
+            if (message.metadata?.orderData) {
+              newState.orderData = {
+                ...currentState.orderData,
+                ...message.metadata.orderData
+              };
+            }
+
+            if (message.metadata?.flags) {
+              const updatedFlags = { ...currentState.flags };
+              let flagsChanged = false;
+              
+              if (message.metadata.flags.expressMode !== undefined && 
+                  message.metadata.flags.expressMode !== currentState.isExpressMode) {
+                newState.isExpressMode = message.metadata.flags.expressMode;
+              }
+              
+              Object.entries(message.metadata.flags).forEach(([key, value]) => {
+                if (key in updatedFlags && (updatedFlags as any)[key] !== value) {
+                  (updatedFlags as any)[key] = value;
+                  flagsChanged = true;
+                }
+              });
+              
+              if (flagsChanged) {
+                newState.flags = updatedFlags;
+              }
+            }
+
+            return newState;
+          });
+        } catch (error) {
+          console.error('❌ Error in addMessage:', error);
+          // Ne pas faire échouer l'ajout du message
+        }
       },
 
       // Actions pour le contexte de conversation
@@ -612,72 +673,92 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'vosc-chat-storage',
-      storage: createJSONStorage(() => sessionStorage),
-      partialize: (state) => ({
-        sessionId: state.sessionId,
-        messages: state.messages.slice(-MAX_STORED_MESSAGES),
-        currentStep: state.currentStep,
-        orderData: state.orderData,
-        isExpressMode: state.isExpressMode,
-        productId: state.productId,
-        storeId: state.storeId,
-        startedAt: state.startedAt,
-        lastActivity: state.lastActivity,
-        conversationContext: state.conversationContext,
-        sessionStats: {
-          ...state.sessionStats,
-          wasRestored: false
-        },
-        flags: {
-          ...state.flags,
-          isInitialized: false,
-          showSessionRestored: false
-        },
-        payment: state.payment,
-        paymentModal: {
-          ...state.paymentModal,
-          isOpen: false
-        }
-      }),
-      version: 4,
-      migrate: (persistedState: any, version: number) => {
-        console.log(`🔄 Migrating chat store from version ${version} to 4`);
-        
-        if (version < 4) {
+      storage: createJSONStorage(() => safeStorage), // ✅ CORRECTION: Utiliser le storage sécurisé
+      partialize: (state) => {
+        try {
           return {
-            ...persistedState,
-            conversationContext: {
-              userIntent: 'browsing',
-              mentionedTopics: [],
-              concerns: [],
-              interests: [],
-              messageCount: persistedState.messages?.length || 0,
-              freeTextEnabled: true,
-              ...(persistedState.conversationContext || {})
-            },
+            sessionId: state.sessionId,
+            messages: state.messages.slice(-MAX_STORED_MESSAGES),
+            currentStep: state.currentStep,
+            orderData: state.orderData,
+            isExpressMode: state.isExpressMode,
+            productId: state.productId,
+            storeId: state.storeId,
+            startedAt: state.startedAt,
+            lastActivity: state.lastActivity,
+            conversationContext: state.conversationContext,
             sessionStats: {
-              startTime: persistedState.startedAt || new Date().toISOString(),
-              lastActivity: persistedState.lastActivity || new Date().toISOString(),
-              totalMessages: persistedState.messages?.length || 0,
-              userMessages: persistedState.messages?.filter((m: any) => m.type === 'user').length || 0,
-              assistantMessages: persistedState.messages?.filter((m: any) => m.type === 'assistant').length || 0,
-              sessionDuration: 0,
-              wasRestored: true,
-              ...(persistedState.sessionStats || {})
+              ...state.sessionStats,
+              wasRestored: false
             },
             flags: {
-              hasError: false,
-              stockReserved: false,
-              orderCompleted: false,
-              paymentInitiated: false,
+              ...state.flags,
               isInitialized: false,
-              canAcceptFreeText: true,
-              showSessionRestored: true,
-              ...(persistedState.flags || {})
+              showSessionRestored: false
+            },
+            payment: state.payment,
+            paymentModal: {
+              ...state.paymentModal,
+              isOpen: false
             }
           };
+        } catch (error) {
+          console.error('❌ Error in partialize:', error);
+          return {};
         }
-        return persistedState;
+      },
+      version: 4,
+      migrate: (persistedState: any, version: number) => {
+        try {
+          console.log(`🔄 Migrating chat store from version ${version} to 4`);
+          
+          if (version < 4) {
+            return {
+              ...persistedState,
+              conversationContext: {
+                userIntent: 'browsing',
+                mentionedTopics: [],
+                concerns: [],
+                interests: [],
+                messageCount: persistedState.messages?.length || 0,
+                freeTextEnabled: true,
+                ...(persistedState.conversationContext || {})
+              },
+              sessionStats: {
+                startTime: persistedState.startedAt || new Date().toISOString(),
+                lastActivity: persistedState.lastActivity || new Date().toISOString(),
+                totalMessages: persistedState.messages?.length || 0,
+                userMessages: persistedState.messages?.filter((m: any) => m.type === 'user').length || 0,
+                assistantMessages: persistedState.messages?.filter((m: any) => m.type === 'assistant').length || 0,
+                sessionDuration: 0,
+                wasRestored: true,
+                ...(persistedState.sessionStats || {})
+              },
+              flags: {
+                hasError: false,
+                stockReserved: false,
+                orderCompleted: false,
+                paymentInitiated: false,
+                isInitialized: false,
+                canAcceptFreeText: true,
+                showSessionRestored: true,
+                ...(persistedState.flags || {})
+              }
+            };
+          }
+          return persistedState;
+        } catch (error) {
+          console.error('❌ Error in migrate:', error);
+          return {};
+        }
+      },
+      // ✅ AJOUT: Gestion des erreurs de persistance
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          console.log('✅ Chat store hydrated successfully');
+        } else {
+          console.warn('⚠️ Chat store hydration failed, using defaults');
+        }
       }
     }
   )
