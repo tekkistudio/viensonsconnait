@@ -585,60 +585,61 @@ Qu'est-ce qui vous intéresse le plus ?`,
 
       let response: ChatMessageType;
       
-      if (content.includes('Commander rapidement') || content.includes('⚡')) {
-        console.log('🚀 Starting mobile express purchase flow');
-        response = await optimizedService.startExpressPurchase(sessionId, product.id);
-        setExpressMode(true);
-        
-        updateOrderData({
-          session_id: sessionId,
-          product_id: product.id,
-          items: [{
+      // ✅ CORRECTION MAJEURE: UTILISER TOUJOURS L'API POUR L'IA
+      console.log('🚀 Sending to enhanced mobile chat API...');
+      
+      try {
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
             productId: product.id,
-            name: product.name,
-            quantity: 1,
-            price: product.price,
-            totalPrice: product.price
-          }]
+            currentStep: currentStep || 'initial',
+            orderData: orderData || {},
+            sessionId: sessionId || Date.now().toString(),
+            storeId: storeId || 'default'
+          }),
         });
+
+        if (!apiResponse.ok) {
+          throw new Error(`Mobile API error: ${apiResponse.status}`);
+        }
+
+        const aiResponse = await apiResponse.json();
+        console.log('✅ Enhanced mobile API response:', aiResponse);
+
+        response = {
+          type: 'assistant',
+          content: aiResponse.content || "Je suis là pour vous aider !",
+          choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: aiResponse.nextStep || currentStep,
+            orderData: aiResponse.orderData,
+            flags: aiResponse.flags || {}
+          },
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (apiError) {
+        console.error('❌ Mobile API call failed:', apiError);
         
-      } else if (isExpressMode && currentStep?.includes('express')) {
-        console.log('🔄 Processing mobile express step:', currentStep);
-        response = await optimizedService.processUserInput(
-          sessionId, 
-          content, 
-          currentStep
-        );
-        
-      } else {
-        // Distinguer boutons vs messages libres
+        // ✅ FALLBACK: Si l'API échoue, traiter localement
         const isStandardButton = [
           'Poser une question', 'Comment y jouer', 'C\'est pour qui',
           'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
         ].some(btn => content.includes(btn));
         
         if (isStandardButton) {
-          // Message de bouton standard
           response = await handleStandardMessages(content);
         } else {
-          // ✅ CORRECTION: Message libre - utiliser l'IA avec validation de session
-          console.log('🤖 Free text message detected, using AI');
-          
-          if (!sessionId || sessionId.length < 5) {
-            console.error('❌ Invalid session for AI processing');
-            response = createErrorResponse('Session expirée. Veuillez rafraîchir la page.');
-          } else {
-            try {
-              response = await optimizedService.processUserInput(
-                sessionId, 
-                content, 
-                currentStep || 'initial'
-              );
-            } catch (error) {
-              console.error('❌ Error with AI response:', error);
-              response = createErrorResponse('Je rencontre un problème technique. Veuillez réessayer.');
-            }
-          }
+          response = createErrorResponse('Problème de connexion. Veuillez réessayer.');
         }
       }
       

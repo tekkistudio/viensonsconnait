@@ -48,6 +48,12 @@ export type ConversationStep =
   | 'generic_response'
   | 'error_recovery'
   | 'fallback_response'
+  | 'whatsapp_redirect' // ✅ AJOUTÉ
+  | 'intelligent_fallback' // ✅ AJOUTÉ
+  | 'basic_fallback' // ✅ AJOUTÉ
+  | 'enhanced_fallback' // ✅ AJOUTÉ
+  | 'standard_engagement' // ✅ AJOUTÉ
+  | 'critical_error' // ✅ AJOUTÉ
   
   // ✅ ÉTAPES DE DÉCOUVERTE ET INFORMATION
   | 'description'
@@ -244,6 +250,14 @@ export interface MessageFlags {
   wavePayment?: boolean;
   paymentValidated?: boolean;
   
+  // ✅ AJOUT: Nouveaux flags pour l'IA professionnelle
+  professionalAIUsed?: boolean;
+  aiConfidence?: number; // ✅ CORRIGÉ: number au lieu de string
+  fallbackUsed?: boolean;
+  dataEnhanced?: boolean;
+  basicFallback?: boolean;
+  error?: boolean;
+  
   // Flags de l'ancien système
   inPurchaseFlow?: boolean;
   quantitySelectorDisplayed?: boolean;
@@ -287,8 +301,9 @@ export interface MessageFlags {
   questionMode?: boolean;
   supportMode?: boolean;
   freeTextEnabled?: boolean;
+  standardResponse?: boolean;
   
-  [key: string]: boolean | string | undefined; 
+  [key: string]: boolean | string | number | undefined; // ✅ CORRIGÉ: Ajouté number
 }
 
 // ==========================================
@@ -376,6 +391,13 @@ export interface ChatMessageMetadata {
     confidence?: number;
   };
   
+  // ✅ AJOUT: Propriétés pour l'IA professionnelle
+  salesTechnique?: string;
+  urgencyLevel?: 'low' | 'medium' | 'high';
+  buyingIntent?: number;
+  aiConfidence?: number;
+  fallbackUsed?: boolean;
+  
   // Propriétés de l'ancien système
   recommendations?: string[] | any[];
   intent?: number;
@@ -409,6 +431,7 @@ export interface ChatMessageMetadata {
     url: string;
     description?: string;
   };
+  redirectType?: string; // ✅ AJOUTÉ
   lastCheck?: string;
   hasEmail?: 'yes' | 'no';
   emailCollected?: boolean;
@@ -421,7 +444,6 @@ export interface ChatMessageMetadata {
   handleQuantityChange?: (qty: number) => Promise<ChatMessage | void>;
   handleQuantitySubmit?: (qty: number) => Promise<void>;
   userPreferences?: UserPreferences;
-  buyingIntent?: number;
   
   // ✅ AJOUT: Propriétés manquantes
   originalMessage?: string;
@@ -503,7 +525,7 @@ export interface FormattedPhone {
 }
 
 // ==========================================
-// RÉPONSES IA - ✅ CORRIGÉE
+// RÉPONSES IA - ✅ CORRIGÉE AVEC metadata
 // ==========================================
 
 export interface AIResponse {
@@ -514,6 +536,8 @@ export interface AIResponse {
   recommendations?: any[];
   buyingIntent?: number;
   error?: string;
+  metadata?: ChatMessageMetadata; // ✅ AJOUTÉ: Support pour metadata
+  
   // ✅ AJOUT: Types pour le dashboard
   insights?: string[];
   actions?: string[];
@@ -630,6 +654,33 @@ export interface Product {
   price: number;
   imageUrl: string;
   description?: string;
+}
+
+// ==========================================
+// ✅ AJOUT: Types pour les contextes de conversation
+// ==========================================
+
+export interface ConversationHistory {
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface ProcessingResult {
+  success: boolean;
+  response?: ChatMessage;
+  error?: string;
+  fallbackUsed?: boolean;
+}
+
+export interface ConversationContext {
+  productId: string;
+  sessionId: string;
+  userMessage: string;
+  conversationHistory: ConversationHistory[];
+  currentStep?: ConversationStep;
+  messageCount: number;
+  sessionStartTime: string;
 }
 
 // ==========================================

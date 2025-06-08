@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Chat IA</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .chat-container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #FF7E93; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 8px; }
+        .user { background: #e3f2fd; text-align: right; }
+        .assistant { background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>🤖 Test Simple du Chat IA</h1>
+    
+    <div class="chat-container">
+        <div id="messages"></div>
+        
+        <input type="text" id="messageInput" placeholder="Tapez votre message libre ici..." 
+               value="Est-ce que le jeu fonctionne vraiment pour améliorer les relations ?">
+        <button onclick="sendMessage()">Envoyer à l'IA</button>
+        
+        <div style="margin-top: 20px;">
+            <h3>Tests rapides :</h3>
+            <button onclick="testMessage('Comment puis-je être sûr que ça marche ?')">Test 1</button>
+            <button onclick="testMessage('Quel est le prix du jeu ?')">Test 2</button>
+            <button onclick="testMessage('Je veux l\'acheter mais j\'hésite')">Test 3</button>
+        </div>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        
+        function addMessage(content, type = 'user') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>${type === 'user' ? 'Vous' : 'Rose'}:</strong> ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function testMessage(msg) {
+            document.getElementById('messageInput').value = msg;
+            sendMessage();
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            addMessage('🤖 En cours de traitement...', 'assistant');
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        productId: "9657fe13-1686-4453-88e4-af4449b3e2ef",
+                        currentStep: "initial",
+                        sessionId: "test_session_" + Date.now(),
+                        storeId: "a9563f88-217c-4998-b080-ed39f637ea31"
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur API: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Supprimer le message "en cours"
+                messagesDiv.removeChild(messagesDiv.lastElementChild);
+                
+                // Afficher la réponse de l'IA
+                addMessage(data.content, 'success');
+                
+                if (data.choices && data.choices.length > 0) {
+                    addMessage(`<strong>Choix proposés:</strong> ${data.choices.join(', ')}`, 'assistant');
+                }
+                
+                console.log('✅ Réponse complète:', data);
+                
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                
+                // Supprimer le message "en cours"
+                messagesDiv.removeChild(messagesDiv.lastElementChild);
+                
+                addMessage(`❌ Erreur: ${error.message}`, 'error');
+            }
+            
+            input.value = '';
+        }
+        
+        // Permettre d'envoyer avec Entrée
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
