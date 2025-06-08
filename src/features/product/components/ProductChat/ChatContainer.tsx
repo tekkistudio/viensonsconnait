@@ -10,7 +10,7 @@ import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 import DynamicContentService from '@/lib/services/DynamicContentService';
-import SessionManager from '@/lib/services/SessionManager';
+import { SessionManager } from '@/lib/services/SessionManager';
 import ChatMessage from './components/ChatMessage';
 import ChatChoices from './components/ChatChoices';
 import TypingIndicator from './components/TypingIndicator';

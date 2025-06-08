@@ -13,7 +13,7 @@ import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 import DynamicContentService from '@/lib/services/DynamicContentService';
-import SessionManager from '@/lib/services/SessionManager';
+import { SessionManager } from '@/lib/services/SessionManager';
 import TypingIndicator from './TypingIndicator';
 import ChatMessage from './ChatMessage';
 import ChatChoices from './ChatChoices';

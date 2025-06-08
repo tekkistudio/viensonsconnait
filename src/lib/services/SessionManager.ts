@@ -1,4 +1,4 @@
-// src/lib/services/SessionManager.ts - VERSION CORRIGÉE
+// src/lib/services/SessionManager.ts - SERVICE DE GESTION DES SESSIONS
 import { supabase } from '@/lib/supabase';
 
 interface SessionData {
@@ -23,9 +23,9 @@ export class SessionManager {
     return this.instance;
   }
 
-  // ✅ CORRECTION: Créer ou récupérer une session avec gestion d'erreur améliorée
+  // ✅ CRÉER OU RÉCUPÉRER UNE SESSION
   async getOrCreateSession(productId: string, storeId: string): Promise<string> {
-    // Générer un sessionId unique et plus simple
+    // Générer un sessionId unique
     const sessionId = `${productId}_${storeId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
@@ -50,7 +50,7 @@ export class SessionManager {
       // Sauvegarder en mémoire
       this.sessions.set(sessionId, sessionData);
 
-      // ✅ CORRECTION: Sauvegarder en base avec gestion d'erreur robuste
+      // Sauvegarder en base avec gestion d'erreur robuste
       try {
         await this.saveSessionToDatabase(sessionData);
         console.log('✅ Session saved successfully:', sessionId);
@@ -63,7 +63,7 @@ export class SessionManager {
 
     } catch (error) {
       console.error('❌ Error creating session:', error);
-      // ✅ CORRECTION: Retourner un sessionId même en cas d'erreur
+      // Retourner un sessionId même en cas d'erreur
       console.log('🔄 Fallback: creating minimal session');
       return sessionId;
     }
@@ -109,15 +109,15 @@ export class SessionManager {
     return null;
   }
 
-  // ✅ CORRECTION: Sauvegarder en base avec validation des données
+  // Sauvegarder en base avec validation des données
   private async saveSessionToDatabase(sessionData: SessionData): Promise<void> {
     try {
-      // ✅ VALIDATION: S'assurer que toutes les données requises sont présentes
+      // Validation des données requises
       if (!sessionData.sessionId || !sessionData.productId || !sessionData.storeId) {
         throw new Error('Missing required session data');
       }
 
-      // ✅ CORRECTION: Données simplifiées pour éviter les erreurs de sérialisation
+      // Données simplifiées pour éviter les erreurs de sérialisation
       const dbData = {
         id: sessionData.sessionId,
         product_id: sessionData.productId,
@@ -169,7 +169,7 @@ export class SessionManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Récupérer une session depuis la base
+  // Récupérer une session depuis la base
   async getSessionFromDatabase(sessionId: string): Promise<SessionData | null> {
     try {
       const { data, error } = await supabase
@@ -204,7 +204,7 @@ export class SessionManager {
     }
   }
 
-  // ✅ MÉTHODE UTILITAIRE: Vérifier la santé du service
+  // Vérifier la santé du service
   async healthCheck(): Promise<{ healthy: boolean; sessionsCount: number }> {
     try {
       // Test simple de connexion à la base
