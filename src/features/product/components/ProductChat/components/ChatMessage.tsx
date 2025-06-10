@@ -25,77 +25,93 @@ interface ChatMessageProps {
   onRetry?: () => void;
 }
 
-// ✅ NOUVELLE FONCTION: Détecter si c'est un bouton de paiement qui doit ouvrir directement
+// ✅ CORRECTION 1: Fonction améliorée pour détecter les boutons de paiement
 const isDirectPaymentButton = (choice: string): boolean => {
   const paymentButtons = [
     'Payer avec Wave',
     'Wave',
     'Payer par Carte bancaire',
     'Carte bancaire',
-    'Payer à la livraison'
+    'Payer à la livraison',
+    '🌊',
+    '💳',
+    '🛵'
   ];
   
   return paymentButtons.some(btn => 
     choice.toLowerCase().includes(btn.toLowerCase()) ||
-    choice.includes('💳') ||
-    choice.includes('🌊') ||
-    choice.includes('🛵')
+    choice.includes(btn)
   );
 };
 
-// ✅ FONCTION CORRIGÉE: Gestion des paiements avec détection intelligente
+// ✅ CORRECTION 2: Fonction de paiement améliorée avec debugging
 const handleDirectPayment = async (choice: string, metadata?: any): Promise<boolean> => {
-  console.log('💳 Processing direct payment:', { choice, metadata });
+  console.log('💳 [PAYMENT DEBUG] Starting payment process:', { 
+    choice, 
+    metadata: metadata ? Object.keys(metadata) : 'undefined'
+  });
   
   try {
-    // ✅ WAVE: Gestion spéciale avec deep link mobile et desktop
+    // ✅ CORRECTION 3: Récupération robuste des données de commande
+    let paymentAmount = 0;
+    let orderData: any = {};
+    
+    // Essayer différentes sources pour le montant
+    if (metadata?.paymentAmount) {
+      paymentAmount = metadata.paymentAmount;
+      console.log('💰 [PAYMENT DEBUG] Amount from paymentAmount:', paymentAmount);
+    } else if (metadata?.orderData?.total_amount) {
+      paymentAmount = metadata.orderData.total_amount;
+      console.log('💰 [PAYMENT DEBUG] Amount from orderData.total_amount:', paymentAmount);
+    } else if (metadata?.orderData?.totalAmount) {
+      paymentAmount = metadata.orderData.totalAmount;
+      console.log('💰 [PAYMENT DEBUG] Amount from orderData.totalAmount:', paymentAmount);
+    } else {
+      // Extraire depuis le texte du bouton
+      const amountMatch = choice.match(/(\d+(?:[\s,]\d{3})*)/);
+      if (amountMatch) {
+        paymentAmount = parseInt(amountMatch[1].replace(/[\s,]/g, ''));
+        console.log('💰 [PAYMENT DEBUG] Amount extracted from button text:', paymentAmount);
+      }
+    }
+    
+    // Récupérer orderData
+    if (metadata?.orderData) {
+      orderData = metadata.orderData;
+      console.log('📦 [PAYMENT DEBUG] Order data found:', Object.keys(orderData));
+    }
+    
+    // ✅ VALIDATION CRITIQUE
+    if (!paymentAmount || paymentAmount <= 0) {
+      console.error('❌ [PAYMENT DEBUG] No valid payment amount found');
+      alert('Erreur: Montant de paiement non trouvé. Veuillez recommencer votre commande.');
+      return false;
+    }
+    
+    console.log('✅ [PAYMENT DEBUG] Payment amount validated:', paymentAmount);
+    
+    // ✅ WAVE PAYMENT
     if (choice.toLowerCase().includes('wave') || choice.includes('🌊')) {
-      console.log('🌊 Wave payment detected');
+      console.log('🌊 [WAVE DEBUG] Processing Wave payment');
       
       let paymentUrl = '';
-      let paymentAmount = 0;
       
-      // ✅ CORRECTION 1: Récupérer le montant depuis plusieurs sources possibles
-      if (metadata?.paymentAmount) {
-        paymentAmount = metadata.paymentAmount;
-      } else if (metadata?.orderData?.total_amount) {
-        paymentAmount = metadata.orderData.total_amount;
-      } else if (metadata?.orderData?.totalAmount) {
-        paymentAmount = metadata.orderData.totalAmount;
-      } else {
-        // Extraire le montant depuis le texte du bouton
-        const amountMatch = choice.match(/(\d+(?:,\d{3})*)/);
-        if (amountMatch) {
-          paymentAmount = parseInt(amountMatch[1].replace(/,/g, ''));
-        }
-      }
-      
-      if (!paymentAmount || paymentAmount <= 0) {
-        console.error('❌ No valid payment amount found');
-        alert('Erreur: Montant de paiement non trouvé');
-        return false;
-      }
-      
-      // ✅ CORRECTION 2: Construire l'URL Wave avec le bon format
       if (metadata?.paymentUrl && metadata.paymentUrl.includes('wave.com')) {
         paymentUrl = metadata.paymentUrl;
       } else {
         paymentUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${paymentAmount}`;
       }
       
-      console.log('🌊 Wave payment details:', { paymentAmount, paymentUrl });
+      console.log('🌊 [WAVE DEBUG] Payment URL:', paymentUrl);
       
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // ✅ Mobile: Essayer l'app Wave puis fallback web
-        console.log('📱 Mobile detected, trying Wave app');
-        
-        // Essayer d'ouvrir l'app Wave
+        // Mobile: Essayer app Wave puis fallback
         const waveAppUrl = `wave://pay?amount=${paymentAmount}`;
+        console.log('📱 [WAVE DEBUG] Trying Wave app:', waveAppUrl);
         
         try {
-          // Créer un lien invisible pour tester l'app
           const link = document.createElement('a');
           link.href = waveAppUrl;
           link.style.display = 'none';
@@ -103,19 +119,17 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
           link.click();
           document.body.removeChild(link);
           
-          // Fallback vers le web après 2 secondes si l'app ne s'ouvre pas
           setTimeout(() => {
-            console.log('⚠️ Wave app fallback, opening web');
+            console.log('🌐 [WAVE DEBUG] Fallback to web version');
             window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
           }, 2000);
-          
         } catch (error) {
-          console.log('⚠️ Wave app failed, opening web directly');
+          console.log('🌐 [WAVE DEBUG] Direct web redirect');
           window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
         }
       } else {
-        // ✅ Desktop: Ouvrir directement dans nouvel onglet
-        console.log('🖥️ Desktop detected, opening Wave web');
+        // Desktop: Direct web
+        console.log('🖥️ [WAVE DEBUG] Desktop payment');
         const newWindow = window.open(paymentUrl, '_blank', 'noopener,noreferrer');
         if (!newWindow) {
           window.location.href = paymentUrl;
@@ -125,31 +139,25 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
       return true;
     }
     
-    // ✅ CARTE BANCAIRE: Créer session Stripe
+    // ✅ CARTE BANCAIRE
     if (choice.toLowerCase().includes('carte bancaire') || choice.includes('💳')) {
-      console.log('💳 Card payment detected');
+      console.log('💳 [STRIPE DEBUG] Processing card payment');
       
       let orderId = '';
-      let paymentAmount = 0;
       let customerName = '';
       
-      // ✅ CORRECTION 3: Récupérer les données de commande depuis plusieurs sources
+      // Récupérer orderId
       if (metadata?.orderId) {
         orderId = metadata.orderId;
       } else if (metadata?.orderData?.id) {
         orderId = metadata.orderData.id;
+      } else if (metadata?.orderData?.order_id) {
+        orderId = metadata.orderData.order_id;
       } else if (metadata?.orderData?.session_id) {
         orderId = metadata.orderData.session_id;
       }
       
-      if (metadata?.paymentAmount) {
-        paymentAmount = metadata.paymentAmount;
-      } else if (metadata?.orderData?.total_amount) {
-        paymentAmount = metadata.orderData.total_amount;
-      } else if (metadata?.orderData?.totalAmount) {
-        paymentAmount = metadata.orderData.totalAmount;
-      }
-      
+      // Récupérer customer name
       if (metadata?.customerName) {
         customerName = metadata.customerName;
       } else if (metadata?.orderData?.first_name && metadata?.orderData?.last_name) {
@@ -158,23 +166,16 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
         customerName = metadata.orderData.name;
       }
       
-      // ✅ VALIDATION: Vérifier que nous avons les données nécessaires
-      if (!orderId || !paymentAmount || paymentAmount <= 0) {
-        console.error('❌ Missing required data for card payment:', {
-          orderId,
-          paymentAmount,
-          customerName,
-          metadata
-        });
-        
-        alert('Erreur: Données de commande manquantes. Veuillez recommencer votre commande.');
+      console.log('💳 [STRIPE DEBUG] Order details:', { orderId, paymentAmount, customerName });
+      
+      if (!orderId) {
+        console.error('❌ [STRIPE DEBUG] No order ID found');
+        alert('Erreur: ID de commande manquant. Veuillez recommencer votre commande.');
         return false;
       }
       
-      console.log('💳 Card payment details:', { orderId, paymentAmount, customerName });
-      
       try {
-        // ✅ CORRECTION 4: Appel API Stripe avec conversion FCFA → EUR
+        // Conversion FCFA → EUR
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
           headers: {
@@ -190,15 +191,16 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
           }),
         });
 
+        console.log('💳 [STRIPE DEBUG] API response status:', response.status);
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(`Stripe API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
 
         const session = await response.json();
-        console.log('✅ Stripe session created:', session.id);
+        console.log('✅ [STRIPE DEBUG] Session created:', session.id);
         
-        // ✅ Rediriger vers Stripe Checkout
         if (session.url) {
           window.location.href = session.url;
           return true;
@@ -207,20 +209,19 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
         }
         
       } catch (stripeError) {
-        console.error('❌ Stripe payment error:', stripeError);
+        console.error('❌ [STRIPE DEBUG] Error:', stripeError);
         alert(`Erreur lors de la création du paiement: ${stripeError instanceof Error ? stripeError.message : 'Erreur inconnue'}`);
         return false;
       }
     }
     
-    // ✅ PAIEMENT À LA LIVRAISON: Confirmer directement
+    // ✅ PAIEMENT À LA LIVRAISON
     if (choice.toLowerCase().includes('livraison') || choice.includes('🛵')) {
-      console.log('🛵 Cash on delivery selected');
+      console.log('🛵 [CASH DEBUG] Processing cash on delivery');
       
-      // Pour le paiement à la livraison, on peut directement confirmer la commande
-      if (metadata?.orderId || metadata?.orderData?.id) {
+      if (metadata?.orderId || metadata?.orderData?.id || metadata?.orderData?.order_id) {
         try {
-          const orderId = metadata.orderId || metadata.orderData.id;
+          const orderId = metadata.orderId || metadata.orderData.id || metadata.orderData.order_id;
           
           const response = await fetch('/api/orders/confirm-cash-payment', {
             method: 'POST',
@@ -233,31 +234,30 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
           });
           
           if (response.ok) {
-            console.log('✅ Cash payment confirmed');
+            console.log('✅ [CASH DEBUG] Payment confirmed');
             return true;
           } else {
-            console.warn('⚠️ Cash payment confirmation failed, falling back to chat');
+            console.warn('⚠️ [CASH DEBUG] Confirmation failed, falling back to chat');
           }
         } catch (error) {
-          console.error('❌ Error confirming cash payment:', error);
+          console.error('❌ [CASH DEBUG] Error:', error);
         }
       }
       
-      // Si pas d'orderId ou erreur, laisser le chatbot gérer
-      return false;
+      return false; // Laisser le chatbot gérer
     }
     
-    console.log('⚠️ Payment method not recognized:', choice);
+    console.log('⚠️ [PAYMENT DEBUG] Payment method not recognized:', choice);
     return false;
     
   } catch (error) {
-    console.error('❌ Error in handleDirectPayment:', error);
+    console.error('❌ [PAYMENT DEBUG] Critical error:', error);
     alert(`Erreur de paiement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     return false;
   }
 };
 
-// Composant pour les étapes de progression dans le mode express
+// Composant pour les étapes de progression
 const ProgressIndicator = ({ currentStep }: { currentStep: string }) => {
   const steps = [
     { id: 'contact', label: 'Contact', icon: User, description: 'Votre numéro' },
@@ -381,40 +381,39 @@ export default function ChatMessage({
   const hasError = message.metadata?.flags?.hasError === true;
   const isOrderComplete = message.metadata?.flags?.orderCompleted === true;
 
-  // ✅ NOUVELLE FONCTION: Gestion intelligente des clics
+  // ✅ CORRECTION 4: Gestion intelligente des clics
   const handleChoiceClick = async (choice: string) => {
-    console.log('🔘 Choice clicked:', choice);
+    console.log('🔘 [CHOICE DEBUG] Choice clicked:', choice);
     
-    // Éviter les clics multiples
     if (processingPayment) {
-      console.log('⏳ Payment already processing');
+      console.log('⏳ [CHOICE DEBUG] Payment already processing');
       return;
     }
     
-    // ✅ CORRECTION PRINCIPALE: Détecter et traiter les boutons de paiement directement
+    // ✅ TRAITEMENT DES PAIEMENTS DIRECTS
     if (isDirectPaymentButton(choice)) {
+      console.log('💳 [CHOICE DEBUG] Payment button detected');
       setProcessingPayment(choice);
       
       try {
         const paymentHandled = await handleDirectPayment(choice, message.metadata);
         
         if (paymentHandled) {
-          console.log('✅ Direct payment handled successfully');
-          return; // ✅ IMPORTANT: Ne pas appeler onChoiceSelect
+          console.log('✅ [CHOICE DEBUG] Direct payment handled successfully');
+          return; // Ne pas appeler onChoiceSelect
         } else {
-          console.log('⚠️ Direct payment failed, falling back to chatbot');
-          // Continuer vers le chatbot en cas d'échec
+          console.log('⚠️ [CHOICE DEBUG] Direct payment failed, falling back to chatbot');
         }
       } catch (error) {
-        console.error('❌ Direct payment error:', error);
-        // Continuer vers le chatbot en cas d'erreur
+        console.error('❌ [CHOICE DEBUG] Direct payment error:', error);
       } finally {
         setProcessingPayment(null);
       }
     }
     
-    // ✅ Pour tous les autres boutons OU si le paiement direct a échoué
+    // ✅ POUR TOUS LES AUTRES BOUTONS
     if (onChoiceSelect) {
+      console.log('🔄 [CHOICE DEBUG] Calling onChoiceSelect for:', choice);
       onChoiceSelect(choice);
     }
   };
@@ -504,7 +503,7 @@ export default function ChatMessage({
         {/* Actions et boutons de choix */}
         {message.type === 'assistant' && (
           <div className="mt-3 space-y-3">
-            {/* ✅ BOUTONS DE CHOIX AVEC GESTION PAIEMENT AMÉLIORÉE */}
+            {/* ✅ BOUTONS DE CHOIX AVEC DEBUG */}
             {message.choices && message.choices.length > 0 && (
               <div className="grid gap-2">
                 {message.choices.map((choice, index) => {

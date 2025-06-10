@@ -199,9 +199,23 @@ export type ConversationStep =
   // ✅ ÉTAPES DE GESTION DES STOCKS
   | 'out_of_stock'
   | 'stock_unavailable'
+
+  // ✅ ÉTAPES CONVERSATIONNELLES (NOUVELLES)
+  | 'conversational_quantity'
+  | 'conversational_questions'
+  | 'conversational_contact'
+  | 'conversational_mode'
+  | 'conversational_flow'
+  | 'mode_selection'
+  | 'session_recovered'
+  | 'add_product_to_order'
+  | 'finalize_order'
+  | 'browse_products'
+  | 'free_text_mode'
   
   // ✅ ÉTAPES GÉNÉRIQUES ET UTILITAIRES
   | 'generic';
+
 
 // ==========================================
 // INTERFACES PRINCIPALES

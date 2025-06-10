@@ -1,4 +1,4 @@
-// app/api/chat/route.ts - VERSION AVEC IA VENDEUSE PROFESSIONNELLE
+// app/api/chat/route.ts - VERSION CORRIGÉE AVEC GESTION BOUTONS STANDARDS
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { OptimizedChatService } from "@/lib/services/OptimizedChatService";
@@ -46,6 +46,18 @@ class EnhancedChatAPI {
   private salesDataService: EnhancedSalesDataService;
   private conversationCache: Map<string, ConversationHistory[]> = new Map();
 
+  // ✅ CORRECTION: Patterns pour boutons standards (priorité absolue)
+  private readonly standardButtonPatterns = [
+    /^Poser une question$/i,
+    /^❓ Poser une question$/i,
+    /^Suivre ma commande$/i,
+    /^🔍 Suivre ma commande$/i,
+    /^Nous contacter$/i,
+    /^💬 Nous contacter$/i,
+    /^Voir les autres jeux$/i,
+    /^🛍️ Voir les autres jeux$/i
+  ];
+
   // Patterns pour détecter les commandes express
   private readonly expressPatterns = [
     /commander rapidement/i,
@@ -76,50 +88,101 @@ class EnhancedChatAPI {
     return EnhancedChatAPI.instance;
   }
 
-  // ✅ MÉTHODE PRINCIPALE DE TRAITEMENT
+  // ✅ MÉTHODE PRINCIPALE DE TRAITEMENT CORRIGÉE
   async processMessage(request: ExtendedChatRequest): Promise<AIResponse> {
     const { message, productId, currentStep = 'initial', orderData, sessionId, storeId } = request;
     
     try {
-      console.log('🚀 Enhanced Chat API Processing:', {
+      console.log('🚀 [API] Enhanced Chat API Processing:', {
         message: message.substring(0, 50),
         productId,
         currentStep,
         sessionId: sessionId.substring(0, 10) + '...'
       });
 
-      // 1. VALIDATION STRICTE
+      // ✅ CORRECTION 1: VALIDATION STRICTE
       const validationResult = this.validateRequest(request);
       if (!validationResult.isValid) {
         return this.createErrorResponse(validationResult.error || 'Invalid request');
       }
 
-      // 2. REDIRECTION WHATSAPP IMMÉDIATE
+      // ✅ CORRECTION 2: PRIORITÉ ABSOLUE - Boutons standards
+      if (this.isStandardButton(message)) {
+        console.log('🔘 [API] Standard button detected, processing with OptimizedChatService');
+        
+        try {
+          const standardResponse = await this.optimizedChatService.processUserInput(
+            sessionId,
+            message,
+            currentStep
+          );
+          
+          console.log('✅ [API] Standard button response generated');
+          return this.convertChatMessageToAIResponse(standardResponse);
+          
+        } catch (standardError) {
+          console.error('❌ [API] Error processing standard button:', standardError);
+          return this.createErrorResponse('Erreur lors du traitement du bouton');
+        }
+      }
+
+      // ✅ CORRECTION 3: REDIRECTION WHATSAPP IMMÉDIATE
       if (this.shouldRedirectToWhatsApp(message)) {
+        console.log('📞 [API] WhatsApp redirect requested');
         return this.createWhatsAppRedirect();
       }
 
-      // 3. GESTION DES COMMANDES EXPRESS
+      // ✅ CORRECTION 4: GESTION DES COMMANDES EXPRESS
       if (this.isExpressCommand(message) || currentStep?.includes('express')) {
-        console.log('⚡ Processing express command');
+        console.log('⚡ [API] Processing express command');
         return await this.handleExpressFlow(request);
       }
 
-      // 4. RÉCUPÉRATION DE L'HISTORIQUE
+      // ✅ CORRECTION 5: RÉCUPÉRATION DE L'HISTORIQUE
       const conversationHistory = await this.getConversationHistory(sessionId);
       
-      // 5. TRAITEMENT AVEC IA PROFESSIONNELLE
+      // ✅ CORRECTION 6: TRAITEMENT AVEC IA PROFESSIONNELLE
       const professionalResult = await this.processWithProfessionalAI(request, conversationHistory);
       
-      // 6. SAUVEGARDE DE LA CONVERSATION
+      // ✅ CORRECTION 7: SAUVEGARDE DE LA CONVERSATION
       await this.saveToConversationHistory(sessionId, message, professionalResult);
 
       return professionalResult;
 
     } catch (error) {
-      console.error('❌ Enhanced Chat API Error:', error);
+      console.error("❌ [API] Enhanced Chat API Critical Error:", error);
       return this.createErrorResponse('Une erreur technique est survenue');
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Détecter si c'est un bouton standard
+  private isStandardButton(message: string): boolean {
+    // Vérification exacte d'abord
+    const exactMatches = [
+      'Poser une question',
+      '❓ Poser une question', 
+      'Suivre ma commande',
+      '🔍 Suivre ma commande',
+      'Nous contacter',
+      '💬 Nous contacter',
+      'Voir les autres jeux',
+      '🛍️ Voir les autres jeux',
+      'Commander rapidement',
+      '⚡ Commander rapidement'
+    ];
+    
+    if (exactMatches.includes(message)) {
+      console.log('✅ [API] Exact standard button match:', message);
+      return true;
+    }
+    
+    // Vérification par patterns
+    const isMatch = this.standardButtonPatterns.some(pattern => pattern.test(message));
+    if (isMatch) {
+      console.log('✅ [API] Pattern standard button match:', message);
+    }
+    
+    return isMatch;
   }
 
   // ✅ VALIDATION DE LA REQUÊTE
@@ -200,7 +263,7 @@ Un conseiller humain va répondre à toutes vos questions sur WhatsApp.
       return this.convertChatMessageToAIResponse(chatResponse);
 
     } catch (error) {
-      console.error('❌ Error in express flow:', error);
+      console.error('❌ [API] Error in express flow:', error);
       return this.createErrorResponse('Erreur dans le processus express');
     }
   }
@@ -223,28 +286,31 @@ Un conseiller humain va répondre à toutes vos questions sur WhatsApp.
         sessionStartTime: this.getSessionStartTime(conversationHistory)
       };
 
-      // Traitement avec l'IA professionnelle
-      const result = await this.professionalSalesAI.processCustomerMessage(context);
+      // ✅ CORRECTION: Vérifier si l'IA professionnelle est disponible
+      if (this.professionalSalesAI && typeof this.professionalSalesAI.processCustomerMessage === 'function') {
+        const result = await this.professionalSalesAI.processCustomerMessage(context);
 
-      if (result.success && result.response) {
-        const aiResponse = this.convertChatMessageToAIResponse(result.response);
-        
-        // Ajouter des métadonnées spéciales si fallback utilisé
-        if (result.fallbackUsed) {
-          aiResponse.metadata = {
-            ...aiResponse.metadata,
-            fallbackUsed: true,
-            aiAvailable: this.professionalSalesAI.isHealthy()
-          };
+        if (result.success && result.response) {
+          const aiResponse = this.convertChatMessageToAIResponse(result.response);
+          
+          if (result.fallbackUsed) {
+            aiResponse.metadata = {
+              ...aiResponse.metadata,
+              fallbackUsed: true,
+              aiAvailable: this.professionalSalesAI.isHealthy()
+            };
+          }
+
+          return aiResponse;
+        } else {
+          throw new Error(result.error || 'Professional AI processing failed');
         }
-
-        return aiResponse;
       } else {
-        throw new Error(result.error || 'Professional AI processing failed');
+        throw new Error('Professional AI service not available');
       }
 
     } catch (error) {
-      console.error('❌ Professional AI processing error:', error);
+      console.error('❌ [API] Professional AI processing error:', error);
       return await this.createIntelligentFallback(request);
     }
   }
@@ -252,9 +318,8 @@ Un conseiller humain va répondre à toutes vos questions sur WhatsApp.
   // ✅ FALLBACK INTELLIGENT AVEC DONNÉES
   private async createIntelligentFallback(request: ExtendedChatRequest): Promise<AIResponse> {
     try {
-      console.log('🔄 Creating intelligent fallback response');
+      console.log('🔄 [API] Creating intelligent fallback response');
       
-      // Récupérer les données produit pour un fallback enrichi
       const salesContext = await this.salesDataService.getFullSalesContext(request.productId);
       const product = salesContext.currentProduct;
 
@@ -280,7 +345,7 @@ Comment puis-je vous aider ?`,
       };
 
     } catch (error) {
-      console.error('❌ Error creating intelligent fallback:', error);
+      console.error('❌ [API] Error creating intelligent fallback:', error);
       return this.createBasicFallback();
     }
   }
@@ -297,7 +362,7 @@ Comment puis-je vous assister avec votre achat ?`,
         '❓ Poser une question',
         '📞 Contacter le support'
       ],
-              nextStep: 'basic_fallback' as ConversationStep,
+      nextStep: 'basic_fallback' as ConversationStep,
       buyingIntent: 0.3
     };
   }
@@ -305,13 +370,11 @@ Comment puis-je vous assister avec votre achat ?`,
   // ✅ GESTION DE L'HISTORIQUE DES CONVERSATIONS
   private async getConversationHistory(sessionId: string): Promise<ConversationHistory[]> {
     try {
-      // Vérifier le cache en mémoire d'abord
       const cached = this.conversationCache.get(sessionId);
       if (cached) {
         return cached;
       }
 
-      // Récupérer depuis la base de données
       const { data: conversation, error } = await supabase
         .from('conversations')
         .select('messages')
@@ -319,7 +382,7 @@ Comment puis-je vous assister avec votre achat ?`,
         .single();
 
       if (error || !conversation) {
-        console.log('📝 No conversation history found, starting fresh');
+        console.log('📝 [API] No conversation history found, starting fresh');
         return [];
       }
 
@@ -331,14 +394,13 @@ Comment puis-je vous assister avec votre achat ?`,
           content: msg.content,
           timestamp: msg.timestamp || new Date().toISOString()
         }))
-        .slice(-10); // Garder les 10 derniers messages
+        .slice(-10);
 
-      // Mettre en cache
       this.conversationCache.set(sessionId, history);
       return history;
 
     } catch (error) {
-      console.error('❌ Error getting conversation history:', error);
+      console.error('❌ [API] Error getting conversation history:', error);
       return [];
     }
   }
@@ -352,7 +414,6 @@ Comment puis-je vous assister avec votre achat ?`,
     try {
       const currentHistory = this.conversationCache.get(sessionId) || [];
       
-      // Ajouter les nouveaux messages
       const newHistory = [
         ...currentHistory,
         {
@@ -365,18 +426,16 @@ Comment puis-je vous assister avec votre achat ?`,
           content: aiResponse.content,
           timestamp: new Date().toISOString()
         }
-      ].slice(-20); // Garder les 20 derniers messages
+      ].slice(-20);
 
-      // Mettre à jour le cache
       this.conversationCache.set(sessionId, newHistory);
 
-      // Sauvegarder en base de données de manière asynchrone
       this.saveToDatabase(sessionId, newHistory).catch(error => 
-        console.error('❌ Error saving to database:', error)
+        console.error('❌ [API] Error saving to database:', error)
       );
 
     } catch (error) {
-      console.error('❌ Error saving conversation history:', error);
+      console.error('❌ [API] Error saving conversation history:', error);
     }
   }
 
@@ -392,10 +451,10 @@ Comment puis-je vous assister avec votre achat ?`,
         }, { onConflict: 'id' });
 
       if (error) {
-        console.error('❌ Database save error:', error);
+        console.error('❌ [API] Database save error:', error);
       }
     } catch (error) {
-      console.error('❌ Error in saveToDatabase:', error);
+      console.error('❌ [API] Error in saveToDatabase:', error);
     }
   }
 
@@ -440,14 +499,14 @@ Voulez-vous réessayer ou parler à un conseiller ?`,
   } {
     return {
       cacheSize: this.conversationCache.size,
-      aiHealthy: this.professionalSalesAI.isHealthy(),
-      activeProcessing: this.professionalSalesAI.getProcessingStats().activeProcessing
+      aiHealthy: this.professionalSalesAI ? this.professionalSalesAI.isHealthy() : false,
+      activeProcessing: this.professionalSalesAI ? this.professionalSalesAI.getProcessingStats().activeProcessing : 0
     };
   }
 
   public clearCache(): void {
     this.conversationCache.clear();
-    console.log('🧹 Conversation cache cleared');
+    console.log('🧹 [API] Conversation cache cleared');
   }
 }
 
@@ -458,7 +517,7 @@ export async function POST(req: Request) {
   try {
     const requestData: ExtendedChatRequest = await req.json();
     
-    console.log('📨 Enhanced Chat API Request received:', {
+    console.log('📨 [API] Enhanced Chat API Request received:', {
       message: requestData.message?.substring(0, 50),
       productId: requestData.productId,
       sessionId: requestData.sessionId?.substring(0, 10) + '...'
@@ -466,7 +525,7 @@ export async function POST(req: Request) {
 
     const response = await chatAPI.processMessage(requestData);
     
-    console.log('✅ Enhanced Chat API Response sent:', {
+    console.log('✅ [API] Enhanced Chat API Response sent:', {
       type: response.type,
       nextStep: response.nextStep,
       hasChoices: !!response.choices?.length,
@@ -476,7 +535,7 @@ export async function POST(req: Request) {
     return NextResponse.json(response, { headers: corsHeaders });
 
   } catch (error) {
-    console.error("❌ Enhanced Chat API Critical Error:", error);
+    console.error("❌ [API] Enhanced Chat API Critical Error:", error);
     
     return NextResponse.json({
       content: "Je rencontre un problème technique. Veuillez réessayer ou contacter notre support.",
