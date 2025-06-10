@@ -142,61 +142,76 @@ export class OptimizedChatService {
    * ✅ NOUVELLE MÉTHODE: Détecter si c'est un bouton standard qui ne doit PAS aller à l'IA
    */
   private isStandardButton(message: string): boolean {
-    const standardButtons = [
-      'Poser une question',
-      '❓ Poser une question',
-      'Suivre ma commande',
-      '🔍 Suivre ma commande',
-      'Nous contacter',
-      '💬 Nous contacter',
-      'Voir les autres jeux',
-      '🛍️ Voir les autres jeux',
-      'Commander rapidement',
-      '⚡ Commander rapidement'
-    ];
-    
-    return standardButtons.some(btn => 
-      message.includes(btn) || message === btn
-    );
-  }
+  const standardButtons = [
+    'Poser une question',
+    '❓ Poser une question',
+    'Suivre ma commande',
+    '🔍 Suivre ma commande',
+    'Nous contacter',
+    '💬 Nous contacter',
+    'Voir les autres jeux',
+    '🛍️ Voir les autres jeux',
+    'Commander rapidement',
+    '⚡ Commander rapidement',
+    'Parler à un conseiller',
+    'Contacter le support',
+    '📞 Contacter le support',
+    'WhatsApp',
+    'conseiller humain',
+    'agent humain',
+    'support humain'
+  ];
+  
+  return standardButtons.some(btn => 
+    message.includes(btn) || message === btn
+  );
+}
 
   /**
    * ✅ NOUVELLE MÉTHODE: Traiter les boutons standards avec réponses prédéfinies
    */
   private async handleStandardButton(
-    sessionId: string,
-    message: string
-  ): Promise<ChatMessage> {
-    console.log('🔘 Processing standard button:', message);
+  sessionId: string,
+  message: string
+): Promise<ChatMessage> {
+  console.log('🔘 Processing standard button:', message);
 
-    // ✅ CORRECTION PROBLÈME 2: Poser une question
-    if (message.includes('Poser une question') || message.includes('❓')) {
-      return {
-        type: 'assistant',
-        content: `✨ **C'est compris !**
+  // ✅ PRIORITÉ 1: Redirection WhatsApp IMMÉDIATE
+  if (message.includes('Parler à un conseiller') || 
+      message.includes('Contacter le support') ||
+      message.includes('conseiller humain') ||
+      message.includes('agent humain') ||
+      message.includes('support humain') ||
+      message.includes('WhatsApp')) {
+    
+    console.log('📞 Redirecting to WhatsApp');
+    return {
+      type: 'assistant',
+      content: `📞 **Je vous connecte à notre équipe !**
 
-Écrivez votre question dans le champ ci-dessous afin que je puisse y répondre.
+Un conseiller humain va répondre à toutes vos questions sur WhatsApp.
 
-💬 Vous pouvez me demander :
-- Comment fonctionne le jeu
-- Pour qui c'est recommandé  
-- Les bénéfices pour vous
-- Nos conditions de livraison
-- Tout autre question !
-
-Je suis là pour vous aider ! 😊`,
-        choices: [],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'free_text_mode' as ConversationStep,
-          flags: { 
-            freeTextEnabled: true,
-            questionMode: true
-          }
+👇 Cliquez pour continuer la conversation :`,
+      choices: ['📞 Continuer sur WhatsApp (+221 78 136 27 28)'],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante d\'achat'
+      },
+      metadata: {
+        nextStep: 'whatsapp_redirect' as ConversationStep,
+        externalUrl: {
+          type: 'whatsapp',
+          url: 'https://wa.me/221781362728',
+          description: 'Contacter sur WhatsApp'
         },
-        timestamp: new Date().toISOString()
-      };
-    }
+        flags: { 
+          preventAIIntervention: true,
+          whatsappRedirect: true
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
 
     // ✅ CORRECTION PROBLÈME 3: Suivre ma commande  
     if (message.includes('Suivre ma commande') || message.includes('🔍')) {
@@ -206,15 +221,52 @@ Je suis là pour vous aider ! 😊`,
 
     // ✅ Commander rapidement
     if (message.includes('Commander rapidement') || message.includes('⚡')) {
-      const orderState = this.orderStates.get(sessionId);
-      const productId = orderState?.data.productId || this.extractProductIdFromSession(sessionId);
-      
-      if (!productId) {
-        return this.createErrorMessage(sessionId, 'Session expirée. Veuillez rafraîchir la page.');
-      }
-      
-      return this.startExpressPurchase(sessionId, productId);
+    const orderState = this.orderStates.get(sessionId);
+    const productId = orderState?.data.productId || this.extractProductIdFromSession(sessionId);
+    
+    if (!productId) {
+      console.error('❌ No productId found for express purchase');
+      return {
+        type: 'assistant',
+        content: `😔 **Session expirée**
+
+Veuillez rafraîchir la page pour recommencer votre commande.`,
+        choices: ['🔄 Rafraîchir la page', '📞 Contacter le support'],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'session_expired' as ConversationStep,
+          flags: { hasError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
+    
+    console.log('⚡ Starting express purchase for product:', productId);
+    try {
+      return await this.startExpressPurchase(sessionId, productId);
+    } catch (error) {
+      console.error('❌ Error starting express purchase:', error);
+      return {
+        type: 'assistant',
+        content: `😔 **Erreur lors du lancement de la commande express**
+
+Une erreur technique est survenue. Voulez-vous réessayer ?`,
+        choices: ['🔄 Réessayer', '📞 Contacter le support'],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'express_error' as ConversationStep,
+          flags: { hasError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
 
     // ✅ Nous contacter
     if (message.includes('Nous contacter') || message.includes('💬')) {
@@ -439,19 +491,36 @@ Voulez-vous que je vous aide avec autre chose ?`,
 
   // ✅ NOUVELLE MÉTHODE: Extraire productId depuis sessionId
   private extractProductIdFromSession(sessionId: string): string | undefined {
-    try {
-      const sessionParts = sessionId.split('_');
-      if (sessionParts.length >= 2 && sessionParts[0].length > 10) {
-        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidPattern.test(sessionParts[0])) {
-          return sessionParts[0];
+  try {
+    console.log('🔍 Extracting productId from sessionId:', sessionId);
+    
+    // Essayer différents formats de sessionId
+    if (sessionId.includes('_')) {
+      const parts = sessionId.split('_');
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      for (const part of parts) {
+        if (uuidPattern.test(part)) {
+          console.log('✅ ProductId extracted:', part);
+          return part;
         }
       }
-    } catch (error) {
-      console.error('❌ Error extracting productId from sessionId:', error);
     }
+    
+    // Si le sessionId entier est un UUID
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(sessionId)) {
+      console.log('✅ SessionId is productId:', sessionId);
+      return sessionId;
+    }
+    
+    console.log('⚠️ No productId found in sessionId');
+    return undefined;
+  } catch (error) {
+    console.error('❌ Error extracting productId:', error);
     return undefined;
   }
+}
 
   // ✅ NOUVELLE MÉTHODE: Gérer le flow express
   private async handleExpressFlow(
@@ -491,95 +560,127 @@ Voulez-vous que je vous aide avec autre chose ?`,
    * ✅ MÉTHODE CORRIGÉE: Démarrer le flow express avec correction des métadonnées
    */
   async startExpressPurchase(sessionId: string, productId: string): Promise<ChatMessage> {
-    console.log('🚀 Starting express purchase with enhanced metadata:', { sessionId, productId });
+  console.log('🚀 Starting express purchase with validation:', { sessionId, productId });
 
-    try {
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('id, name, price, stock_quantity, status')
-        .eq('id', productId)
-        .eq('status', 'active')
-        .single();
+  try {
+    // ✅ Validation stricte du productId
+    if (!productId || productId.length < 10) {
+      throw new Error('Invalid productId provided');
+    }
 
-      if (productError || !product) {
-        console.error('❌ Product not found or inactive:', productError);
-        return this.createErrorMessage(sessionId, 'Ce produit n\'est pas disponible actuellement.');
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, name, price, stock_quantity, status')
+      .eq('id', productId)
+      .eq('status', 'active')
+      .single();
+
+    if (productError) {
+      console.error('❌ Database error:', productError);
+      throw new Error(`Database error: ${productError.message}`);
+    }
+
+    if (!product) {
+      throw new Error('Product not found or inactive');
+    }
+
+    if (product.stock_quantity <= 0) {
+      return this.createOutOfStockMessage(product);
+    }
+
+    // ✅ Créer l'état de commande avec plus de données
+    const orderState: OrderState = {
+      step: 'quantity',
+      mode: 'express',
+      data: { 
+        quantity: 1,
+        productId: product.id,
+        storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
+      },
+      flags: {
+        customerExists: false,
+        addressValidated: false,
+        paymentInitiated: false,
+        allowAddressChange: false
+      },
+      metadata: {
+        maxQuantity: Math.min(product.stock_quantity, 10)
       }
+    };
 
-      if (product.stock_quantity <= 0) {
-        return this.createOutOfStockMessage(product);
-      }
+    this.orderStates.set(sessionId, orderState);
+    await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
 
-      const orderState: OrderState = {
-        step: 'quantity',
-        mode: 'express',
-        data: { 
-          quantity: 1,
-          productId: product.id,
-          storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
-        },
-        flags: {
-          customerExists: false,
-          addressValidated: false,
-          paymentInitiated: false,
-          allowAddressChange: false
-        },
-        metadata: {
-          maxQuantity: Math.min(product.stock_quantity, 10)
-        }
-      };
+    console.log('✅ Express purchase initialized successfully');
 
-      this.orderStates.set(sessionId, orderState);
-      await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
-
-      return {
-        type: 'assistant',
-        content: `⚡ **Commande Express Activée** ⚡
+    return {
+      type: 'assistant',
+      content: `⚡ **Commande Express Activée** ⚡
 
 Jeu : **${product.name}**
 Prix : **${product.price.toLocaleString()} FCFA** l'unité
 Livraison : **incluse selon votre adresse**
 
 **Combien d'exemplaires souhaitez-vous commander ?**`,
-        choices: [
-          '1 exemplaire',
-          '2 exemplaires', 
-          '3 exemplaires',
-          'Autre quantité'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'express_quantity' as ConversationStep,
-          productId: product.id,
-          maxQuantity: Math.min(product.stock_quantity, 10),
-          // ✅ CORRECTION CRITIQUE: Ajouter les données de commande pour le paiement
-          orderData: {
-            session_id: sessionId,
-            product_id: product.id,
+      choices: [
+        '1 exemplaire',
+        '2 exemplaires', 
+        '3 exemplaires',
+        'Autre quantité'
+      ],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante d\'achat'
+      },
+      metadata: {
+        nextStep: 'express_quantity' as ConversationStep,
+        productId: product.id,
+        maxQuantity: Math.min(product.stock_quantity, 10),
+        orderData: {
+          session_id: sessionId,
+          product_id: product.id,
+          quantity: 1,
+          subtotal: product.price,
+          total_amount: product.price,
+          items: [{
+            productId: product.id,
+            name: product.name,
             quantity: 1,
-            subtotal: product.price,
-            total_amount: product.price, // Sera recalculé avec livraison
-            items: [{
-              productId: product.id,
-              name: product.name,
-              quantity: 1,
-              price: product.price,
-              totalPrice: product.price
-            }]
-          },
-          flags: { 
-            expressMode: true,
-            quantitySelection: true
-          }
+            price: product.price,
+            totalPrice: product.price
+          }]
         },
-        timestamp: new Date().toISOString()
-      };
+        flags: { 
+          expressMode: true,
+          quantitySelection: true,
+          preventAIIntervention: true
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
 
-    } catch (error) {
-      console.error('❌ Error in startExpressPurchase:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du démarrage de la commande express');
-    }
+  } catch (error) {
+    console.error('❌ Critical error in startExpressPurchase:', error);
+    return {
+      type: 'assistant',
+      content: `😔 **Erreur technique**
+
+${error instanceof Error ? error.message : 'Erreur inconnue'}
+
+Voulez-vous réessayer ou contacter notre support ?`,
+      choices: ['🔄 Réessayer', '📞 Contacter le support'],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante d\'achat'
+      },
+      metadata: {
+        nextStep: 'express_error' as ConversationStep,
+        flags: { hasError: true }
+      },
+      timestamp: new Date().toISOString()
+    };
   }
+}
 
   async handleExpressStep(
     sessionId: string,

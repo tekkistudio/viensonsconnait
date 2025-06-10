@@ -69,11 +69,15 @@ class EnhancedChatAPI {
 
   // Patterns pour WhatsApp
   private readonly whatsappPatterns = [
-    /parler à un humain/i,
-    /conseiller humain/i,
-    /agent humain/i,
-    /support humain/i
-  ];
+  /parler à un humain/i,
+  /parler à un conseiller/i,
+  /conseiller humain/i,
+  /agent humain/i,
+  /support humain/i,
+  /contacter le support/i,
+  /whatsapp/i,
+  /📞/
+];
 
   private constructor() {
     this.optimizedChatService = OptimizedChatService.getInstance();
@@ -90,73 +94,69 @@ class EnhancedChatAPI {
 
   // ✅ MÉTHODE PRINCIPALE DE TRAITEMENT CORRIGÉE
   async processMessage(request: ExtendedChatRequest): Promise<AIResponse> {
-    const { message, productId, currentStep = 'initial', orderData, sessionId, storeId } = request;
-    
-    try {
-      console.log('🚀 [API] Enhanced Chat API Processing:', {
-        message: message.substring(0, 50),
-        productId,
-        currentStep,
-        sessionId: sessionId.substring(0, 10) + '...'
-      });
+  const { message, productId, currentStep = 'initial', orderData, sessionId, storeId } = request;
+  
+  try {
+    console.log('🚀 [API] Enhanced Chat API Processing:', {
+      message: message.substring(0, 50),
+      productId,
+      currentStep,
+      sessionId: sessionId.substring(0, 10) + '...'
+    });
 
-      // ✅ CORRECTION 1: VALIDATION STRICTE
-      const validationResult = this.validateRequest(request);
-      if (!validationResult.isValid) {
-        return this.createErrorResponse(validationResult.error || 'Invalid request');
-      }
-
-      // ✅ CORRECTION 2: PRIORITÉ ABSOLUE - Boutons standards
-      if (this.isStandardButton(message)) {
-        console.log('🔘 [API] Standard button detected, processing with OptimizedChatService');
-        
-        try {
-          const standardResponse = await this.optimizedChatService.processUserInput(
-            sessionId,
-            message,
-            currentStep
-          );
-          
-          console.log('✅ [API] Standard button response generated');
-          return this.convertChatMessageToAIResponse(standardResponse);
-          
-        } catch (standardError) {
-          console.error('❌ [API] Error processing standard button:', standardError);
-          return this.createErrorResponse('Erreur lors du traitement du bouton');
-        }
-      }
-
-      // ✅ CORRECTION 3: REDIRECTION WHATSAPP IMMÉDIATE
-      if (this.shouldRedirectToWhatsApp(message)) {
-        console.log('📞 [API] WhatsApp redirect requested');
-        return this.createWhatsAppRedirect();
-      }
-
-      // ✅ CORRECTION 4: GESTION DES COMMANDES EXPRESS
-      if (this.isExpressCommand(message) || currentStep?.includes('express')) {
-        console.log('⚡ [API] Processing express command');
-        return await this.handleExpressFlow(request);
-      }
-
-      // ✅ CORRECTION 5: RÉCUPÉRATION DE L'HISTORIQUE
-      const conversationHistory = await this.getConversationHistory(sessionId);
-      
-      // ✅ CORRECTION 6: TRAITEMENT AVEC IA PROFESSIONNELLE
-      const professionalResult = await this.processWithProfessionalAI(request, conversationHistory);
-      
-      // ✅ CORRECTION 7: SAUVEGARDE DE LA CONVERSATION
-      await this.saveToConversationHistory(sessionId, message, professionalResult);
-
-      return professionalResult;
-
-    } catch (error) {
-      console.error("❌ [API] Enhanced Chat API Critical Error:", error);
-      return this.createErrorResponse('Une erreur technique est survenue');
+    // ✅ VALIDATION STRICTE
+    const validationResult = this.validateRequest(request);
+    if (!validationResult.isValid) {
+      return this.createErrorResponse(validationResult.error || 'Invalid request');
     }
+
+    // ✅ PRIORITÉ ABSOLUE 1: REDIRECTION WHATSAPP
+    if (this.shouldRedirectToWhatsApp(message)) {
+      console.log('📞 [API] WhatsApp redirect requested');
+      return this.createWhatsAppRedirect();
+    }
+
+    // ✅ PRIORITÉ 2: Boutons standards
+    if (this.isStandardButton(message)) {
+      console.log('🔘 [API] Standard button detected, processing with OptimizedChatService');
+      
+      try {
+        const standardResponse = await this.optimizedChatService.processUserInput(
+          sessionId,
+          message,
+          currentStep
+        );
+        
+        console.log('✅ [API] Standard button response generated');
+        return this.convertChatMessageToAIResponse(standardResponse);
+        
+      } catch (standardError) {
+        console.error('❌ [API] Error processing standard button:', standardError);
+        return this.createErrorResponse('Erreur lors du traitement du bouton');
+      }
+    }
+
+    // ✅ PRIORITÉ 3: GESTION DES COMMANDES EXPRESS
+    if (this.isExpressCommand(message) || currentStep?.includes('express')) {
+      console.log('⚡ [API] Processing express command');
+      return await this.handleExpressFlow(request);
+    }
+
+    // ✅ Continuer avec le traitement IA normal...
+    const conversationHistory = await this.getConversationHistory(sessionId);
+    const professionalResult = await this.processWithProfessionalAI(request, conversationHistory);
+    await this.saveToConversationHistory(sessionId, message, professionalResult);
+
+    return professionalResult;
+
+  } catch (error) {
+    console.error("❌ [API] Enhanced Chat API Critical Error:", error);
+    return this.createErrorResponse('Une erreur technique est survenue');
   }
+}
 
   // ✅ NOUVELLE MÉTHODE: Détecter si c'est un bouton standard
-  private isStandardButton(message: string): boolean {
+    private isStandardButton(message: string): boolean {
     // Vérification exacte d'abord
     const exactMatches = [
       'Poser une question',
@@ -168,7 +168,12 @@ class EnhancedChatAPI {
       'Voir les autres jeux',
       '🛍️ Voir les autres jeux',
       'Commander rapidement',
-      '⚡ Commander rapidement'
+      '⚡ Commander rapidement',
+      // ✅ AJOUT: Boutons WhatsApp
+      'Parler à un conseiller',
+      'Contacter le support',
+      '📞 Contacter le support',
+      '📞 Continuer sur WhatsApp (+221 78 136 27 28)'
     ];
     
     if (exactMatches.includes(message)) {
@@ -208,8 +213,8 @@ class EnhancedChatAPI {
 
   // ✅ DÉTECTION REDIRECTION WHATSAPP
   private shouldRedirectToWhatsApp(message: string): boolean {
-    return this.whatsappPatterns.some(pattern => pattern.test(message));
-  }
+  return this.whatsappPatterns.some(pattern => pattern.test(message));
+}
 
   // ✅ CRÉATION REDIRECTION WHATSAPP
   private createWhatsAppRedirect(): AIResponse {

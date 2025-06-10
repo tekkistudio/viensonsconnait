@@ -672,149 +672,212 @@ Qu'est-ce qui vous intéresse le plus ?`,
 
   // ✅ CORRECTION MOBILE: handleChoiceSelect avec traitement spécial "Comment y jouer"
     const handleChoiceSelect = async (choice: string) => {
-      if (isProcessing) return;
+  if (isProcessing) {
+    console.log('⏳ Processing in progress, ignoring choice');
+    return;
+  }
 
-      console.log('🔘 Mobile choice selected:', choice);
-      setIsProcessing(true);
-      setShowTyping(true);
+  console.log('🔘 Choice selected:', choice);
+  setIsProcessing(true);
+  updateTypingStatus(true);
+  
+  try {
+    // ✅ PRIORITÉ 1: Gestion des redirections WhatsApp
+    if (choice.includes('Continuer sur WhatsApp') || 
+        choice.includes('📞 Continuer sur WhatsApp') ||
+        choice.includes('Parler à un conseiller') ||
+        choice.includes('Contacter le support')) {
       
-      try {
-        // ✅ TRAITEMENT SPÉCIAL: Comment y jouer ? 
-        if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
-          console.log('🎮 Mobile: Traitement spécial "Comment y jouer"');
-          
-          // Ajouter d'abord le message utilisateur
-          const userMessage: ChatMessageType = {
-            type: 'user',
-            content: choice,
-            timestamp: new Date().toISOString()
-          };
-          addMessage(userMessage);
-          
-          // Attendre un peu pour l'animation
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          let gameRules = '';
-          
-          try {
-            // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE
-            const { data: productData, error } = await supabase
-              .from('products')
-              .select('game_rules, name')
-              .eq('id', product.id)
-              .single();
-
-            if (error || !productData) {
-              console.error('❌ Mobile - Erreur récupération produit:', error);
-              gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-    Une erreur est survenue lors du chargement des règles. 
-
-    📞 **Contactez-nous pour plus d'informations :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
-
-    Nous vous enverrons les règles détaillées !`;
-            } else if (productData.game_rules && productData.game_rules.trim()) {
-              console.log('✅ Mobile - Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
-              gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-    ${productData.game_rules}
-
-    🎯 **Prêt(e) à vivre cette expérience ?**`;
-            } else {
-              console.log('⚠️ Mobile - Pas de règles définies pour ce produit');
-              gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-    📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
-
-    En attendant, voici ce que vous devez savoir :
-    • Ce jeu est conçu pour renforcer les relations
-    • Il se joue en groupe (2 personnes minimum)  
-    • Chaque partie dure environ 30-60 minutes
-    • Aucune préparation spéciale requise
-
-    📞 **Pour les règles complètes, contactez-nous :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
-
-    Nous vous enverrons un guide détaillé !`;
-            }
-          } catch (dbError) {
-            console.error('❌ Mobile - Erreur base de données:', dbError);
-            gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-    😔 **Problème technique temporaire**
-
-    Nous ne pouvons pas charger les règles du jeu en ce moment.
-
-    📞 **Solution immédiate :**
-    • WhatsApp : +221 78 136 27 28
-    • Nous vous enverrons les règles par message
-
-    🔄 **Ou réessayez dans quelques minutes**`;
-          }
-          
-          // Créer et ajouter la réponse assistant
-          const assistantMessage: ChatMessageType = {
-            type: 'assistant',
-            content: gameRules,
-            choices: [
-              '⚡ Commander maintenant',
-              '💝 Quels bénéfices ?',
-              '⭐ Voir les avis',
-              '📞 Contacter le support'
-            ],
-            assistant: {
-              name: 'Rose',
-              title: 'Assistante d\'achat'
-            },
-            metadata: {
-              nextStep: 'game_rules_shown' as ConversationStep,
-              flags: {
-                gameRulesShown: true
-              }
-            },
-            timestamp: new Date().toISOString()
-          };
-          
-          addMessage(assistantMessage);
-          return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
+      console.log('📞 Opening WhatsApp redirect');
+      
+      // Ajouter le message utilisateur
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content: choice,
+        timestamp: new Date().toISOString()
+      };
+      addMessage(userMessage);
+      
+      // Ouvrir WhatsApp
+      const whatsappUrl = 'https://wa.me/221781362728';
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Mobile: Essayer l'app WhatsApp puis fallback navigateur
+        try {
+          window.location.href = `whatsapp://send?phone=221781362728&text=Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`;
+        } catch (error) {
+          window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
         }
-        
-        // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal
-        await sendMessage(choice);
-        
-      } catch (error) {
-        console.error('❌ Error sending mobile choice:', error);
-        
-        // Message d'erreur en cas de problème
-        const errorMessage: ChatMessageType = {
+      } else {
+        // Desktop: Ouvrir dans un nouvel onglet
+        const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        if (!newWindow) {
+          window.location.href = whatsappUrl;
+        }
+      }
+      
+      // Message de confirmation
+      setTimeout(() => {
+        const confirmMessage: ChatMessageType = {
           type: 'assistant',
-          content: `😔 **Erreur temporaire**
+          content: `✅ **Redirection vers WhatsApp**
 
-    Un problème est survenu. Voulez-vous réessayer ?`,
-          choices: ['🔄 Réessayer', '📞 Contacter le support'],
+Si WhatsApp ne s'est pas ouvert automatiquement, cliquez sur le lien :
+👉 https://wa.me/221781362728
+
+Notre équipe vous répondra rapidement !`,
+          choices: [],
           assistant: {
             name: 'Rose',
             title: 'Assistante d\'achat'
           },
           metadata: {
-            nextStep: 'error_recovery' as ConversationStep,
-            flags: { hasError: true }
+            nextStep: 'whatsapp_opened' as ConversationStep,
+            flags: { whatsappRedirect: true }
           },
           timestamp: new Date().toISOString()
         };
-        
-        addMessage(errorMessage);
-        
-      } finally {
-        setTimeout(() => {
-          setShowTyping(false);
-          setIsProcessing(false);
-        }, 1000);
+        addMessage(confirmMessage);
+      }, 1000);
+      
+      return; // ✅ IMPORTANT: Sortir ici
+    }
+    
+    // ✅ PRIORITÉ 2: Traitement spécial "Comment y jouer"
+    if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
+      console.log('🎮 Traitement spécial "Comment y jouer"');
+      
+      // Ajouter d'abord le message utilisateur
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content: choice,
+        timestamp: new Date().toISOString()
+      };
+      addMessage(userMessage);
+      
+      // Attendre un peu pour l'animation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      let gameRules = '';
+      
+      try {
+        // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE
+        const { data: productData, error } = await supabase
+          .from('products')
+          .select('game_rules, name')
+          .eq('id', product.id)
+          .single();
+
+        if (error || !productData) {
+          console.error('❌ Erreur récupération produit:', error);
+          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+Une erreur est survenue lors du chargement des règles. 
+
+📞 **Contactez-nous pour plus d'informations :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
+
+Nous vous enverrons les règles détaillées !`;
+        } else if (productData.game_rules && productData.game_rules.trim()) {
+          console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
+          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+${productData.game_rules}
+
+🎯 **Prêt(e) à vivre cette expérience ?**`;
+        } else {
+          console.log('⚠️ Pas de règles définies pour ce produit');
+          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+
+📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+
+En attendant, voici ce que vous devez savoir :
+• Ce jeu est conçu pour renforcer les relations
+• Il se joue en groupe (2 personnes minimum)
+• Chaque partie dure environ 30-60 minutes
+• Aucune préparation spéciale requise
+
+📞 **Pour les règles complètes, contactez-nous :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
+
+Nous vous enverrons un guide détaillé !`;
+        }
+      } catch (dbError) {
+        console.error('❌ Erreur base de données:', dbError);
+        gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+
+😔 **Problème technique temporaire**
+
+Nous ne pouvons pas charger les règles du jeu en ce moment.
+
+📞 **Solution immédiate :**
+• WhatsApp : +221 78 136 27 28
+• Nous vous enverrons les règles par message
+
+🔄 **Ou réessayez dans quelques minutes**`;
       }
+      
+      // Créer et ajouter la réponse assistant
+      const assistantMessage: ChatMessageType = {
+        type: 'assistant',
+        content: gameRules,
+        choices: [
+          '⚡ Commander maintenant',
+          '💝 Quels bénéfices ?',
+          '⭐ Voir les avis',
+          '📞 Contacter le support'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'game_rules_shown' as ConversationStep,
+          flags: {
+            gameRulesShown: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      addMessage(assistantMessage);
+      return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
+    }
+    
+    // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via API
+    await sendMessage(choice);
+    
+  } catch (error) {
+    console.error('❌ Error sending choice:', error);
+    
+    // Message d'erreur en cas de problème
+    const errorMessage: ChatMessageType = {
+      type: 'assistant',
+      content: `😔 **Erreur temporaire**
+
+Un problème est survenu. Voulez-vous réessayer ?`,
+      choices: ['🔄 Réessayer', '📞 Contacter le support'],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante d\'achat'
+      },
+      metadata: {
+        nextStep: 'error_recovery' as ConversationStep,
+        flags: { hasError: true }
+      },
+      timestamp: new Date().toISOString()
     };
+    
+    addMessage(errorMessage);
+    
+  } finally {
+    updateTypingStatus(false);
+    setIsProcessing(false);
+  }
+};
 
   const handleClosePaymentModal = () => {
     setPaymentModal({ 
