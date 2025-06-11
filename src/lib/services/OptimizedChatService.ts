@@ -424,7 +424,7 @@ Voulez-vous que je vous aide avec autre chose ?`,
             .from('conversations')
             .select('product_id')
             .eq('id', sessionId)
-            .single();
+            .maybeSingle();
             
           if (conversation?.product_id) {
             productId = conversation.product_id;
@@ -446,7 +446,7 @@ Voulez-vous que je vous aide avec autre chose ?`,
         .from('products')
         .select('id, name, price, description')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (productError || !product) {
         console.error('❌ Product not found for AI context:', productError);
@@ -573,7 +573,7 @@ Voulez-vous que je vous aide avec autre chose ?`,
       .select('id, name, price, stock_quantity, status')
       .eq('id', productId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (productError) {
       console.error('❌ Database error:', productError);
@@ -785,7 +785,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
         .from('products')
         .select('id, name, price')
         .eq('id', orderState.data.productId)
-        .single();
+        .maybeSingle();
 
       if (!product) {
         return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
@@ -889,7 +889,7 @@ Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaire
       .from('products')
       .select('id, name, price')
       .eq('id', orderState.data.productId)
-      .single();
+      .maybeSingle();
 
     if (!product) {
       return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
@@ -1035,7 +1035,7 @@ Exemple : +221 77 123 45 67`,
         .from('customers')
         .select('*')
         .eq('phone', formattedPhone.international)
-        .single();
+        .maybeSingle();
 
       console.log('🔍 Customer lookup result:', { 
         found: !!existingCustomer, 
@@ -1551,7 +1551,7 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
         .from('products')
         .select('price')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (!product) return 0;
 
@@ -1644,7 +1644,7 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
         .from('products')
         .select('*')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (productError || !product) {
         console.error('❌ Product not found during order creation:', productError);
@@ -1700,7 +1700,7 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
         .from('orders')
         .insert(orderData)
         .select()
-        .single();
+        .maybeSingle();
 
       if (insertError) {
         console.error('❌ Error inserting order:', insertError);
@@ -1926,7 +1926,7 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
         .from('conversations')
         .select('*')
         .eq('id', sessionId)
-        .single();
+        .maybeSingle();
 
       if (error || !conversation) {
         console.error('❌ Could not recover session from database:', error);
@@ -1991,7 +1991,7 @@ ${errorMessage}
         .from('products')
         .select('id, name, price')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (!product) {
         return this.createErrorMessage(sessionId, 'Produit non trouvé');
@@ -2083,7 +2083,7 @@ Que souhaitez-vous faire maintenant ?`,
         .from('products')
         .select('*')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (!product) {
         return this.createErrorMessage(sessionId, 'Produit non trouvé');
@@ -2258,7 +2258,7 @@ Quelle est votre question ?`,
         .from('products')
         .select('name')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
       
       return product?.name || 'le jeu';
     } catch {
@@ -2387,7 +2387,7 @@ Quel jeu souhaitez-vous ajouter ?`,
         .from('customers')
         .select('*')
         .eq('phone', phone)
-        .single();
+        .maybeSingle();
 
       if (error || !customer) {
         return null;

@@ -157,38 +157,49 @@ class EnhancedChatAPI {
 
   // ✅ NOUVELLE MÉTHODE: Détecter si c'est un bouton standard
     private isStandardButton(message: string): boolean {
-    // Vérification exacte d'abord
-    const exactMatches = [
-      'Poser une question',
-      '❓ Poser une question', 
-      'Suivre ma commande',
-      '🔍 Suivre ma commande',
-      'Nous contacter',
-      '💬 Nous contacter',
-      'Voir les autres jeux',
-      '🛍️ Voir les autres jeux',
-      'Commander rapidement',
-      '⚡ Commander rapidement',
-      // ✅ AJOUT: Boutons WhatsApp
-      'Parler à un conseiller',
-      'Contacter le support',
-      '📞 Contacter le support',
-      '📞 Continuer sur WhatsApp (+221 78 136 27 28)'
-    ];
-    
-    if (exactMatches.includes(message)) {
-      console.log('✅ [API] Exact standard button match:', message);
-      return true;
-    }
-    
-    // Vérification par patterns
-    const isMatch = this.standardButtonPatterns.some(pattern => pattern.test(message));
-    if (isMatch) {
-      console.log('✅ [API] Pattern standard button match:', message);
-    }
-    
-    return isMatch;
+  // Vérification exacte d'abord
+  const exactMatches = [
+    'Poser une question',
+    '❓ Poser une question', 
+    'Suivre ma commande',
+    '🔍 Suivre ma commande',
+    'Nous contacter',
+    '💬 Nous contacter',
+    'Voir les autres jeux',
+    '🛍️ Voir les autres jeux',
+    'Commander rapidement',
+    '⚡ Commander rapidement',
+    'Parler à un conseiller',
+    'Contacter le support',
+    '📞 Contacter le support',
+    '📞 Continuer sur WhatsApp (+221 78 136 27 28)',
+    // ✅ AJOUTEZ CES LIGNES UNIQUEMENT
+    'Infos livraison',
+    '📦 Infos livraison',
+    'En savoir plus sur le jeu',
+    '💬 En savoir plus sur le jeu',
+    'En savoir plus le jeu',
+    '💬 En savoir plus le jeu',
+    'Comment y jouer',
+    '❓ Comment y jouer ?',
+    'Comment ça fonctionne',
+    'Comment ça marche'
+  ];
+  
+  // GARDEZ LE RESTE DU CODE EXISTANT tel quel
+  if (exactMatches.includes(message)) {
+    console.log('✅ [API] Exact standard button match:', message);
+    return true;
   }
+  
+  // Vérification par patterns
+  const isMatch = this.standardButtonPatterns.some(pattern => pattern.test(message));
+  if (isMatch) {
+    console.log('✅ [API] Pattern standard button match:', message);
+  }
+  
+  return isMatch;
+}
 
   // ✅ VALIDATION DE LA REQUÊTE
   private validateRequest(request: ExtendedChatRequest): { isValid: boolean; error?: string } {

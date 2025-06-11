@@ -236,7 +236,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
           .from('products')
           .select('game_rules, name')
           .eq('id', product.id)  // ✅ product vient des props
-          .single();
+          .maybeSingle();
 
         if (error || !productData) {
           console.error('❌ Erreur récupération produit:', error);
@@ -685,7 +685,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
             .from('products')
             .select('game_rules, name')
             .eq('id', product.id)
-            .single();
+            .maybeSingle();
 
           if (error || !productData) {
             console.error('❌ Erreur récupération produit:', error);

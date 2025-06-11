@@ -37,63 +37,75 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   // ✅ CORRECTION PRINCIPALE: Logique améliorée pour détecter les items du panier
   const getCartInfo = () => {
-    // Méthode 1: Directement depuis orderData.items
-    if (orderData?.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
-      const totalItems = orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-      const totalAmount = orderData.total_amount || orderData.subtotal || 0;
-      
-      return {
-        hasItems: true,
-        itemsCount: totalItems,
-        items: orderData.items,
-        totalAmount: totalAmount
-      };
-    }
+  console.log('🛒 [DEBUG] Checking cart info:', { orderData, messages: messages?.length });
+  
+  // Méthode 1: Vérifier orderData.items
+  if (orderData?.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
+    const totalItems = orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    const totalAmount = orderData.total_amount || orderData.totalAmount || 
+                       orderData.items.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
+    
+    console.log('✅ [DEBUG] Found items in orderData:', { totalItems, totalAmount });
+    return {
+      hasItems: true,
+      itemsCount: totalItems,
+      items: orderData.items,
+      totalAmount: totalAmount
+    };
+  }
 
-    // Méthode 2: Analyser les messages pour détecter une commande en cours
-    if (messages && messages.length > 0) {
-      // Chercher le dernier message avec des données de commande
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i];
-        if (message.metadata?.orderData?.items && Array.isArray(message.metadata.orderData.items)) {
-          const items = message.metadata.orderData.items;
-          const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
-          const totalAmount = message.metadata.orderData.total_amount || 
-                            message.metadata.orderData.subtotal || 
-                            items.reduce((sum: number, item: any) => sum + (item.totalPrice || item.price * item.quantity), 0);
-          
-          return {
-            hasItems: true,
-            itemsCount: totalItems,
-            items: items,
-            totalAmount: totalAmount
-          };
-        }
+  // Méthode 2: Vérifier dans les métadonnées des messages
+  if (messages && messages.length > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.metadata?.orderData?.items && Array.isArray(message.metadata.orderData.items)) {
+        const items = message.metadata.orderData.items;
+        const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+        const totalAmount = message.metadata.orderData.total_amount || 
+                           message.metadata.orderData.totalAmount ||
+                           items.reduce((sum: number, item: any) => sum + (item.totalPrice || item.price * item.quantity), 0);
+        
+        console.log('✅ [DEBUG] Found items in message metadata:', { totalItems, totalAmount });
+        return {
+          hasItems: true,
+          itemsCount: totalItems,
+          items: items,
+          totalAmount: totalAmount
+        };
       }
     }
+  }
 
-    // Méthode 3: Vérifier si on a au moins un montant total sans items détaillés
-    if (orderData?.total_amount && orderData.total_amount > 0) {
-      return {
-        hasItems: true,
-        itemsCount: 1,
-        items: [{ 
-          name: title.replace('Le Jeu ', ''), 
-          quantity: 1, 
-          price: orderData.total_amount,
-          totalPrice: orderData.total_amount 
-        }],
-        totalAmount: orderData.total_amount
-      };
-    }
+  // Méthode 3: Détecter une commande express en cours
+  const hasExpressOrder = messages?.some(msg => 
+    msg.metadata?.flags?.expressMode || 
+    msg.metadata?.nextStep?.includes('express') ||
+    msg.content?.includes('Commander rapidement')
+  );
 
+  if (hasExpressOrder && orderData?.total_amount) {
+    console.log('✅ [DEBUG] Found express order in progress');
     return {
-      hasItems: false,
-      itemsCount: 0,
-      items: [],
-      totalAmount: 0
+      hasItems: true,
+      itemsCount: 1,
+      items: [{ 
+        name: 'Commande en cours...', 
+        quantity: 1, 
+        price: orderData.total_amount,
+        totalPrice: orderData.total_amount 
+      }],
+      totalAmount: orderData.total_amount
     };
+  }
+
+  console.log('❌ [DEBUG] No cart items found');
+  return {
+    hasItems: false,
+    itemsCount: 0,
+    items: [],
+    totalAmount: 0
   };
+};
 
   const cartInfo = getCartInfo();
 

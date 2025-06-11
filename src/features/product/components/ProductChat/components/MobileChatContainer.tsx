@@ -306,8 +306,8 @@ Qu'est-ce qui vous intéresse le plus ?`,
         const { data: productData, error }: { data: any, error: any } = await supabase
           .from('products')
           .select('game_rules, name')
-          .eq('id', product.id)  // ✅ product vient des props
-          .single();
+          .eq('id', product.id) 
+          .maybeSingle();
 
         if (error || !productData) {
           console.error('❌ Mobile - Erreur récupération produit:', error);
@@ -865,7 +865,7 @@ Une erreur technique est survenue. Voulez-vous réessayer ?
           .from('products')
           .select('game_rules, name')
           .eq('id', product.id)
-          .single();
+          .maybeSingle();
 
         if (error || !productData) {
           console.error('❌ Mobile - Erreur récupération produit:', error);
