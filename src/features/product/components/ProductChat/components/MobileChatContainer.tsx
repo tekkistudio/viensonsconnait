@@ -529,9 +529,11 @@ Qu'est-ce qui vous intéresse le plus ?`,
   };
 
   // Fonction utilitaire: Créer un message d'erreur
-  const createErrorResponse = (errorText: string): ChatMessageType => ({
+    const createErrorResponse = (errorText: string): ChatMessageType => ({
     type: 'assistant',
-    content: `😔 ${errorText}`,
+    content: `😔 **${errorText}**
+
+  Voulez-vous réessayer ou contacter notre support ?`,
     choices: ['🔄 Réessayer', '📞 Contacter le support'],
     assistant: {
       name: 'Rose',
