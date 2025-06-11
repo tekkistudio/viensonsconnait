@@ -565,103 +565,108 @@ Qu'est-ce qui vous intéresse le plus ?`,
 
   // ✅ CORRECTION: Fonction sendMessage avec gestion d'erreur améliorée
   const sendMessage = async (content: string) => {
-    try {
-      console.log('📱 Processing mobile message:', { content, sessionId, isExpressMode, currentStep });
-      
-      // Ajouter le message utilisateur immédiatement
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          flags: {
-            isButtonChoice: true,
-            preventAIIntervention: true
-          }
-        }
-      };
-      
-      addMessage(userMessage);
-
-      let response: ChatMessageType;
-      
-      // ✅ CORRECTION MAJEURE: UTILISER TOUJOURS L'API POUR L'IA
-      console.log('🚀 Sending to enhanced mobile chat API...');
-      
-      try {
-        const apiResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: content,
-            productId: product.id,
-            currentStep: currentStep || 'initial',
-            orderData: orderData || {},
-            sessionId: sessionId || Date.now().toString(),
-            storeId: storeId || 'default'
-          }),
-        });
-
-        if (!apiResponse.ok) {
-          throw new Error(`Mobile API error: ${apiResponse.status}`);
-        }
-
-        const aiResponse = await apiResponse.json();
-        console.log('✅ Enhanced mobile API response:', aiResponse);
-
-        response = {
-          type: 'assistant',
-          content: aiResponse.content || "Je suis là pour vous aider !",
-          choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: aiResponse.nextStep || currentStep,
-            orderData: aiResponse.orderData,
-            flags: aiResponse.flags || {}
-          },
-          timestamp: new Date().toISOString()
-        };
-
-      } catch (apiError) {
-        console.error('❌ Mobile API call failed:', apiError);
-        
-        // ✅ FALLBACK: Si l'API échoue, traiter localement
-        const isStandardButton = [
-          'Poser une question', 'Comment y jouer', 'C\'est pour qui',
-          'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
-        ].some(btn => content.includes(btn));
-        
-        if (isStandardButton) {
-          response = await handleStandardMessages(content);
-        } else {
-          response = createErrorResponse('Problème de connexion. Veuillez réessayer.');
+  try {
+    console.log('📱 Processing mobile message:', { 
+      content: content.substring(0, 50), 
+      sessionId, 
+      productId: product.id 
+    });
+    
+    // Ajouter le message utilisateur immédiatement
+    const userMessage: ChatMessageType = {
+      type: 'user',
+      content,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        flags: {
+          isButtonChoice: true,
+          preventAIIntervention: true
         }
       }
-      
-      // Délai d'attente pour l'animation
-      setTimeout(() => {
-        console.log('✅ Mobile response generated:', response);
-        addMessage(response);
-        
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
-        }
-      }, 800);
+    };
+    
+    addMessage(userMessage);
 
-    } catch (err) {
-      console.error('❌ Error in mobile sendMessage:', err);
+    let response: ChatMessageType;
+    
+    // ✅ UTILISER L'API AVEC GESTION D'ERREUR ROBUSTE
+    console.log('🚀 Mobile: Sending to enhanced chat API...');
+    
+    try {
+      const apiResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          productId: product.id,
+          currentStep: currentStep || 'initial',
+          orderData: orderData || {},
+          sessionId: sessionId || `${product.id}_${Date.now()}`,
+          storeId: storeId || 'default'
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        throw new Error(`Mobile API error ${apiResponse.status}: ${errorText}`);
+      }
+
+      const aiResponse = await apiResponse.json();
+      console.log('✅ Mobile: Enhanced API response received');
+
+      response = {
+        type: 'assistant',
+        content: aiResponse.content || "Je suis là pour vous aider !",
+        choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: aiResponse.nextStep || currentStep,
+          orderData: aiResponse.orderData,
+          flags: aiResponse.flags || {}
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (apiError) {
+      console.error('❌ Mobile: API call failed:', apiError);
       
-      setTimeout(() => {
-        const errorMessage = createErrorResponse('Une erreur est survenue. Veuillez réessayer.');
-        addMessage(errorMessage);
-      }, 500);
+      // ✅ FALLBACK: Si l'API échoue, traiter localement
+      const isStandardButton = [
+        'Poser une question', 'Comment y jouer', 'C\'est pour qui',
+        'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
+      ].some(btn => content.includes(btn));
+      
+      if (isStandardButton) {
+        response = await handleStandardMessages(content);
+      } else {
+        response = createErrorResponse(`Problème de connexion: ${apiError instanceof Error ? apiError.message : 'Erreur inconnue'}`);
+      }
     }
-  };
+    
+    // Délai d'attente pour l'animation
+    setTimeout(() => {
+      console.log('✅ Mobile: Response generated');
+      addMessage(response);
+      
+      if (response.metadata?.orderData) {
+        updateOrderData(response.metadata.orderData);
+      }
+    }, 800);
+
+  } catch (err) {
+    console.error('❌ Mobile: Error in sendMessage:', err);
+    
+    setTimeout(() => {
+      const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+      addMessage(errorMessage);
+    }, 500);
+  }
+};
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -671,24 +676,25 @@ Qu'est-ce qui vous intéresse le plus ?`,
   };
 
   // ✅ CORRECTION MOBILE: handleChoiceSelect avec traitement spécial "Comment y jouer"
-    const handleChoiceSelect = async (choice: string) => {
+  const handleChoiceSelect = async (choice: string) => {
   if (isProcessing) {
     console.log('⏳ Processing in progress, ignoring choice');
     return;
   }
 
-  console.log('🔘 Choice selected:', choice);
+  console.log('🔘 Mobile choice selected:', choice);
   setIsProcessing(true);
-  updateTypingStatus(true);
+  setShowTyping(true);
   
   try {
     // ✅ PRIORITÉ 1: Gestion des redirections WhatsApp
     if (choice.includes('Continuer sur WhatsApp') || 
         choice.includes('📞 Continuer sur WhatsApp') ||
         choice.includes('Parler à un conseiller') ||
-        choice.includes('Contacter le support')) {
+        choice.includes('Contacter le support') ||
+        choice.includes('📞 Contacter le support')) {
       
-      console.log('📞 Opening WhatsApp redirect');
+      console.log('📞 Mobile: Opening WhatsApp redirect');
       
       // Ajouter le message utilisateur
       const userMessage: ChatMessageType = {
@@ -698,23 +704,22 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
       addMessage(userMessage);
       
-      // Ouvrir WhatsApp
+      // Ouvrir WhatsApp avec gestion mobile améliorée
       const whatsappUrl = 'https://wa.me/221781362728';
-      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const whatsappText = encodeURIComponent(`Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`);
+      const whatsappDeepLink = `whatsapp://send?phone=221781362728&text=${whatsappText}`;
       
-      if (isMobile) {
-        // Mobile: Essayer l'app WhatsApp puis fallback navigateur
-        try {
-          window.location.href = `whatsapp://send?phone=221781362728&text=Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`;
-        } catch (error) {
+      try {
+        // Essayer d'abord le deep link WhatsApp
+        window.location.href = whatsappDeepLink;
+        
+        // Fallback après 2 secondes si l'app ne s'ouvre pas
+        setTimeout(() => {
           window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
-        }
-      } else {
-        // Desktop: Ouvrir dans un nouvel onglet
-        const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-        if (!newWindow) {
-          window.location.href = whatsappUrl;
-        }
+        }, 2000);
+      } catch (error) {
+        console.log('📞 Fallback to web WhatsApp');
+        window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
       }
       
       // Message de confirmation
@@ -743,10 +748,101 @@ Notre équipe vous répondra rapidement !`,
       
       return; // ✅ IMPORTANT: Sortir ici
     }
+
+    // ✅ PRIORITÉ 2: Commander rapidement - CORRECTION MOBILE
+    if (choice.includes('Commander rapidement') || choice.includes('⚡')) {
+      console.log('⚡ Mobile: Processing express command');
+      
+      // Ajouter le message utilisateur
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content: choice,
+        timestamp: new Date().toISOString()
+      };
+      addMessage(userMessage);
+      
+      // Délai pour l'animation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        // ✅ CORRECTION: Appel direct à l'API avec gestion d'erreur
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: choice,
+            productId: product.id,
+            currentStep: currentStep || 'initial',
+            orderData: orderData || {},
+            sessionId: sessionId || `${product.id}_${Date.now()}`,
+            storeId: storeId || 'default'
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          throw new Error(`API error: ${apiResponse.status}`);
+        }
+
+        const aiResponse = await apiResponse.json();
+        console.log('✅ Mobile express API response:', aiResponse);
+
+        const response: ChatMessageType = {
+          type: 'assistant',
+          content: aiResponse.content || "Commande express en cours d'initialisation...",
+          choices: aiResponse.choices || ['1 exemplaire', '2 exemplaires', '3 exemplaires'],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: aiResponse.nextStep || 'express_quantity',
+            orderData: aiResponse.orderData,
+            flags: aiResponse.flags || { expressMode: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        addMessage(response);
+        
+        if (response.metadata?.orderData) {
+          updateOrderData(response.metadata.orderData);
+        }
+        
+        return; // ✅ IMPORTANT: Sortir ici
+        
+      } catch (expressError) {
+        console.error('❌ Mobile express error:', expressError);
+        
+        // Message d'erreur spécifique pour la commande express
+        const errorMessage: ChatMessageType = {
+          type: 'assistant',
+          content: `😔 **Erreur lors du lancement de la commande express**
+
+Une erreur technique est survenue. Voulez-vous réessayer ?
+
+**Détails de l'erreur :** ${expressError instanceof Error ? expressError.message : 'Erreur inconnue'}`,
+          choices: ['🔄 Réessayer', '📞 Contacter le support'],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'express_error' as ConversationStep,
+            flags: { hasError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        addMessage(errorMessage);
+        return; // ✅ IMPORTANT: Sortir ici
+      }
+    }
     
-    // ✅ PRIORITÉ 2: Traitement spécial "Comment y jouer"
+    // ✅ PRIORITÉ 3: Traitement spécial "Comment y jouer"
     if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
-      console.log('🎮 Traitement spécial "Comment y jouer"');
+      console.log('🎮 Mobile: Traitement spécial "Comment y jouer"');
       
       // Ajouter d'abord le message utilisateur
       const userMessage: ChatMessageType = {
@@ -762,7 +858,7 @@ Notre équipe vous répondra rapidement !`,
       let gameRules = '';
       
       try {
-        // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE
+        // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE avec gestion d'erreur
         const { data: productData, error } = await supabase
           .from('products')
           .select('game_rules, name')
@@ -770,7 +866,7 @@ Notre équipe vous répondra rapidement !`,
           .single();
 
         if (error || !productData) {
-          console.error('❌ Erreur récupération produit:', error);
+          console.error('❌ Mobile - Erreur récupération produit:', error);
           gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
 Une erreur est survenue lors du chargement des règles. 
@@ -781,14 +877,14 @@ Une erreur est survenue lors du chargement des règles.
 
 Nous vous enverrons les règles détaillées !`;
         } else if (productData.game_rules && productData.game_rules.trim()) {
-          console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
+          console.log('✅ Mobile - Règles du jeu trouvées');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
 ${productData.game_rules}
 
 🎯 **Prêt(e) à vivre cette expérience ?**`;
         } else {
-          console.log('⚠️ Pas de règles définies pour ce produit');
+          console.log('⚠️ Mobile - Pas de règles définies pour ce produit');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
 📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
@@ -806,7 +902,7 @@ En attendant, voici ce que vous devez savoir :
 Nous vous enverrons un guide détaillé !`;
         }
       } catch (dbError) {
-        console.error('❌ Erreur base de données:', dbError);
+        console.error('❌ Mobile - Erreur base de données:', dbError);
         gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
 😔 **Problème technique temporaire**
@@ -847,18 +943,22 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
       return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
     }
     
-    // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via API
+    // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via sendMessage
     await sendMessage(choice);
     
   } catch (error) {
-    console.error('❌ Error sending choice:', error);
+    console.error('❌ Mobile: Error sending choice:', error);
     
-    // Message d'erreur en cas de problème
+    // Message d'erreur général en cas de problème
     const errorMessage: ChatMessageType = {
       type: 'assistant',
       content: `😔 **Erreur temporaire**
 
-Un problème est survenu. Voulez-vous réessayer ?`,
+Un problème est survenu lors du traitement de votre choix.
+
+**Erreur :** ${error instanceof Error ? error.message : 'Erreur inconnue'}
+
+Voulez-vous réessayer ?`,
       choices: ['🔄 Réessayer', '📞 Contacter le support'],
       assistant: {
         name: 'Rose',
@@ -874,7 +974,7 @@ Un problème est survenu. Voulez-vous réessayer ?`,
     addMessage(errorMessage);
     
   } finally {
-    updateTypingStatus(false);
+    setShowTyping(false);
     setIsProcessing(false);
   }
 };
