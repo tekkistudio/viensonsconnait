@@ -560,10 +560,10 @@ Voulez-vous que je vous aide avec autre chose ?`,
    * ✅ MÉTHODE CORRIGÉE: Démarrer le flow express avec correction des métadonnées
    */
   async startExpressPurchase(sessionId: string, productId: string): Promise<ChatMessage> {
-  console.log('🚀 Starting express purchase with validation:', { sessionId, productId });
+  console.log('🚀 Starting express purchase:', { sessionId, productId });
 
   try {
-    // ✅ Validation stricte du productId
+    // Validation stricte du productId
     if (!productId || productId.length < 10) {
       throw new Error('Invalid productId provided');
     }
@@ -588,10 +588,10 @@ Voulez-vous que je vous aide avec autre chose ?`,
       return this.createOutOfStockMessage(product);
     }
 
-    // ✅ Créer l'état de commande avec plus de données
-    const orderState: OrderState = {
-      step: 'quantity',
-      mode: 'express',
+    // Créer l'état de commande
+    const orderState = {
+      step: 'quantity' as const,
+      mode: 'express' as const,
       data: { 
         quantity: 1,
         productId: product.id,
@@ -613,6 +613,7 @@ Voulez-vous que je vous aide avec autre chose ?`,
 
     console.log('✅ Express purchase initialized successfully');
 
+    // ✅ CORRECTION CRITIQUE: Métadonnées complètes pour affichage panier
     return {
       type: 'assistant',
       content: `⚡ **Commande Express Activée** ⚡
@@ -636,12 +637,14 @@ Livraison : **incluse selon votre adresse**
         nextStep: 'express_quantity' as ConversationStep,
         productId: product.id,
         maxQuantity: Math.min(product.stock_quantity, 10),
+        // ✅ AJOUT CRUCIAL: orderData avec tous les détails pour le panier
         orderData: {
           session_id: sessionId,
           product_id: product.id,
           quantity: 1,
           subtotal: product.price,
           total_amount: product.price,
+          totalAmount: product.price, // ✅ Double pour compatibilité
           items: [{
             productId: product.id,
             name: product.name,
@@ -653,7 +656,8 @@ Livraison : **incluse selon votre adresse**
         flags: { 
           expressMode: true,
           quantitySelection: true,
-          preventAIIntervention: true
+          preventAIIntervention: true,
+          showInCart: true // ✅ AJOUT: Flag pour affichage panier
         }
       },
       timestamp: new Date().toISOString()
@@ -661,24 +665,7 @@ Livraison : **incluse selon votre adresse**
 
   } catch (error) {
     console.error('❌ Critical error in startExpressPurchase:', error);
-    return {
-      type: 'assistant',
-      content: `😔 **Erreur technique**
-
-${error instanceof Error ? error.message : 'Erreur inconnue'}
-
-Voulez-vous réessayer ou contacter notre support ?`,
-      choices: ['🔄 Réessayer', '📞 Contacter le support'],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'express_error' as ConversationStep,
-        flags: { hasError: true }
-      },
-      timestamp: new Date().toISOString()
-    };
+    return this.createErrorMessage(sessionId, `Erreur technique: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
   }
 }
 
@@ -742,104 +729,100 @@ Voulez-vous réessayer ou contacter notre support ?`,
 
   // ✅ CORRECTION: Gérer la sélection de quantité avec métadonnées enrichies
   private async handleExpressQuantity(
-    sessionId: string,
-    input: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('🔢 Processing express quantity selection:', { sessionId, input });
+  sessionId: string,
+  input: string,
+  orderState: any // Utilisez le type existant
+): Promise<ChatMessage> {
+  console.log('🔢 Processing express quantity selection:', { sessionId, input });
 
-    try {
-      let quantity = 1;
+  try {
+    let quantity = 1;
 
-      if (input.includes('1 exemplaire')) {
-        quantity = 1;
-      } else if (input.includes('2 exemplaires')) {
-        quantity = 2;
-      } else if (input.includes('3 exemplaires')) {
-        quantity = 3;
-      } else if (input.includes('Autre quantité')) {
-        return this.createCustomQuantityPrompt(orderState);
-      } else if (input.includes('Continuer la commande')) {
-        orderState.step = 'contact';
-        this.orderStates.set(sessionId, orderState);
-        await this.updateSessionInDatabase(sessionId, orderState);
-        return this.proceedToContactStep(sessionId, orderState);
-      } else {
-        const numberMatch = input.match(/(\d+)/);
-        if (numberMatch) {
-          quantity = parseInt(numberMatch[1]);
-        }
+    // Parser la quantité
+    if (input.includes('1 exemplaire')) {
+      quantity = 1;
+    } else if (input.includes('2 exemplaires')) {
+      quantity = 2;
+    } else if (input.includes('3 exemplaires')) {
+      quantity = 3;
+    } else if (input.includes('Autre quantité')) {
+      return this.createCustomQuantityPrompt(orderState);
+    } else {
+      const numberMatch = input.match(/(\d+)/);
+      if (numberMatch) {
+        quantity = parseInt(numberMatch[1]);
       }
+    }
 
-      if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
-        return this.createInvalidQuantityMessage(orderState);
-      }
+    if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
+      return this.createInvalidQuantityMessage(orderState);
+    }
 
-      // ✅ CORRECTION: Mettre à jour avec calculs complets
-      orderState.data.quantity = quantity;
-      orderState.step = 'contact';
-      this.orderStates.set(sessionId, orderState);
-      await this.updateSessionInDatabase(sessionId, orderState);
+    // Mettre à jour l'état
+    orderState.data.quantity = quantity;
+    orderState.step = 'contact';
+    this.orderStates.set(sessionId, orderState);
+    await this.updateSessionInDatabase(sessionId, orderState);
 
-      const { data: product } = await supabase
-        .from('products')
-        .select('id, name, price')
-        .eq('id', orderState.data.productId)
-        .maybeSingle();
+    // Récupérer les infos produit
+    const { data: product } = await supabase
+      .from('products')
+      .select('id, name, price')
+      .eq('id', orderState.data.productId)
+      .maybeSingle();
 
-      if (!product) {
-        return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
-      }
+    if (!product) {
+      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
+    }
 
-      const itemPrice = product.price;
-      const subtotal = itemPrice * quantity;
-      const deliveryCost = 0; // Sera calculé à l'étape suivante
-      const totalAmount = subtotal + deliveryCost;
+    const itemPrice = product.price;
+    const subtotal = itemPrice * quantity;
+    const deliveryCost = 0; // Sera calculé à l'étape suivante
+    const totalAmount = subtotal + deliveryCost;
 
-      return {
-        type: 'assistant',
-        content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+    // ✅ CORRECTION CRITIQUE: Retour avec métadonnées complètes
+    return {
+      type: 'assistant',
+      content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
 
 Jeu : **${product.name}**
 Prix total : **${totalAmount.toLocaleString()} FCFA** (${quantity} × ${itemPrice.toLocaleString()} FCFA)
 
 Sur quel numéro vous joindre pour la livraison ?`,
-        choices: [],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'express_contact' as ConversationStep,
-          // ✅ CORRECTION CRITIQUE: Métadonnées complètes pour le paiement
-          orderData: { 
-            session_id: sessionId,
-            product_id: product.id,
+      choices: [],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'express_contact' as ConversationStep,
+        // ✅ MÉTADONNÉES COMPLÈTES pour affichage panier
+        orderData: { 
+          session_id: sessionId,
+          product_id: product.id,
+          quantity: quantity,
+          subtotal: subtotal,
+          total_amount: totalAmount,
+          totalAmount: totalAmount, // ✅ Double pour compatibilité
+          items: [{
+            productId: product.id,
+            name: product.name,
             quantity: quantity,
-            subtotal: subtotal,
-            total_amount: totalAmount,
-            items: [{
-              productId: product.id,
-              name: product.name,
-              quantity: quantity,
-              price: itemPrice,
-              totalPrice: subtotal
-            }]
-          },
-          // ✅ AJOUT: Données de paiement directement accessibles
-          paymentAmount: totalAmount,
-          orderId: sessionId, // Temporaire, sera remplacé par le vrai ID
-          customerName: orderState.data.name || 'Client',
-          flags: { 
-            expressMode: true,
-            quantitySelected: true
-          }
+            price: itemPrice,
+            totalPrice: subtotal
+          }]
         },
-        timestamp: new Date().toISOString()
-      };
+        flags: { 
+          expressMode: true,
+          quantitySelected: true,
+          showInCart: true // ✅ CRUCIAL pour affichage panier
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
 
-    } catch (error) {
-      console.error('❌ Error in handleExpressQuantity:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
-    }
+  } catch (error) {
+    console.error('❌ Error in handleExpressQuantity:', error);
+    return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
   }
+}
 
   // =======================================
   // ✅ MÉTHODES AUXILIAIRES POUR L'EXPRESS
@@ -1812,37 +1795,44 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
   }
 
   private async decrementProductStock(productId: string, quantity: number): Promise<void> {
-    try {
-      const { data: product, error: fetchError } = await supabase
-        .from('products')
-        .select('stock_quantity')
-        .eq('id', productId)
-        .single();
+  try {
+    const { data: product, error: fetchError } = await supabase
+      .from('products')
+      .select('stock_quantity')
+      .eq('id', productId)
+      .maybeSingle();
 
-      if (fetchError) {
-        console.error('❌ Error fetching product stock:', fetchError);
-        return;
-      }
-
-      const newStock = Math.max(0, (product.stock_quantity || 0) - quantity);
-
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ 
-          stock_quantity: newStock,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', productId);
-
-      if (updateError) {
-        console.error('❌ Error updating product stock:', updateError);
-      } else {
-        console.log(`✅ Stock updated for product ${productId}: ${product.stock_quantity} -> ${newStock}`);
-      }
-    } catch (error) {
-      console.error('❌ Error in decrementProductStock:', error);
+    if (fetchError) {
+      console.error('❌ Error fetching product stock:', fetchError);
+      return;
     }
+
+    // ✅ CORRECTION: Vérifier si le produit existe
+    if (!product) {
+      console.error('❌ Product not found for stock update:', productId);
+      return;
+    }
+
+    const currentStock = product.stock_quantity || 0;
+    const newStock = Math.max(0, currentStock - quantity);
+
+    const { error: updateError } = await supabase
+      .from('products')
+      .update({ 
+        stock_quantity: newStock,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId);
+
+    if (updateError) {
+      console.error('❌ Error updating product stock:', updateError);
+    } else {
+      console.log(`✅ Stock updated for product ${productId}: ${currentStock} -> ${newStock}`);
+    }
+  } catch (error) {
+    console.error('❌ Error in decrementProductStock:', error);
   }
+}
 
   /**
    * ✅ MÉTHODE UTILITAIRE: Obtenir le drapeau du pays
