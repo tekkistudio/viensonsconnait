@@ -25,7 +25,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   oldPrice 
 }) => {
   const { convertPrice } = useCountryStore();
-  const { orderData, messages, currentStep } = useChatStore(); // ✅ AJOUT: currentStep
+  
+  // ✅ CORRECTION MAJEURE: Surveillance complète du store
+  const chatState = useChatStore();
+  const { 
+    orderData = {}, 
+    messages = [], 
+    currentStep,
+    flags = {}
+  } = chatState;
   
   const [stats, setStats] = useState<RealTimeStats>({
     viewsCount: 0,
@@ -35,37 +43,42 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [rating, setRating] = useState(initialRating);
   const [productImage, setProductImage] = useState<string>('');
 
-  // ✅ CORRECTION MAJEURE : Fonction améliorée pour détecter les items du panier
+  // ✅ CORRECTION CRITIQUE: Fonction de détection du panier réécrite
   const getCartInfo = () => {
-    console.log('🛒 [ChatHeader] Checking cart info:', { 
+    console.log('🛒 [ChatHeader] NOUVELLE DÉTECTION PANIER:', { 
       orderData, 
       messagesLength: messages?.length,
       currentStep,
-      hasOrderData: !!orderData
+      flags
     });
     
-    // ✅ MÉTHODE 1: Vérifier orderData.items (priorité absolue)
+    let cartData = {
+      hasItems: false,
+      itemsCount: 0,
+      items: [] as any[],
+      totalAmount: 0
+    };
+
+    // ✅ PRIORITÉ 1: orderData.items (source principale)
     if (orderData?.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
       const totalItems = orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
       const totalAmount = orderData.total_amount || orderData.totalAmount || 
                          orderData.items.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
       
-      console.log('✅ [ChatHeader] Found items in orderData:', { totalItems, totalAmount });
-      return {
+      console.log('✅ [ChatHeader] Items trouvés dans orderData:', { totalItems, totalAmount });
+      cartData = {
         hasItems: true,
         itemsCount: totalItems,
         items: orderData.items,
         totalAmount: totalAmount
       };
     }
-
-    // ✅ MÉTHODE 2: Vérifier dans les métadonnées des messages récents
-    if (messages && messages.length > 0) {
-      // Parcourir les messages en ordre inverse pour trouver les plus récents
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i];
-        
-        // Vérifier dans metadata.orderData
+    
+    // ✅ PRIORITÉ 2: Chercher dans les métadonnées des 3 derniers messages
+    else if (messages && messages.length > 0) {
+      const recentMessages = messages.slice(-3); // 3 derniers messages
+      
+      for (const message of recentMessages.reverse()) {
         if (message.metadata?.orderData?.items && Array.isArray(message.metadata.orderData.items)) {
           const items = message.metadata.orderData.items;
           const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
@@ -73,83 +86,102 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                              message.metadata.orderData.totalAmount ||
                              items.reduce((sum: number, item: any) => sum + (item.totalPrice || item.price * item.quantity), 0);
           
-          console.log('✅ [ChatHeader] Found items in message metadata:', { totalItems, totalAmount });
-          return {
+          console.log('✅ [ChatHeader] Items trouvés dans message metadata:', { totalItems, totalAmount });
+          cartData = {
             hasItems: true,
             itemsCount: totalItems,
             items: items,
             totalAmount: totalAmount
           };
+          break;
         }
       }
     }
-
-    // ✅ MÉTHODE 3: Détecter une commande express en cours selon l'étape
-    if (currentStep?.includes('express') && (orderData?.total_amount || orderData?.totalAmount)) {
-      const amount = orderData.total_amount || orderData.totalAmount || 0;
+    
+    // ✅ PRIORITÉ 3: Détecter commande express selon l'étape et les flags
+    if (!cartData.hasItems && (
+      currentStep?.includes('express') || 
+      (flags as any)?.expressMode ||
+      (flags as any)?.quantitySelected ||
+      (flags as any)?.showInCart
+    )) {
+      const amount = orderData?.total_amount || orderData?.totalAmount || 0;
       
-      console.log('✅ [ChatHeader] Found express order in progress:', { amount, currentStep });
-      return {
-        hasItems: true,
-        itemsCount: 1,
-        items: [{ 
-          name: 'Commande express en cours...', 
-          quantity: 1, 
-          price: amount,
-          totalPrice: amount 
-        }],
-        totalAmount: amount
-      };
-    }
-
-    // ✅ MÉTHODE 4: Détecter si on est dans un processus de commande selon les messages
-    const hasExpressMessages = messages?.some(msg => 
-      msg.content?.includes('Commander rapidement') ||
-      msg.content?.includes('Mode Express') ||
-      msg.content?.includes('exemplaire') ||
-      msg.metadata?.flags?.expressMode ||
-      msg.metadata?.nextStep?.includes('express')
-    );
-
-    if (hasExpressMessages && orderData) {
-      // Essayer d'extraire un montant depuis le contenu des messages ou orderData
-      let detectedAmount = 0;
-      
-      if (orderData.total_amount) detectedAmount = orderData.total_amount;
-      else if (orderData.totalAmount) detectedAmount = orderData.totalAmount;
-      
-      // Si toujours pas de montant, essayer d'extraire depuis le prix du produit
-      if (!detectedAmount) {
-        const priceNumber = parseInt(price.replace(/[^0-9]/g, ''));
-        if (priceNumber > 0) detectedAmount = priceNumber;
-      }
-      
-      if (detectedAmount > 0) {
-        console.log('✅ [ChatHeader] Found express order from messages:', { detectedAmount });
-        return {
+      if (amount > 0) {
+        console.log('✅ [ChatHeader] Commande express détectée:', { amount, currentStep, flags });
+        cartData = {
           hasItems: true,
-          itemsCount: 1,
+          itemsCount: orderData?.quantity || 1,
           items: [{ 
-            name: 'Commande en cours...', 
-            quantity: 1, 
-            price: detectedAmount,
-            totalPrice: detectedAmount 
+            name: 'Commande express en cours...', 
+            quantity: orderData?.quantity || 1, 
+            price: amount / (orderData?.quantity || 1),
+            totalPrice: amount 
           }],
-          totalAmount: detectedAmount
+          totalAmount: amount
         };
       }
     }
 
-    console.log('❌ [ChatHeader] No cart items found');
-    return {
-      hasItems: false,
-      itemsCount: 0,
-      items: [],
-      totalAmount: 0
-    };
+    // ✅ PRIORITÉ 4: Analyser le contenu des messages pour indices de commande
+    if (!cartData.hasItems && messages && messages.length > 0) {
+      const hasCommanderMessages = messages.some(msg => 
+        msg.content?.includes('C\'est noté ! Vous commandez') ||
+        msg.content?.includes('exemplaire') ||
+        msg.content?.includes('Prix total') ||
+        (msg.metadata?.flags?.expressMode && msg.metadata?.flags?.quantitySelected)
+      );
+
+      if (hasCommanderMessages) {
+        // Extraire quantité et prix du contenu des messages
+        let quantity = 1;
+        let unitPrice = 0;
+        
+        for (const msg of messages.reverse()) {
+          if (msg.content?.includes('exemplaire')) {
+            const qtyMatch = msg.content.match(/(\d+)\s*exemplaire/);
+            if (qtyMatch) quantity = parseInt(qtyMatch[1]);
+            
+            const priceMatch = msg.content.match(/(\d+(?:[\s,]\d{3})*)\s*FCFA/);
+            if (priceMatch) {
+              const totalAmount = parseInt(priceMatch[1].replace(/[\s,]/g, ''));
+              unitPrice = totalAmount / quantity;
+              
+              console.log('✅ [ChatHeader] Commande détectée via analyse message:', { quantity, totalAmount });
+              cartData = {
+                hasItems: true,
+                itemsCount: quantity,
+                items: [{ 
+                  name: title, 
+                  quantity: quantity, 
+                  price: unitPrice,
+                  totalPrice: totalAmount 
+                }],
+                totalAmount: totalAmount
+              };
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    console.log('🛒 [ChatHeader] RÉSULTAT FINAL:', cartData);
+    return cartData;
   };
 
-  const cartInfo = getCartInfo();
+  // ✅ HOOK DE SURVEILLANCE: Déclencher re-render à chaque changement
+  const [cartInfo, setCartInfo] = useState(() => getCartInfo());
+  
+  useEffect(() => {
+    const newCartInfo = getCartInfo();
+    
+    // Comparer pour éviter les re-renders inutiles
+    if (JSON.stringify(newCartInfo) !== JSON.stringify(cartInfo)) {
+      console.log('🔄 [ChatHeader] Mise à jour du panier détectée');
+      setCartInfo(newCartInfo);
+    }
+  }, [orderData, messages, currentStep, flags, title]); // Dépendances complètes
 
   useEffect(() => {
     let isSubscribed = true;
@@ -173,13 +205,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             .eq('id', productId)
             .single()
         ]);
-
-        console.log('ChatHeader: Stats loaded:', {
-          statsResult,
-          reviewsCount,
-          averageRating,
-          productData
-        });
 
         if (!isSubscribed) return;
 
@@ -211,20 +236,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       isSubscribed = false;
     };
   }, [productId]);
-
-  // ✅ AJOUT: Logging pour debug avancé
-  useEffect(() => {
-    console.log('🛒 [ChatHeader] Debug Info:', {
-      cartInfo,
-      orderData,
-      messagesLength: messages?.length,
-      currentStep,
-      lastMessage: messages && messages.length > 0 ? {
-        content: messages[messages.length - 1].content.substring(0, 50),
-        metadata: messages[messages.length - 1].metadata
-      } : null
-    });
-  }, [cartInfo, orderData, messages, currentStep]);
 
   const formattedPrice = typeof price === 'string' 
     ? convertPrice(parseInt(price.replace(/[^0-9]/g, ''))).formatted
@@ -296,7 +307,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* ✅ CORRECTION MAJEURE: Barre de commande avec affichage conditionnel amélioré */}
+      {/* ✅ BARRE DE COMMANDE RÉACTIVE */}
       {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
         <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -304,7 +315,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               <div className="relative flex items-center justify-center w-8 h-8 bg-[#FF7E93] rounded-full">
                 <ShoppingBag className="w-4 h-4 text-white" />
                 {/* Badge avec nombre d'articles */}
-                {cartInfo.itemsCount > 1 && (
+                {cartInfo.itemsCount > 0 && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
                     {cartInfo.itemsCount}
                   </div>

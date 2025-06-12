@@ -563,11 +563,13 @@ Voulez-vous que je vous aide avec autre chose ?`,
   console.log('🚀 Starting express purchase:', { sessionId, productId });
 
   try {
-    // Validation stricte du productId
+    // ✅ VALIDATION STRICTE du productId
     if (!productId || productId.length < 10) {
+      console.error('❌ Invalid productId provided:', productId);
       throw new Error('Invalid productId provided');
     }
 
+    // ✅ RÉCUPÉRATION SÉCURISÉE du produit
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('id, name, price, stock_quantity, status')
@@ -581,15 +583,18 @@ Voulez-vous que je vous aide avec autre chose ?`,
     }
 
     if (!product) {
+      console.error('❌ Product not found or inactive:', productId);
       throw new Error('Product not found or inactive');
     }
 
+    // ✅ VÉRIFICATION DU STOCK
     if (product.stock_quantity <= 0) {
+      console.log('📦 Product out of stock:', product.name);
       return this.createOutOfStockMessage(product);
     }
 
-    // Créer l'état de commande
-    const orderState = {
+    // ✅ CRÉER L'ÉTAT DE COMMANDE avec validation
+    const orderState: OrderState = {
       step: 'quantity' as const,
       mode: 'express' as const,
       data: { 
@@ -608,12 +613,20 @@ Voulez-vous que je vous aide avec autre chose ?`,
       }
     };
 
+    // ✅ SAUVEGARDER EN MÉMOIRE ET BASE
     this.orderStates.set(sessionId, orderState);
-    await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
+    
+    try {
+      await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
+      console.log('✅ Session saved to database successfully');
+    } catch (dbError) {
+      console.warn('⚠️ Database save failed (non-blocking):', dbError);
+      // Ne pas faire échouer l'initialisation pour ça
+    }
 
     console.log('✅ Express purchase initialized successfully');
 
-    // ✅ CORRECTION CRITIQUE: Métadonnées complètes pour affichage panier
+    // ✅ CORRECTION CRITIQUE: Métadonnées initiales complètes avec types sécurisés
     return {
       type: 'assistant',
       content: `⚡ **Commande Express Activée** ⚡
@@ -637,16 +650,16 @@ Livraison : **incluse selon votre adresse**
         nextStep: 'express_quantity' as ConversationStep,
         productId: product.id,
         maxQuantity: Math.min(product.stock_quantity, 10),
-        // ✅ AJOUT CRUCIAL: orderData avec tous les détails pour le panier
+        // ✅ AJOUT CRUCIAL: orderData initial avec types corrects
         orderData: {
           session_id: sessionId,
           product_id: product.id,
           quantity: 1,
           subtotal: product.price,
           total_amount: product.price,
-          totalAmount: product.price, // ✅ Double pour compatibilité
+          totalAmount: product.price,
           items: [{
-            productId: product.id,
+            productId: product.id, // ✅ GARANTI non-undefined
             name: product.name,
             quantity: 1,
             price: product.price,
@@ -657,7 +670,7 @@ Livraison : **incluse selon votre adresse**
           expressMode: true,
           quantitySelection: true,
           preventAIIntervention: true,
-          showInCart: true // ✅ AJOUT: Flag pour affichage panier
+          showInCart: true // ✅ AJOUT: Force l'affichage panier dès le début
         }
       },
       timestamp: new Date().toISOString()
@@ -665,9 +678,61 @@ Livraison : **incluse selon votre adresse**
 
   } catch (error) {
     console.error('❌ Critical error in startExpressPurchase:', error);
-    return this.createErrorMessage(sessionId, `Erreur technique: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    
+    // ✅ GESTION D'ERREUR ROBUSTE avec fallback
+    const errorMessage = error instanceof Error ? error.message : 'Erreur technique inconnue';
+    
+    return {
+      type: 'assistant',
+      content: `😔 **Erreur lors du lancement de la commande express**
+
+Une erreur technique est survenue : ${errorMessage}
+
+Voulez-vous réessayer ou contacter notre support ?`,
+      choices: [
+        '🔄 Réessayer',
+        '📞 Contacter le support',
+        '🔙 Retour au menu'
+      ],
+      assistant: {
+        name: 'Rose',
+        title: 'Assistante d\'achat'
+      },
+      metadata: {
+        nextStep: 'express_error' as ConversationStep,
+        flags: { 
+          hasError: true,
+          expressMode: false
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
   }
 }
+
+// ✅ MÉTHODE AUXILIAIRE: Créer message produit en rupture
+private createOutOfStockMessage(product: any): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `😔 **${product.name} temporairement en rupture** 
+      
+Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
+
+📧 **Voulez-vous être notifié(e) dès qu'il sera disponible ?**`,
+      choices: [
+        '📧 Me notifier quand disponible', 
+        '🛍️ Voir autres jeux', 
+        '📞 Contacter le support'
+      ],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'out_of_stock' as ConversationStep,
+        productId: product.id,
+        flags: { outOfStock: true }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
 
   async handleExpressStep(
     sessionId: string,
@@ -731,14 +796,14 @@ Livraison : **incluse selon votre adresse**
   private async handleExpressQuantity(
   sessionId: string,
   input: string,
-  orderState: any // Utilisez le type existant
+  orderState: OrderState
 ): Promise<ChatMessage> {
   console.log('🔢 Processing express quantity selection:', { sessionId, input });
 
   try {
     let quantity = 1;
 
-    // Parser la quantité
+    // ✅ PARSER LA QUANTITÉ avec validation robuste
     if (input.includes('1 exemplaire')) {
       quantity = 1;
     } else if (input.includes('2 exemplaires')) {
@@ -754,33 +819,42 @@ Livraison : **incluse selon votre adresse**
       }
     }
 
-    if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
+    // ✅ VALIDATION DE LA QUANTITÉ
+    const maxQuantity = orderState.metadata?.maxQuantity || 10;
+    if (quantity < 1 || quantity > maxQuantity) {
       return this.createInvalidQuantityMessage(orderState);
     }
 
-    // Mettre à jour l'état
+    // ✅ METTRE À JOUR L'ÉTAT
     orderState.data.quantity = quantity;
     orderState.step = 'contact';
     this.orderStates.set(sessionId, orderState);
-    await this.updateSessionInDatabase(sessionId, orderState);
+    
+    try {
+      await this.updateSessionInDatabase(sessionId, orderState);
+    } catch (dbError) {
+      console.warn('⚠️ Database update failed (non-blocking):', dbError);
+    }
 
-    // Récupérer les infos produit
-    const { data: product } = await supabase
+    // ✅ RÉCUPÉRER LES INFOS PRODUIT de manière sécurisée
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('id, name, price')
       .eq('id', orderState.data.productId)
       .maybeSingle();
 
-    if (!product) {
+    if (productError || !product) {
+      console.error('❌ Product retrieval error:', productError);
       return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
     }
 
+    // ✅ CALCULS SÉCURISÉS
     const itemPrice = product.price;
     const subtotal = itemPrice * quantity;
     const deliveryCost = 0; // Sera calculé à l'étape suivante
     const totalAmount = subtotal + deliveryCost;
 
-    // ✅ CORRECTION CRITIQUE: Retour avec métadonnées complètes
+    // ✅ CORRECTION CRITIQUE: Métadonnées COMPLÈTES avec types sécurisés
     return {
       type: 'assistant',
       content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
@@ -793,16 +867,16 @@ Sur quel numéro vous joindre pour la livraison ?`,
       assistant: this.getBotInfo(),
       metadata: {
         nextStep: 'express_contact' as ConversationStep,
-        // ✅ MÉTADONNÉES COMPLÈTES pour affichage panier
+        // ✅ MÉTADONNÉES COMPLÈTES pour ChatHeader avec types corrects
         orderData: { 
           session_id: sessionId,
           product_id: product.id,
           quantity: quantity,
           subtotal: subtotal,
           total_amount: totalAmount,
-          totalAmount: totalAmount, // ✅ Double pour compatibilité
+          totalAmount: totalAmount, // Double pour compatibilité
           items: [{
-            productId: product.id,
+            productId: product.id, // ✅ GARANTI string non-undefined
             name: product.name,
             quantity: quantity,
             price: itemPrice,
@@ -812,7 +886,8 @@ Sur quel numéro vous joindre pour la livraison ?`,
         flags: { 
           expressMode: true,
           quantitySelected: true,
-          showInCart: true // ✅ CRUCIAL pour affichage panier
+          showInCart: true, // ✅ CRUCIAL: Force l'affichage dans ChatHeader
+          preventAIIntervention: true
         }
       },
       timestamp: new Date().toISOString()
@@ -829,103 +904,49 @@ Sur quel numéro vous joindre pour la livraison ?`,
   // =======================================
 
   private createCustomQuantityPrompt(orderState: OrderState): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `🔢 **Quelle quantité souhaitez-vous ?**
+  const maxQuantity = orderState.metadata?.maxQuantity || 10;
+  
+  return {
+    type: 'assistant',
+    content: `🔢 **Quelle quantité souhaitez-vous ?**
 
-Veuillez indiquer le nombre d'exemplaires (entre 1 et ${orderState.metadata?.maxQuantity || 10}) :
+Veuillez indiquer le nombre d'exemplaires (entre 1 et ${maxQuantity}) :
 
 Exemple : "5" ou "5 exemplaires"`,
-      choices: [],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_custom_quantity' as ConversationStep,
-        flags: { expressMode: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
+    choices: [],
+    assistant: this.getBotInfo(),
+    metadata: {
+      nextStep: 'express_custom_quantity' as ConversationStep,
+      maxQuantity: maxQuantity,
+      flags: { expressMode: true }
+    },
+    timestamp: new Date().toISOString()
+  };
+}
 
-  private createInvalidQuantityMessage(orderState: OrderState): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `❌ **Quantité invalide**
+private createInvalidQuantityMessage(orderState: OrderState): ChatMessage {
+  const maxQuantity = orderState.metadata?.maxQuantity || 10;
+  
+  return {
+    type: 'assistant',
+    content: `❌ **Quantité invalide**
 
-Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaires :`,
-      choices: [
-        '1 exemplaire',
-        '2 exemplaires', 
-        '3 exemplaires',
-        '🔢 Autre quantité'
-      ],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_quantity' as ConversationStep,
-        flags: { expressMode: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  private async proceedToContactStep(sessionId: string, orderState: OrderState): Promise<ChatMessage> {
-    const { data: product } = await supabase
-      .from('products')
-      .select('id, name, price')
-      .eq('id', orderState.data.productId)
-      .maybeSingle();
-
-    if (!product) {
-      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
-    }
-
-    const totalAmount = product.price * orderState.data.quantity;
-
-    return {
-      type: 'assistant',
-      content: `✅ C'est noté ! Vous commandez **${orderState.data.quantity} exemplaire${orderState.data.quantity > 1 ? 's' : ''}**
-
-Jeu : **${product.name}**
-Prix total : **${totalAmount.toLocaleString()} FCFA**
-
-Sur quel numéro vous joindre pour la livraison ?`,
-      choices: [],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_contact' as ConversationStep,
-        orderData: { 
-          session_id: sessionId,
-          product_id: product.id,
-          quantity: orderState.data.quantity,
-          total_amount: totalAmount
-        },
-        flags: { expressMode: true, quantitySelected: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  private createOutOfStockMessage(product: any): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `😔 **${product.name} temporairement en rupture** 
-      
-Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
-
-📧 **Voulez-vous être notifié(e) dès qu'il sera disponible ?**`,
-      choices: [
-        '📧 Me notifier quand disponible', 
-        '🛍️ Voir autres jeux', 
-        '📞 Contacter le support'
-      ],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'out_of_stock' as ConversationStep,
-        productId: product.id,
-        flags: { outOfStock: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
+Veuillez choisir entre 1 et ${maxQuantity} exemplaires :`,
+    choices: [
+      '1 exemplaire',
+      '2 exemplaires', 
+      '3 exemplaires',
+      '🔢 Autre quantité'
+    ],
+    assistant: this.getBotInfo(),
+    metadata: {
+      nextStep: 'express_quantity' as ConversationStep,
+      maxQuantity: maxQuantity,
+      flags: { expressMode: true }
+    },
+    timestamp: new Date().toISOString()
+  };
+}
 
   // =======================================
   // ✅ MÉTHODES MANQUANTES À IMPLÉMENTER
@@ -1320,28 +1341,54 @@ ${parts[0]}, ${parts[1]}
   }
 
   private async handleExpressPayment(
-    sessionId: string,
-    paymentChoice: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('💳 Processing payment step:', { sessionId, paymentChoice });
+  sessionId: string,
+  paymentChoice: string,
+  orderState: OrderState
+): Promise<ChatMessage> {
+  console.log('💳 Processing payment step:', { sessionId, paymentChoice });
 
-    try {
-      const paymentMethod = this.mapPaymentChoice(paymentChoice);
-      orderState.data.paymentMethod = paymentMethod;
-      orderState.step = 'confirmation';
-      orderState.flags.paymentInitiated = true;
-      this.orderStates.set(sessionId, orderState);
-      await this.updateSessionInDatabase(sessionId, orderState);
+  try {
+    const paymentMethod = this.mapPaymentChoice(paymentChoice);
+    orderState.data.paymentMethod = paymentMethod;
+    orderState.step = 'confirmation';
+    orderState.flags.paymentInitiated = true;
+    this.orderStates.set(sessionId, orderState);
+    await this.updateSessionInDatabase(sessionId, orderState);
 
-      const orderId = await this.createExpressOrder(sessionId, orderState);
-      const orderTotal = await this.calculateOrderTotal(orderState);
-      
-      // ✅ CORRECTION CRITIQUE: Retourner les métadonnées complètes pour le paiement
-      if (paymentMethod === 'CASH') {
-        return {
-          type: 'assistant',
-          content: `🎉 **Votre commande est confirmée !** 🎉
+    const orderId = await this.createExpressOrder(sessionId, orderState);
+    const orderTotal = await this.calculateOrderTotal(orderState);
+    
+    // ✅ CORRECTION CRITIQUE: Types sécurisés pour les métadonnées
+    const productName = await this.getProductName(orderState.data.productId);
+    const firstName = this.extractFirstName(orderState.data.name);
+    const lastName = this.extractLastName(orderState.data.name);
+    
+    // ✅ GARANTIR QUE LES VALEURS NE SONT PAS UNDEFINED
+    const baseOrderData = {
+      id: orderId,
+      order_id: orderId,
+      session_id: sessionId,
+      total_amount: orderTotal,
+      totalAmount: orderTotal,
+      first_name: firstName,
+      last_name: lastName,
+      name: orderState.data.name || `${firstName} ${lastName}`.trim() || 'Client',
+      phone: orderState.data.phone || '',
+      address: orderState.data.address || '',
+      city: orderState.data.city || '',
+      items: [{
+        productId: orderState.data.productId || '', // ✅ CORRECTION: Garantir string non-undefined
+        name: productName,
+        quantity: orderState.data.quantity || 1,
+        price: orderTotal / (orderState.data.quantity || 1),
+        totalPrice: orderTotal
+      }]
+    };
+    
+    if (paymentMethod === 'CASH') {
+      return {
+        type: 'assistant',
+        content: `🎉 **Votre commande est confirmée !** 🎉
 
 📋 **Commande N° : ${orderId}**
 👤 **Client : ${orderState.data.name}**
@@ -1351,21 +1398,22 @@ ${parts[0]}, ${parts[1]}
 ✅ Notre équipe vous contactera sous peu pour confirmer la livraison.
 
 🙏 Merci pour votre confiance !`,
-          choices: ['🔍 Suivre ma commande', '💬 Nous contacter', '🛍️ Voir les autres jeux'],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'order_complete' as ConversationStep,
-            orderId,
-            flags: { orderCompleted: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } else if (paymentMethod === 'WAVE') {
-        const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${orderTotal}`;
-        
-        return {
-          type: 'assistant',
-          content: `💰 **Paiement par Wave**
+        choices: ['🔍 Suivre ma commande', '💬 Nous contacter', '🛍️ Voir les autres jeux'],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'order_complete' as ConversationStep,
+          orderId,
+          orderData: baseOrderData,
+          flags: { orderCompleted: true, showInCart: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+    } else if (paymentMethod === 'WAVE') {
+      const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${orderTotal}`;
+      
+      return {
+        type: 'assistant',
+        content: `💰 **Paiement par Wave**
 
 📋 Commande : **${orderId}**
 👤 Client : **${orderState.data.name}**
@@ -1374,83 +1422,66 @@ ${parts[0]}, ${parts[1]}
 🔗 **Étapes :**
 1. Cliquez sur le bouton Wave ci-dessous
 2. Effectuez le paiement
-3. Votre commande sera automatiquement confirmée
+3. Validez avec votre ID de transaction
 
 👇🏽 Cliquez pour payer avec Wave :`,
-          choices: [
-            `🌊 Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
-          ],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'wave_payment_process' as ConversationStep,
-            paymentUrl: waveUrl,
-            orderId,
-            // ✅ CORRECTION CRITIQUE: Toutes les données nécessaires pour le paiement
-            paymentAmount: orderTotal,
-            paymentMethod: 'Wave',
-            orderData: {
-              id: orderId,
-              order_id: orderId,
-              session_id: sessionId,
-              total_amount: orderTotal,
-              totalAmount: orderTotal,
-              first_name: this.extractFirstName(orderState.data.name),
-              last_name: this.extractLastName(orderState.data.name),
-              name: orderState.data.name
-            },
-            customerName: orderState.data.name,
-            flags: { 
-              expressMode: true, 
-              paymentInitiated: true,
-              wavePayment: true
-            }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        // Stripe payment
-        const paymentUrl = await this.initializePayment(orderId, paymentMethod, orderState);
-        
-        return {
-          type: 'assistant',
-          content: `💳 **Finaliser le paiement**
+        choices: [
+          `🌊 Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'wave_payment_process' as ConversationStep,
+          paymentUrl: waveUrl,
+          orderId,
+          // ✅ CORRECTION CRITIQUE: Toutes les données pour Wave
+          paymentAmount: orderTotal,
+          paymentMethod: 'Wave',
+          orderData: baseOrderData,
+          customerName: orderState.data.name,
+          flags: { 
+            expressMode: true, 
+            paymentInitiated: true,
+            wavePayment: true,
+            showInCart: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    } else {
+      // Stripe payment
+      const paymentUrl = await this.initializePayment(orderId, paymentMethod, orderState);
+      
+      return {
+        type: 'assistant',
+        content: `💳 **Finaliser le paiement**
 
 📋 Commande : **${orderId}**
 👤 Client : **${orderState.data.name}**
 💰 Montant : **${orderTotal.toLocaleString()} FCFA**
 
 👇🏽 Cliquez sur le bouton ci-dessous pour payer :`,
-          choices: [`💳 Payer par ${this.getPaymentDisplayName(paymentMethod)}`],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'payment_processing' as ConversationStep,
-            paymentUrl,
-            orderId,
-            // ✅ CORRECTION CRITIQUE: Métadonnées complètes
-            paymentAmount: orderTotal,
-            paymentMethod: this.getPaymentDisplayName(paymentMethod),
-            orderData: {
-              id: orderId,
-              order_id: orderId,
-              session_id: sessionId,
-              total_amount: orderTotal,
-              totalAmount: orderTotal,
-              first_name: this.extractFirstName(orderState.data.name),
-              last_name: this.extractLastName(orderState.data.name),
-              name: orderState.data.name
-            },
-            customerName: orderState.data.name,
-            flags: { expressMode: true, paymentInitiated: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-    } catch (error) {
-      console.error('❌ Express payment error:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du traitement du paiement');
+        choices: [`💳 Payer par ${this.getPaymentDisplayName(paymentMethod)}`],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'payment_processing' as ConversationStep,
+          paymentUrl,
+          orderId,
+          // ✅ CORRECTION CRITIQUE: Métadonnées complètes
+          paymentAmount: orderTotal,
+          paymentMethod: this.getPaymentDisplayName(paymentMethod),
+          orderData: baseOrderData,
+          customerName: orderState.data.name,
+          flags: { expressMode: true, paymentInitiated: true, showInCart: true }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
+
+  } catch (error) {
+    console.error('❌ Express payment error:', error);
+    return this.createErrorMessage(sessionId, 'Erreur lors du traitement du paiement');
   }
+}
 
   private async handleExpressConfirmation(
     sessionId: string,
@@ -2240,8 +2271,9 @@ Quelle est votre question ?`,
     return this.handleExpressContact(sessionId, input, orderState);
   }
 
+  // ✅ MÉTHODE AUXILIAIRE: Obtenir nom du produit de manière sécurisée
   private async getProductName(productId?: string): Promise<string> {
-    if (!productId) return 'le jeu';
+    if (!productId) return 'Produit';
     
     try {
       const { data: product } = await supabase
@@ -2250,9 +2282,10 @@ Quelle est votre question ?`,
         .eq('id', productId)
         .maybeSingle();
       
-      return product?.name || 'le jeu';
-    } catch {
-      return 'le jeu';
+      return product?.name || 'Produit';
+    } catch (error) {
+      console.error('❌ Error getting product name:', error);
+      return 'Produit';
     }
   }
 

@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE
+// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION COMPLÈTE
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/types/chat';
 import { ensureStringContent } from '@/types/chat';
+import WavePaymentValidation from '@/components/chat/WavePaymentValidation';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -44,53 +45,49 @@ const isDirectPaymentButton = (choice: string): boolean => {
   );
 };
 
-// ✅ CORRECTION 2: Fonction de paiement améliorée avec debugging
-const handleDirectPayment = async (choice: string, metadata?: any): Promise<boolean> => {
-  console.log('💳 [PAYMENT DEBUG] Starting payment process:', { 
+// ✅ CORRECTION 2: Fonction de paiement Wave ENTIÈREMENT RÉÉCRITE
+const handleDirectPayment = async (choice: string, metadata?: any): Promise<{ handled: boolean; showValidation?: boolean; paymentData?: any }> => {
+  console.log('💳 [PAYMENT DEBUG] Processing payment:', { 
     choice, 
-    metadata: metadata ? Object.keys(metadata) : 'undefined'
+    hasMetadata: !!metadata,
+    metadataKeys: metadata ? Object.keys(metadata) : []
   });
   
   try {
-    // ✅ CORRECTION 3: Récupération robuste des données de commande
+    // ✅ RÉCUPÉRATION ROBUSTE DES DONNÉES
     let paymentAmount = 0;
     let orderData: any = {};
     
     // Essayer différentes sources pour le montant
     if (metadata?.paymentAmount) {
       paymentAmount = metadata.paymentAmount;
-      console.log('💰 [PAYMENT DEBUG] Amount from paymentAmount:', paymentAmount);
     } else if (metadata?.orderData?.total_amount) {
       paymentAmount = metadata.orderData.total_amount;
-      console.log('💰 [PAYMENT DEBUG] Amount from orderData.total_amount:', paymentAmount);
     } else if (metadata?.orderData?.totalAmount) {
       paymentAmount = metadata.orderData.totalAmount;
-      console.log('💰 [PAYMENT DEBUG] Amount from orderData.totalAmount:', paymentAmount);
     } else {
       // Extraire depuis le texte du bouton
       const amountMatch = choice.match(/(\d+(?:[\s,]\d{3})*)/);
       if (amountMatch) {
         paymentAmount = parseInt(amountMatch[1].replace(/[\s,]/g, ''));
-        console.log('💰 [PAYMENT DEBUG] Amount extracted from button text:', paymentAmount);
       }
     }
     
     // Récupérer orderData
     if (metadata?.orderData) {
       orderData = metadata.orderData;
-      console.log('📦 [PAYMENT DEBUG] Order data found:', Object.keys(orderData));
     }
+    
+    console.log('💰 [PAYMENT DEBUG] Amount found:', paymentAmount);
     
     // ✅ VALIDATION CRITIQUE
     if (!paymentAmount || paymentAmount <= 0) {
       console.error('❌ [PAYMENT DEBUG] No valid payment amount found');
-      alert('Erreur: Montant de paiement non trouvé. Veuillez recommencer votre commande.');
-      return false;
+      // Ne pas bloquer, laisser le chatbot gérer
+      return { handled: false };
     }
     
-    console.log('✅ [PAYMENT DEBUG] Payment amount validated:', paymentAmount);
-    
-    // ✅ WAVE PAYMENT
+    // ✅ WAVE PAYMENT - NOUVELLE LOGIQUE
     if (choice.toLowerCase().includes('wave') || choice.includes('🌊')) {
       console.log('🌊 [WAVE DEBUG] Processing Wave payment');
       
@@ -107,36 +104,46 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // Mobile: Essayer app Wave puis fallback
-        const waveAppUrl = `wave://pay?amount=${paymentAmount}`;
-        console.log('📱 [WAVE DEBUG] Trying Wave app:', waveAppUrl);
+        // ✅ MOBILE: Stratégie améliorée
+        console.log('📱 [WAVE DEBUG] Mobile Wave payment');
         
         try {
-          const link = document.createElement('a');
-          link.href = waveAppUrl;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          // Essayer d'abord l'app Wave
+          const waveAppUrl = `wave://pay?amount=${paymentAmount}`;
+          window.location.href = waveAppUrl;
           
+          // Fallback après 1.5 secondes
           setTimeout(() => {
             console.log('🌐 [WAVE DEBUG] Fallback to web version');
             window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
-          }, 2000);
+          }, 1500);
         } catch (error) {
           console.log('🌐 [WAVE DEBUG] Direct web redirect');
           window.open(paymentUrl, '_blank') || (window.location.href = paymentUrl);
         }
       } else {
-        // Desktop: Direct web
-        console.log('🖥️ [WAVE DEBUG] Desktop payment');
-        const newWindow = window.open(paymentUrl, '_blank', 'noopener,noreferrer');
+        // ✅ DESKTOP: Nouvel onglet uniquement
+        console.log('🖥️ [WAVE DEBUG] Desktop Wave payment - opening in new tab');
+        const newWindow = window.open(paymentUrl, '_blank', 'noopener,noreferrer,width=800,height=600');
+        
         if (!newWindow) {
+          console.log('🚫 [WAVE DEBUG] Popup blocked, using location redirect');
           window.location.href = paymentUrl;
+        } else {
+          console.log('✅ [WAVE DEBUG] New tab opened successfully');
         }
       }
       
-      return true;
+      // ✅ RETOURNER DONNÉES POUR VALIDATION
+      return { 
+        handled: true, 
+        showValidation: true,
+        paymentData: {
+          orderId: metadata?.orderId || orderData?.id || orderData?.order_id || Date.now().toString(),
+          amount: paymentAmount,
+          paymentMethod: 'Wave'
+        }
+      };
     }
     
     // ✅ CARTE BANCAIRE
@@ -170,8 +177,7 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
       
       if (!orderId) {
         console.error('❌ [STRIPE DEBUG] No order ID found');
-        alert('Erreur: ID de commande manquant. Veuillez recommencer votre commande.');
-        return false;
+        return { handled: false };
       }
       
       try {
@@ -191,8 +197,6 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
           }),
         });
 
-        console.log('💳 [STRIPE DEBUG] API response status:', response.status);
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(`Stripe API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
@@ -203,15 +207,14 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
         
         if (session.url) {
           window.location.href = session.url;
-          return true;
+          return { handled: true };
         } else {
           throw new Error('No checkout URL received from Stripe');
         }
         
       } catch (stripeError) {
         console.error('❌ [STRIPE DEBUG] Error:', stripeError);
-        alert(`Erreur lors de la création du paiement: ${stripeError instanceof Error ? stripeError.message : 'Erreur inconnue'}`);
-        return false;
+        return { handled: false };
       }
     }
     
@@ -235,25 +238,22 @@ const handleDirectPayment = async (choice: string, metadata?: any): Promise<bool
           
           if (response.ok) {
             console.log('✅ [CASH DEBUG] Payment confirmed');
-            return true;
-          } else {
-            console.warn('⚠️ [CASH DEBUG] Confirmation failed, falling back to chat');
+            return { handled: true };
           }
         } catch (error) {
           console.error('❌ [CASH DEBUG] Error:', error);
         }
       }
       
-      return false; // Laisser le chatbot gérer
+      return { handled: false }; // Laisser le chatbot gérer
     }
     
     console.log('⚠️ [PAYMENT DEBUG] Payment method not recognized:', choice);
-    return false;
+    return { handled: false };
     
   } catch (error) {
     console.error('❌ [PAYMENT DEBUG] Critical error:', error);
-    alert(`Erreur de paiement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-    return false;
+    return { handled: false };
   }
 };
 
@@ -372,6 +372,8 @@ export default function ChatMessage({
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
+  const [showWaveValidation, setShowWaveValidation] = useState(false);
+  const [wavePaymentData, setWavePaymentData] = useState<any>(null);
 
   const messageContent = ensureStringContent(message.content);
 
@@ -381,7 +383,7 @@ export default function ChatMessage({
   const hasError = message.metadata?.flags?.hasError === true;
   const isOrderComplete = message.metadata?.flags?.orderCompleted === true;
 
-  // ✅ CORRECTION 4: Gestion intelligente des clics
+  // ✅ CORRECTION 4: Gestion intelligente des clics avec validation Wave
   const handleChoiceClick = async (choice: string) => {
     console.log('🔘 [CHOICE DEBUG] Choice clicked:', choice);
     
@@ -396,11 +398,20 @@ export default function ChatMessage({
       setProcessingPayment(choice);
       
       try {
-        const paymentHandled = await handleDirectPayment(choice, message.metadata);
+        const paymentResult = await handleDirectPayment(choice, message.metadata);
         
-        if (paymentHandled) {
+        if (paymentResult.handled) {
           console.log('✅ [CHOICE DEBUG] Direct payment handled successfully');
-          return; // Ne pas appeler onChoiceSelect
+          
+          // ✅ WAVE: Afficher validation si nécessaire
+          if (paymentResult.showValidation && paymentResult.paymentData) {
+            console.log('🌊 [WAVE DEBUG] Showing validation component');
+            setWavePaymentData(paymentResult.paymentData);
+            setShowWaveValidation(true);
+            return; // Ne pas appeler onChoiceSelect
+          }
+          
+          return; // Pour les autres paiements
         } else {
           console.log('⚠️ [CHOICE DEBUG] Direct payment failed, falling back to chatbot');
         }
@@ -418,6 +429,58 @@ export default function ChatMessage({
     }
   };
 
+  // ✅ NOUVELLE FONCTION: Gérer la validation Wave
+  const handleWaveValidation = async (transactionId: string) => {
+    console.log('🌊 [WAVE VALIDATION] Processing transaction ID:', transactionId);
+    
+    try {
+      // Valider le paiement Wave via API
+      const response = await fetch('/api/payments/validate-wave', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionId,
+          orderId: wavePaymentData?.orderId,
+          amount: wavePaymentData?.amount
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [WAVE VALIDATION] Payment validated successfully');
+        
+        // Fermer la validation et informer le chatbot
+        setShowWaveValidation(false);
+        setWavePaymentData(null);
+        
+        // Déclencher la confirmation dans le chat
+        if (onChoiceSelect) {
+          onChoiceSelect(`Paiement Wave confirmé - Transaction: ${transactionId}`);
+        }
+      } else {
+        console.error('❌ [WAVE VALIDATION] Validation failed');
+        alert('Erreur lors de la validation du paiement. Veuillez réessayer.');
+      }
+    } catch (error) {
+      console.error('❌ [WAVE VALIDATION] Error:', error);
+      alert('Erreur technique lors de la validation. Veuillez contacter le support.');
+    }
+  };
+
+  // ✅ NOUVELLE FONCTION: Annuler la validation Wave
+  const handleWaveValidationCancel = () => {
+    console.log('❌ [WAVE VALIDATION] Cancelled by user');
+    setShowWaveValidation(false);
+    setWavePaymentData(null);
+    
+    // Informer le chatbot de l'annulation
+    if (onChoiceSelect) {
+      onChoiceSelect('Paiement Wave annulé');
+    }
+  };
+
   // Copier le numéro de commande
   const copyOrderId = async () => {
     if (message.metadata?.orderId) {
@@ -430,6 +493,22 @@ export default function ChatMessage({
       }
     }
   };
+
+  // ✅ RENDU CONDITIONNEL: Afficher validation Wave si nécessaire
+  if (showWaveValidation && wavePaymentData) {
+    return (
+      <div className="flex w-full flex-col items-start">
+        <div className="mr-8 md:mr-12 max-w-[90%] md:max-w-[85%]">
+          <WavePaymentValidation
+            orderId={wavePaymentData.orderId}
+            amount={wavePaymentData.amount}
+            onValidationSubmit={handleWaveValidation}
+            onRetry={handleWaveValidationCancel}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex w-full flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>

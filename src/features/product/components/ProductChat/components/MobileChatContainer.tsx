@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -41,16 +41,23 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [welcomeMessageSent, setWelcomeMessageSent] = useState(false);
+  
+  // ✅ CORRECTION CRITIQUE: Initialisation des services avec useState
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
+  const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
+  
+  // ✅ CORRECTION: État global pour éviter les doublons
+  const [globalInitialized, setGlobalInitialized] = useState(false);
+
   const [stats, setStats] = useState<RealTimeStats>({
     viewsCount: 0,
     salesCount: 0,
     reviewsCount: 0
   });
   const [rating, setRating] = useState(product.stats?.satisfaction || 5);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [welcomeMessageSent, setWelcomeMessageSent] = useState(false);
 
   const store = useChatStore();
   
@@ -87,21 +94,26 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   } = store;
 
-  // ✅ CORRECTION: Initialisation avec SessionManager
+  // ✅ CORRECTION: Initialisation avec SessionManager et gestion des doublons
   useEffect(() => {
     let isMounted = true;
 
     const initializeChat = async () => {
-      if (!product?.id || !isMounted || welcomeMessageSent) return;
+      if (!product?.id || !isMounted || welcomeMessageSent || globalInitialized) return;
 
       try {
         console.log('📱 Initializing mobile chat session:', { productId: product.id, storeId });
         
-        const currentMessages = useChatStore.getState().messages;
-        if (currentMessages.length > 0) {
-          console.log('📝 Mobile chat already has messages, skipping welcome message');
+        // ✅ CORRECTION CRITIQUE: Vérifier l'état global d'abord
+        const globalState = useChatStore.getState();
+        const currentMessages = globalState.messages || [];
+        
+        // Si des messages existent déjà ou si déjà initialisé, ne rien faire
+        if (currentMessages.length > 0 || globalState.flags?.isInitialized) {
+          console.log('📝 Mobile chat already has messages or is initialized, skipping');
           setIsInitialized(true);
           setWelcomeMessageSent(true);
+          setGlobalInitialized(true);
           return;
         }
 
@@ -112,20 +124,22 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
 
         setIsInitialized(true);
 
-        // ✅ CORRECTION: Utiliser SessionManager pour créer session
+        // ✅ UTILISER SessionManager pour créer session
         const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
-        console.log('🆕 Session created with SessionManager:', newSessionId);
+        console.log('🆕 Mobile session created with SessionManager:', newSessionId);
 
         if (initializeSession) {
           initializeSession(product.id, storeId, newSessionId);
         }
         
+        // ✅ DÉLAI PLUS LONG pour éviter les conditions de course
         setTimeout(() => {
           if (!isMounted || welcomeMessageSent) return;
           
-          const latestMessages = useChatStore.getState().messages;
+          const latestState = useChatStore.getState();
           
-          if (latestMessages.length === 0) {
+          // ✅ TRIPLE VÉRIFICATION avant d'ajouter le message
+          if (latestState.messages?.length === 0 && !latestState.flags?.isInitialized) {
             const welcomeMessage: ChatMessageType = {
               type: 'assistant',
               content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
@@ -164,10 +178,21 @@ Que souhaitez-vous faire ?`,
             console.log('📝 Adding welcome message to mobile chat');
             addMessage(welcomeMessage);
             setWelcomeMessageSent(true);
+            setGlobalInitialized(true);
+            
+            // ✅ MARQUER COMME INITIALISÉ dans le store
+            if (store.updateFlags) {
+              store.updateFlags({ isInitialized: true });
+            }
+            
+            // ✅ MARQUER L'INITIALISATION GLOBALEMENT
+            localStorage.setItem('vosc-chat-initialized', 'true');
           } else {
+            console.log('⚠️ Mobile: Welcome message skipped - messages exist or already initialized');
             setWelcomeMessageSent(true);
+            setGlobalInitialized(true);
           }
-        }, 300);
+        }, 800); // Délai augmenté à 800ms
         
       } catch (error) {
         console.error('❌ Error initializing mobile chat:', error);
@@ -183,7 +208,22 @@ Que souhaitez-vous faire ?`,
         cleanup();
       }
     };
-  }, [product.id, storeId, welcomeMessageSent, isInitialized, sessionManager, initializeSession, addMessage, cleanup]);
+  }, [product.id, storeId, welcomeMessageSent, globalInitialized, isInitialized, sessionManager, initializeSession, addMessage, cleanup, store]);
+
+  // ✅ SURVEILLANCE DES CHANGEMENTS D'ÉTAT GLOBAL
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'vosc-chat-initialized' && e.newValue === 'true') {
+        console.log('🔄 Mobile: Chat initialized by another instance');
+        setGlobalInitialized(true);
+        setIsInitialized(true);
+        setWelcomeMessageSent(true);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     setHideHeaderGroup(true);
@@ -241,9 +281,6 @@ Que souhaitez-vous faire ?`,
       setTimeout(scrollToBottom, 100);
     }
   }, [messages, showTyping]);
-
-  // Service de contenu dynamique
-  const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
 
   const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
@@ -313,51 +350,51 @@ Qu'est-ce qui vous intéresse le plus ?`,
           console.error('❌ Mobile - Erreur récupération produit:', error);
           gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-    Une erreur est survenue lors du chargement des règles. 
+Une erreur est survenue lors du chargement des règles. 
 
-    📞 **Contactez-nous pour plus d'informations :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
+📞 **Contactez-nous pour plus d'informations :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-    Nous vous enverrons les règles détaillées !`;
+Nous vous enverrons les règles détaillées !`;
         } else if (productData.game_rules && productData.game_rules.trim()) {
           console.log('✅ Mobile - Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-    ${productData.game_rules}
+${productData.game_rules}
 
-    🎯 **Prêt(e) à vivre cette expérience ?**`;
+🎯 **Prêt(e) à vivre cette expérience ?**`;
         } else {
           console.log('⚠️ Mobile - Pas de règles définies pour ce produit');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-    📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
 
-    En attendant, voici ce que vous devez savoir :
-    • Ce jeu est conçu pour renforcer les relations
-    • Il se joue en groupe (2 personnes minimum)  
-    • Chaque partie dure environ 30-60 minutes
-    • Aucune préparation spéciale requise
+En attendant, voici ce que vous devez savoir :
+• Ce jeu est conçu pour renforcer les relations
+• Il se joue en groupe (2 personnes minimum)  
+• Chaque partie dure environ 30-60 minutes
+• Aucune préparation spéciale requise
 
-    📞 **Pour les règles complètes, contactez-nous :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
+📞 **Pour les règles complètes, contactez-nous :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-    Nous vous enverrons un guide détaillé !`;
+Nous vous enverrons un guide détaillé !`;
         }
       } catch (dbError) {
         console.error('❌ Mobile - Erreur base de données:', dbError);
         gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-    😔 **Problème technique temporaire**
+😔 **Problème technique temporaire**
 
-    Nous ne pouvons pas charger les règles du jeu en ce moment.
+Nous ne pouvons pas charger les règles du jeu en ce moment.
 
-    📞 **Solution immédiate :**
-    • WhatsApp : +221 78 136 27 28
-    • Nous vous enverrons les règles par message
+📞 **Solution immédiate :**
+• WhatsApp : +221 78 136 27 28
+• Nous vous enverrons les règles par message
 
-    🔄 **Ou réessayez dans quelques minutes**`;
+🔄 **Ou réessayez dans quelques minutes**`;
       }
 
       return {
@@ -529,11 +566,11 @@ Qu'est-ce qui vous intéresse le plus ?`,
   };
 
   // Fonction utilitaire: Créer un message d'erreur
-    const createErrorResponse = (errorText: string): ChatMessageType => ({
+  const createErrorResponse = (errorText: string): ChatMessageType => ({
     type: 'assistant',
     content: `😔 **${errorText}**
 
-  Voulez-vous réessayer ou contacter notre support ?`,
+Voulez-vous réessayer ou contacter notre support ?`,
     choices: ['🔄 Réessayer', '📞 Contacter le support'],
     assistant: {
       name: 'Rose',
@@ -567,108 +604,108 @@ Qu'est-ce qui vous intéresse le plus ?`,
 
   // ✅ CORRECTION: Fonction sendMessage avec gestion d'erreur améliorée
   const sendMessage = async (content: string) => {
-  try {
-    console.log('📱 Processing mobile message:', { 
-      content: content.substring(0, 50), 
-      sessionId, 
-      productId: product.id 
-    });
-    
-    // Ajouter le message utilisateur immédiatement
-    const userMessage: ChatMessageType = {
-      type: 'user',
-      content,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        flags: {
-          isButtonChoice: true,
-          preventAIIntervention: true
+    try {
+      console.log('📱 Processing mobile message:', { 
+        content: content.substring(0, 50), 
+        sessionId, 
+        productId: product.id 
+      });
+      
+      // Ajouter le message utilisateur immédiatement
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          flags: {
+            isButtonChoice: true,
+            preventAIIntervention: true
+          }
+        }
+      };
+      
+      addMessage(userMessage);
+
+      let response: ChatMessageType;
+      
+      // ✅ UTILISER L'API AVEC GESTION D'ERREUR ROBUSTE
+      console.log('🚀 Mobile: Sending to enhanced chat API...');
+      
+      try {
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
+            productId: product.id,
+            currentStep: currentStep || 'initial',
+            orderData: orderData || {},
+            sessionId: sessionId || `${product.id}_${Date.now()}`,
+            storeId: storeId || 'default'
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          throw new Error(`Mobile API error ${apiResponse.status}: ${errorText}`);
+        }
+
+        const aiResponse = await apiResponse.json();
+        console.log('✅ Mobile: Enhanced API response received');
+
+        response = {
+          type: 'assistant',
+          content: aiResponse.content || "Je suis là pour vous aider !",
+          choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: aiResponse.nextStep || currentStep,
+            orderData: aiResponse.orderData,
+            flags: aiResponse.flags || {}
+          },
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (apiError) {
+        console.error('❌ Mobile: API call failed:', apiError);
+        
+        // ✅ FALLBACK: Si l'API échoue, traiter localement
+        const isStandardButton = [
+          'Poser une question', 'Comment y jouer', 'C\'est pour qui',
+          'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
+        ].some(btn => content.includes(btn));
+        
+        if (isStandardButton) {
+          response = await handleStandardMessages(content);
+        } else {
+          response = createErrorResponse(`Problème de connexion: ${apiError instanceof Error ? apiError.message : 'Erreur inconnue'}`);
         }
       }
-    };
-    
-    addMessage(userMessage);
-
-    let response: ChatMessageType;
-    
-    // ✅ UTILISER L'API AVEC GESTION D'ERREUR ROBUSTE
-    console.log('🚀 Mobile: Sending to enhanced chat API...');
-    
-    try {
-      const apiResponse = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: content,
-          productId: product.id,
-          currentStep: currentStep || 'initial',
-          orderData: orderData || {},
-          sessionId: sessionId || `${product.id}_${Date.now()}`,
-          storeId: storeId || 'default'
-        }),
-      });
-
-      if (!apiResponse.ok) {
-        const errorText = await apiResponse.text();
-        throw new Error(`Mobile API error ${apiResponse.status}: ${errorText}`);
-      }
-
-      const aiResponse = await apiResponse.json();
-      console.log('✅ Mobile: Enhanced API response received');
-
-      response = {
-        type: 'assistant',
-        content: aiResponse.content || "Je suis là pour vous aider !",
-        choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: aiResponse.nextStep || currentStep,
-          orderData: aiResponse.orderData,
-          flags: aiResponse.flags || {}
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (apiError) {
-      console.error('❌ Mobile: API call failed:', apiError);
       
-      // ✅ FALLBACK: Si l'API échoue, traiter localement
-      const isStandardButton = [
-        'Poser une question', 'Comment y jouer', 'C\'est pour qui',
-        'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
-      ].some(btn => content.includes(btn));
+      // Délai d'attente pour l'animation
+      setTimeout(() => {
+        console.log('✅ Mobile: Response generated');
+        addMessage(response);
+        
+        if (response.metadata?.orderData) {
+          updateOrderData(response.metadata.orderData);
+        }
+      }, 800);
+
+    } catch (err) {
+      console.error('❌ Mobile: Error in sendMessage:', err);
       
-      if (isStandardButton) {
-        response = await handleStandardMessages(content);
-      } else {
-        response = createErrorResponse(`Problème de connexion: ${apiError instanceof Error ? apiError.message : 'Erreur inconnue'}`);
-      }
+      setTimeout(() => {
+        const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+        addMessage(errorMessage);
+      }, 500);
     }
-    
-    // Délai d'attente pour l'animation
-    setTimeout(() => {
-      console.log('✅ Mobile: Response generated');
-      addMessage(response);
-      
-      if (response.metadata?.orderData) {
-        updateOrderData(response.metadata.orderData);
-      }
-    }, 800);
-
-  } catch (err) {
-    console.error('❌ Mobile: Error in sendMessage:', err);
-    
-    setTimeout(() => {
-      const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
-      addMessage(errorMessage);
-    }, 500);
-  }
-};
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -679,197 +716,197 @@ Qu'est-ce qui vous intéresse le plus ?`,
 
   // ✅ CORRECTION MOBILE: handleChoiceSelect avec traitement spécial "Comment y jouer"
   const handleChoiceSelect = async (choice: string) => {
-  if (isProcessing) {
-    console.log('⏳ Processing in progress, ignoring choice');
-    return;
-  }
+    if (isProcessing) {
+      console.log('⏳ Processing in progress, ignoring choice');
+      return;
+    }
 
-  console.log('🔘 Mobile choice selected:', choice);
-  setIsProcessing(true);
-  setShowTyping(true);
-  
-  try {
-    // ✅ PRIORITÉ 1: Gestion des redirections WhatsApp
-    if (choice.includes('Continuer sur WhatsApp') || 
-        choice.includes('📞 Continuer sur WhatsApp') ||
-        choice.includes('Parler à un conseiller') ||
-        choice.includes('Contacter le support') ||
-        choice.includes('📞 Contacter le support')) {
-      
-      console.log('📞 Mobile: Opening WhatsApp redirect');
-      
-      // Ajouter le message utilisateur
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content: choice,
-        timestamp: new Date().toISOString()
-      };
-      addMessage(userMessage);
-      
-      // Ouvrir WhatsApp avec gestion mobile améliorée
-      const whatsappUrl = 'https://wa.me/221781362728';
-      const whatsappText = encodeURIComponent(`Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`);
-      const whatsappDeepLink = `whatsapp://send?phone=221781362728&text=${whatsappText}`;
-      
-      try {
-        // Essayer d'abord le deep link WhatsApp
-        window.location.href = whatsappDeepLink;
+    console.log('🔘 Mobile choice selected:', choice);
+    setIsProcessing(true);
+    setShowTyping(true);
+    
+    try {
+      // ✅ PRIORITÉ 1: Gestion des redirections WhatsApp
+      if (choice.includes('Continuer sur WhatsApp') || 
+          choice.includes('📞 Continuer sur WhatsApp') ||
+          choice.includes('Parler à un conseiller') ||
+          choice.includes('Contacter le support') ||
+          choice.includes('📞 Contacter le support')) {
         
-        // Fallback après 2 secondes si l'app ne s'ouvre pas
-        setTimeout(() => {
+        console.log('📞 Mobile: Opening WhatsApp redirect');
+        
+        // Ajouter le message utilisateur
+        const userMessage: ChatMessageType = {
+          type: 'user',
+          content: choice,
+          timestamp: new Date().toISOString()
+        };
+        addMessage(userMessage);
+        
+        // Ouvrir WhatsApp avec gestion mobile améliorée
+        const whatsappUrl = 'https://wa.me/221781362728';
+        const whatsappText = encodeURIComponent(`Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`);
+        const whatsappDeepLink = `whatsapp://send?phone=221781362728&text=${whatsappText}`;
+        
+        try {
+          // Essayer d'abord le deep link WhatsApp
+          window.location.href = whatsappDeepLink;
+          
+          // Fallback après 2 secondes si l'app ne s'ouvre pas
+          setTimeout(() => {
+            window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
+          }, 2000);
+        } catch (error) {
+          console.log('📞 Fallback to web WhatsApp');
           window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
-        }, 2000);
-      } catch (error) {
-        console.log('📞 Fallback to web WhatsApp');
-        window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
-      }
-      
-      // Message de confirmation
-      setTimeout(() => {
-        const confirmMessage: ChatMessageType = {
-          type: 'assistant',
-          content: `✅ **Redirection vers WhatsApp**
+        }
+        
+        // Message de confirmation
+        setTimeout(() => {
+          const confirmMessage: ChatMessageType = {
+            type: 'assistant',
+            content: `✅ **Redirection vers WhatsApp**
 
 Si WhatsApp ne s'est pas ouvert automatiquement, cliquez sur le lien :
 👉 https://wa.me/221781362728
 
 Notre équipe vous répondra rapidement !`,
-          choices: [],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'whatsapp_opened' as ConversationStep,
-            flags: { whatsappRedirect: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-        addMessage(confirmMessage);
-      }, 1000);
-      
-      return; // ✅ IMPORTANT: Sortir ici
-    }
-
-    // ✅ PRIORITÉ 2: Commander rapidement - CORRECTION MOBILE
-    if (choice.includes('Commander rapidement') || choice.includes('⚡')) {
-      console.log('⚡ Mobile: Processing express command');
-      
-      // Ajouter le message utilisateur
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content: choice,
-        timestamp: new Date().toISOString()
-      };
-      addMessage(userMessage);
-      
-      // Délai pour l'animation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      try {
-        // ✅ CORRECTION: Appel direct à l'API avec gestion d'erreur
-        const apiResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: choice,
-            productId: product.id,
-            currentStep: currentStep || 'initial',
-            orderData: orderData || {},
-            sessionId: sessionId || `${product.id}_${Date.now()}`,
-            storeId: storeId || 'default'
-          }),
-        });
-
-        if (!apiResponse.ok) {
-          throw new Error(`API error: ${apiResponse.status}`);
-        }
-
-        const aiResponse = await apiResponse.json();
-        console.log('✅ Mobile express API response:', aiResponse);
-
-        const response: ChatMessageType = {
-          type: 'assistant',
-          content: aiResponse.content || "Commande express en cours d'initialisation...",
-          choices: aiResponse.choices || ['1 exemplaire', '2 exemplaires', '3 exemplaires'],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: aiResponse.nextStep || 'express_quantity',
-            orderData: aiResponse.orderData,
-            flags: aiResponse.flags || { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-
-        addMessage(response);
-        
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
-        }
+            choices: [],
+            assistant: {
+              name: 'Rose',
+              title: 'Assistante d\'achat'
+            },
+            metadata: {
+              nextStep: 'whatsapp_opened' as ConversationStep,
+              flags: { whatsappRedirect: true }
+            },
+            timestamp: new Date().toISOString()
+          };
+          addMessage(confirmMessage);
+        }, 1000);
         
         return; // ✅ IMPORTANT: Sortir ici
+      }
+
+      // ✅ PRIORITÉ 2: Commander rapidement - CORRECTION MOBILE
+      if (choice.includes('Commander rapidement') || choice.includes('⚡')) {
+        console.log('⚡ Mobile: Processing express command');
         
-      } catch (expressError) {
-        console.error('❌ Mobile express error:', expressError);
+        // Ajouter le message utilisateur
+        const userMessage: ChatMessageType = {
+          type: 'user',
+          content: choice,
+          timestamp: new Date().toISOString()
+        };
+        addMessage(userMessage);
         
-        // Message d'erreur spécifique pour la commande express
-        const errorMessage: ChatMessageType = {
-          type: 'assistant',
-          content: `😔 **Erreur lors du lancement de la commande express**
+        // Délai pour l'animation
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          // ✅ CORRECTION: Appel direct à l'API avec gestion d'erreur
+          const apiResponse = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: choice,
+              productId: product.id,
+              currentStep: currentStep || 'initial',
+              orderData: orderData || {},
+              sessionId: sessionId || `${product.id}_${Date.now()}`,
+              storeId: storeId || 'default'
+            }),
+          });
+
+          if (!apiResponse.ok) {
+            throw new Error(`API error: ${apiResponse.status}`);
+          }
+
+          const aiResponse = await apiResponse.json();
+          console.log('✅ Mobile express API response:', aiResponse);
+
+          const response: ChatMessageType = {
+            type: 'assistant',
+            content: aiResponse.content || "Commande express en cours d'initialisation...",
+            choices: aiResponse.choices || ['1 exemplaire', '2 exemplaires', '3 exemplaires'],
+            assistant: {
+              name: 'Rose',
+              title: 'Assistante d\'achat'
+            },
+            metadata: {
+              nextStep: aiResponse.nextStep || 'express_quantity',
+              orderData: aiResponse.orderData,
+              flags: aiResponse.flags || { expressMode: true }
+            },
+            timestamp: new Date().toISOString()
+          };
+
+          addMessage(response);
+          
+          if (response.metadata?.orderData) {
+            updateOrderData(response.metadata.orderData);
+          }
+          
+          return; // ✅ IMPORTANT: Sortir ici
+          
+        } catch (expressError) {
+          console.error('❌ Mobile express error:', expressError);
+          
+          // Message d'erreur spécifique pour la commande express
+          const errorMessage: ChatMessageType = {
+            type: 'assistant',
+            content: `😔 **Erreur lors du lancement de la commande express**
 
 Une erreur technique est survenue. Voulez-vous réessayer ?
 
 **Détails de l'erreur :** ${expressError instanceof Error ? expressError.message : 'Erreur inconnue'}`,
-          choices: ['🔄 Réessayer', '📞 Contacter le support'],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'express_error' as ConversationStep,
-            flags: { hasError: true }
-          },
+            choices: ['🔄 Réessayer', '📞 Contacter le support'],
+            assistant: {
+              name: 'Rose',
+              title: 'Assistante d\'achat'
+            },
+            metadata: {
+              nextStep: 'express_error' as ConversationStep,
+              flags: { hasError: true }
+            },
+            timestamp: new Date().toISOString()
+          };
+          
+          addMessage(errorMessage);
+          return; // ✅ IMPORTANT: Sortir ici
+        }
+      }
+      
+      // ✅ PRIORITÉ 3: Traitement spécial "Comment y jouer"
+      if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
+        console.log('🎮 Mobile: Traitement spécial "Comment y jouer"');
+        
+        // Ajouter d'abord le message utilisateur
+        const userMessage: ChatMessageType = {
+          type: 'user',
+          content: choice,
           timestamp: new Date().toISOString()
         };
+        addMessage(userMessage);
         
-        addMessage(errorMessage);
-        return; // ✅ IMPORTANT: Sortir ici
-      }
-    }
-    
-    // ✅ PRIORITÉ 3: Traitement spécial "Comment y jouer"
-    if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
-      console.log('🎮 Mobile: Traitement spécial "Comment y jouer"');
-      
-      // Ajouter d'abord le message utilisateur
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content: choice,
-        timestamp: new Date().toISOString()
-      };
-      addMessage(userMessage);
-      
-      // Attendre un peu pour l'animation
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      let gameRules = '';
-      
-      try {
-        // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE avec gestion d'erreur
-        const { data: productData, error } = await supabase
-          .from('products')
-          .select('game_rules, name')
-          .eq('id', product.id)
-          .maybeSingle();
+        // Attendre un peu pour l'animation
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        let gameRules = '';
+        
+        try {
+          // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE avec gestion d'erreur
+          const { data: productData, error } = await supabase
+            .from('products')
+            .select('game_rules, name')
+            .eq('id', product.id)
+            .maybeSingle();
 
-        if (error || !productData) {
-          console.error('❌ Mobile - Erreur récupération produit:', error);
-          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+          if (error || !productData) {
+            console.error('❌ Mobile - Erreur récupération produit:', error);
+            gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
 Une erreur est survenue lors du chargement des règles. 
 
@@ -878,16 +915,16 @@ Une erreur est survenue lors du chargement des règles.
 • Email : contact@viensonseconnait.com
 
 Nous vous enverrons les règles détaillées !`;
-        } else if (productData.game_rules && productData.game_rules.trim()) {
-          console.log('✅ Mobile - Règles du jeu trouvées');
-          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+          } else if (productData.game_rules && productData.game_rules.trim()) {
+            console.log('✅ Mobile - Règles du jeu trouvées');
+            gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
 ${productData.game_rules}
 
 🎯 **Prêt(e) à vivre cette expérience ?**`;
-        } else {
-          console.log('⚠️ Mobile - Pas de règles définies pour ce produit');
-          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
+          } else {
+            console.log('⚠️ Mobile - Pas de règles définies pour ce produit');
+            gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
 📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
 
@@ -902,10 +939,10 @@ En attendant, voici ce que vous devez savoir :
 • Email : contact@viensonseconnait.com
 
 Nous vous enverrons un guide détaillé !`;
-        }
-      } catch (dbError) {
-        console.error('❌ Mobile - Erreur base de données:', dbError);
-        gameRules = `❓ **Comment jouer au jeu ${product.name} :**
+          }
+        } catch (dbError) {
+          console.error('❌ Mobile - Erreur base de données:', dbError);
+          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
 😔 **Problème technique temporaire**
 
@@ -916,70 +953,70 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
 • Nous vous enverrons les règles par message
 
 🔄 **Ou réessayez dans quelques minutes**`;
+        }
+        
+        // Créer et ajouter la réponse assistant
+        const assistantMessage: ChatMessageType = {
+          type: 'assistant',
+          content: gameRules,
+          choices: [
+            '⚡ Commander maintenant',
+            '💝 Quels bénéfices ?',
+            '⭐ Voir les avis',
+            '📞 Contacter le support'
+          ],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'game_rules_shown' as ConversationStep,
+            flags: {
+              gameRulesShown: true
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        addMessage(assistantMessage);
+        return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
       }
       
-      // Créer et ajouter la réponse assistant
-      const assistantMessage: ChatMessageType = {
-        type: 'assistant',
-        content: gameRules,
-        choices: [
-          '⚡ Commander maintenant',
-          '💝 Quels bénéfices ?',
-          '⭐ Voir les avis',
-          '📞 Contacter le support'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'game_rules_shown' as ConversationStep,
-          flags: {
-            gameRulesShown: true
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
+      // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via sendMessage
+      await sendMessage(choice);
       
-      addMessage(assistantMessage);
-      return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
-    }
-    
-    // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via sendMessage
-    await sendMessage(choice);
-    
-  } catch (error) {
-    console.error('❌ Mobile: Error sending choice:', error);
-    
-    // Message d'erreur général en cas de problème
-    const errorMessage: ChatMessageType = {
-      type: 'assistant',
-      content: `😔 **Erreur temporaire**
+    } catch (error) {
+      console.error('❌ Mobile: Error sending choice:', error);
+      
+      // Message d'erreur général en cas de problème
+      const errorMessage: ChatMessageType = {
+        type: 'assistant',
+        content: `😔 **Erreur temporaire**
 
 Un problème est survenu lors du traitement de votre choix.
 
 **Erreur :** ${error instanceof Error ? error.message : 'Erreur inconnue'}
 
 Voulez-vous réessayer ?`,
-      choices: ['🔄 Réessayer', '📞 Contacter le support'],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'error_recovery' as ConversationStep,
-        flags: { hasError: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    addMessage(errorMessage);
-    
-  } finally {
-    setShowTyping(false);
-    setIsProcessing(false);
-  }
-};
+        choices: ['🔄 Réessayer', '📞 Contacter le support'],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'error_recovery' as ConversationStep,
+          flags: { hasError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      addMessage(errorMessage);
+      
+    } finally {
+      setShowTyping(false);
+      setIsProcessing(false);
+    }
+  };
 
   const handleClosePaymentModal = () => {
     setPaymentModal({ 
@@ -1068,172 +1105,172 @@ Voulez-vous réessayer ?`,
           </div>
 
           {/* Barre de commande mobile intégrée */}
-         {orderData?.items && orderData.items.length > 0 && (
-           <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3">
-             <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                 <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
-                   <ShoppingBag className="w-3 h-3 text-white" />
-                 </div>
-                 <div>
-                   <p className="text-xs font-medium text-[#132D5D]">
-                     Ma commande ({(orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)} article{((orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)) > 1 ? 's' : ''})
-                   </p>
-                   <p className="text-xs text-gray-600 truncate max-w-[200px]">
-                     {(orderData.items || []).map(item => `${item.name} x${item.quantity}`).join(', ')}
-                   </p>
-                 </div>
-               </div>
-               
-               <div className="text-right">
-                 <p className="text-sm font-bold text-[#FF7E93]">
-                   {(orderData.total_amount || 0).toLocaleString()} FCFA
-                 </p>
-                 <p className="text-xs text-gray-500">Total</p>
-               </div>
-             </div>
-           </div>
-         )}
-       </div>
+          {orderData?.items && orderData.items.length > 0 && (
+            <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
+                    <ShoppingBag className="w-3 h-3 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#132D5D]">
+                      Ma commande ({(orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)} article{((orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)) > 1 ? 's' : ''})
+                    </p>
+                    <p className="text-xs text-gray-600 truncate max-w-[200px]">
+                      {(orderData.items || []).map(item => `${item.name} x${item.quantity}`).join(', ')}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <p className="text-sm font-bold text-[#FF7E93]">
+                    {(orderData.total_amount || 0).toLocaleString()} FCFA
+                  </p>
+                  <p className="text-xs text-gray-500">Total</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-       {/* Zone des messages optimisée pour mobile */}
-       <div
-         ref={chatRef}
-         className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
-         style={{ WebkitOverflowScrolling: 'touch' }}
-       >
-         {messages && messages.length > 0 ? (
-           <AnimatePresence mode="popLayout">
-             {messages.map((message, index) => (
-               <motion.div
-                 key={`${message.type}-${index}-${message.timestamp}`}
-                 initial={{ opacity: 0, y: 10 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0 }}
-                 transition={{ duration: 0.2 }}
-               >
-                 <ChatMessage
-                   message={message}
-                   isTyping={false}
-                   onChoiceSelect={handleChoiceSelect}
-                 />
+        {/* Zone des messages optimisée pour mobile */}
+        <div
+          ref={chatRef}
+          className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {messages && messages.length > 0 ? (
+            <AnimatePresence mode="popLayout">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={`${message.type}-${index}-${message.timestamp}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChatMessage
+                    message={message}
+                    isTyping={false}
+                    onChoiceSelect={handleChoiceSelect}
+                  />
 
-                 {/* Gestion sécurisée du sélecteur de quantité */}
-                 {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-                   <div className="mt-4">
-                     <QuantitySelector
-                       quantity={1}
-                       onQuantityChange={(qty: number) => {
-                         if (message.metadata?.handleQuantityChange) {
-                           message.metadata.handleQuantityChange(qty);
-                         }
-                       }}
-                       onConfirm={async (qty: number) => {
-                         if (message.metadata?.handleQuantitySubmit) {
-                           await message.metadata.handleQuantitySubmit(qty);
-                           if (message.metadata) {
-                             message.metadata.quantityHandled = true;
-                           }
-                         }
-                         handleChoiceSelect(qty.toString());
-                       }}
-                       maxQuantity={message.metadata?.maxQuantity || 10}
-                     />
-                   </div>
-                 )}
-               </motion.div>
-             ))}
+                  {/* Gestion sécurisée du sélecteur de quantité */}
+                  {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+                    <div className="mt-4">
+                      <QuantitySelector
+                        quantity={1}
+                        onQuantityChange={(qty: number) => {
+                          if (message.metadata?.handleQuantityChange) {
+                            message.metadata.handleQuantityChange(qty);
+                          }
+                        }}
+                        onConfirm={async (qty: number) => {
+                          if (message.metadata?.handleQuantitySubmit) {
+                            await message.metadata.handleQuantitySubmit(qty);
+                            if (message.metadata) {
+                              message.metadata.quantityHandled = true;
+                            }
+                          }
+                          handleChoiceSelect(qty.toString());
+                        }}
+                        maxQuantity={message.metadata?.maxQuantity || 10}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
 
-             {/* Indicateur de frappe */}
-             {showTyping && (
-               <motion.div
-                 initial={{ opacity: 0 }}
-                 animate={{ opacity: 1 }}
-                 exit={{ opacity: 0 }}
-                 key="typing-indicator"
-               >
-                 <TypingIndicator />
-               </motion.div>
-             )}
-           </AnimatePresence>
-         ) : (
-           <div className="flex items-center justify-center h-full">
-             <div className="text-center">
-               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7E93] mx-auto mb-2" />
-               <p className="text-gray-500 text-sm">Chargement du chat...</p>
-             </div>
-           </div>
-         )}
-       </div>
+              {/* Indicateur de frappe */}
+              {showTyping && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  key="typing-indicator"
+                >
+                  <TypingIndicator />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7E93] mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">Chargement du chat...</p>
+              </div>
+            </div>
+          )}
+        </div>
 
-       {/* Zone de saisie mobile optimisée */}
-       <div className="sticky bottom-0 left-0 right-0 bg-white border-t px-4 py-3">
-         <div className="relative flex items-center">
-           <input
-             type="text"
-             value={inputMessage}
-             onChange={(e) => setInputMessage(e.target.value)}
-             onKeyDown={handleKeyDown}
-             placeholder="Tapez votre message..."
-             className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-             disabled={isProcessing}
-             maxLength={500}
-           />
-           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-             <button
-               type="button"
-               className="p-2 text-gray-400 cursor-not-allowed"
-               disabled
-               title="Reconnaissance vocale (bientôt disponible)"
-             >
-               <Mic className="w-5 h-5" />
-             </button>
-             <button
-               type="button"
-               onClick={handleMessageSend}
-               disabled={!inputMessage.trim() || isProcessing}
-               className={`p-2 transition-colors ${
-                 inputMessage.trim() && !isProcessing
-                   ? 'text-[#FF7E93] hover:text-[#132D5D]' 
-                   : 'text-gray-400 cursor-not-allowed'
-               }`}
-               title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}
-             >
-               {isProcessing ? (
-                 <div className="w-5 h-5 border-2 border-gray-300 border-t-[#FF7E93] rounded-full animate-spin" />
-               ) : (
-                 <Send className="w-5 h-5" />
-               )}
-             </button>
-           </div>
-         </div>
-       </div>
+        {/* Zone de saisie mobile optimisée */}
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t px-4 py-3">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Tapez votre message..."
+              className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isProcessing}
+              maxLength={500}
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <button
+                type="button"
+                className="p-2 text-gray-400 cursor-not-allowed"
+                disabled
+                title="Reconnaissance vocale (bientôt disponible)"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleMessageSend}
+                disabled={!inputMessage.trim() || isProcessing}
+                className={`p-2 transition-colors ${
+                  inputMessage.trim() && !isProcessing
+                    ? 'text-[#FF7E93] hover:text-[#132D5D]' 
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+                title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}
+              >
+                {isProcessing ? (
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-[#FF7E93] rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
 
-       {/* Modals de paiement pour mobile */}
-       <BictorysPaymentModal
-         isOpen={paymentModal?.isOpen || false}
-         onClose={handleClosePaymentModal}
-         amount={orderData?.totalAmount || 0}
-         currency="XOF"
-         orderId={parseInt(orderData?.session_id || Date.now().toString())}
-         customerInfo={{
-           name: `${orderData?.first_name || ''} ${orderData?.last_name || ''}`.trim() || 'Client',
-           phone: orderData?.phone || '',
-           email: orderData?.email || '',
-           city: orderData?.city || ''
-         }}
-       />
+        {/* Modals de paiement pour mobile */}
+        <BictorysPaymentModal
+          isOpen={paymentModal?.isOpen || false}
+          onClose={handleClosePaymentModal}
+          amount={orderData?.totalAmount || 0}
+          currency="XOF"
+          orderId={parseInt(orderData?.session_id || Date.now().toString())}
+          customerInfo={{
+            name: `${orderData?.first_name || ''} ${orderData?.last_name || ''}`.trim() || 'Client',
+            phone: orderData?.phone || '',
+            email: orderData?.email || '',
+            city: orderData?.city || ''
+          }}
+        />
 
-       {payment?.status === 'processing' && payment?.clientSecret && (
-         <StripePaymentModal
-           isOpen={stripeModalOpen}
-           onClose={() => setStripeModalOpen(false)}
-           clientSecret={payment.clientSecret}
-         />
-       )}
-     </div>
-   </ConversationProvider>
- );
+        {payment?.status === 'processing' && payment?.clientSecret && (
+          <StripePaymentModal
+            isOpen={stripeModalOpen}
+            onClose={() => setStripeModalOpen(false)}
+            clientSecret={payment.clientSecret}
+          />
+        )}
+      </div>
+    </ConversationProvider>
+  );
 };
 
 export default MobileChatContainer;

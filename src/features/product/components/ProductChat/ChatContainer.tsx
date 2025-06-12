@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx 
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -39,14 +39,19 @@ const ChatContainer = ({
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
+  
+  // ✅ CORRECTION: Initialisation des services dans le composant
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
-
-  const store = useChatStore();
   
+  // ✅ CORRECTION: État global pour éviter les doublons
+  const [globalInitialized, setGlobalInitialized] = useState(false);
+
+  // ✅ CORRECTION: Utilisation sécurisée du store
+  const store = useChatStore();
   const {
     messages = [],
     orderData = {},
@@ -80,7 +85,7 @@ const ChatContainer = ({
     }
   } = store;
 
-  // ✅ FONCTION CORRIGÉE: Service de contenu dynamique avec type 'target'
+  // ✅ FONCTION: Service de contenu dynamique avec type 'target'
   const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
       return await dynamicContentService.getProductInfo(product.id, infoType);
@@ -100,33 +105,51 @@ const ChatContainer = ({
     }
   }, [dynamicContentService]);
 
-  // ✅ CORRECTION: Initialisation du chat avec SessionManager
+  // ✅ CORRECTION MAJEURE: Initialisation corrigée avec gestion des doublons
   useEffect(() => {
-    if (!product?.id || welcomeMessageAdded) return;
+    if (!product?.id || welcomeMessageAdded || globalInitialized) return;
 
     const initializeChat = async () => {
       try {
         console.log('🖥️ Initializing desktop chat session:', { productId: product.id, storeId });
         
-        const currentMessages = useChatStore.getState().messages;
-        if (currentMessages.length > 0) {
-          console.log('📝 Desktop chat already has messages, skipping initialization');
+        // ✅ VÉRIFICATION: État global d'abord
+        const globalState = useChatStore.getState();
+        const currentMessages = globalState.messages || [];
+        
+        // Si des messages existent déjà ou si déjà initialisé, ne rien faire
+        if (currentMessages.length > 0 || globalState.flags?.isInitialized) {
+          console.log('📝 Desktop chat already has messages or is initialized, skipping');
           setIsInitialized(true);
+          setWelcomeMessageAdded(true);
+          setGlobalInitialized(true);
           return;
         }
 
-        // ✅ CORRECTION: Utiliser SessionManager pour créer session
+        // ✅ UTILISER SessionManager pour éviter les doublons
         const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
         console.log('🆕 Desktop session created with SessionManager:', newSessionId);
+
+        // ✅ VÉRIFIER ENCORE UNE FOIS avant d'initialiser
+        const latestState = useChatStore.getState();
+        if (latestState.messages?.length > 0) {
+          console.log('⚠️ Messages detected during initialization, aborting welcome');
+          setIsInitialized(true);
+          setWelcomeMessageAdded(true);
+          setGlobalInitialized(true);
+          return;
+        }
 
         if (initializeSession) {
           initializeSession(product.id, storeId, newSessionId);
           setIsInitialized(true);
           
+          // ✅ DÉLAI PLUS LONG pour éviter les conditions de course
           setTimeout(() => {
-            const latestMessages = useChatStore.getState().messages;
+            const finalState = useChatStore.getState();
             
-            if (latestMessages.length === 0 && !welcomeMessageAdded) {
+            // ✅ TRIPLE VÉRIFICATION avant d'ajouter le message
+            if (finalState.messages?.length === 0 && !welcomeMessageAdded && !finalState.flags?.isInitialized) {
               const welcomeMessage: ChatMessageType = {
                 type: 'assistant',
                 content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
@@ -165,18 +188,47 @@ Que souhaitez-vous faire ?`,
               console.log('📝 Adding welcome message to desktop chat');
               addMessage(welcomeMessage);
               setWelcomeMessageAdded(true);
+              setGlobalInitialized(true);
+              
+              // ✅ MARQUER COMME INITIALISÉ dans le store
+              if (store.updateFlags) {
+                store.updateFlags({ isInitialized: true });
+              }
+              
+              // ✅ MARQUER L'INITIALISATION GLOBALEMENT
+              localStorage.setItem('vosc-chat-initialized', 'true');
+            } else {
+              console.log('⚠️ Desktop: Welcome message skipped - messages exist or already initialized');
+              setWelcomeMessageAdded(true);
+              setGlobalInitialized(true);
             }
-          }, 500);
+          }, 800); // Délai augmenté à 800ms
         }
         
       } catch (err) {
         console.error('❌ Error initializing desktop chat:', err);
         setIsInitialized(true);
+        setWelcomeMessageAdded(true);
       }
     };
 
     initializeChat();
-  }, [product.id, storeId, welcomeMessageAdded, sessionManager, initializeSession, addMessage]);
+  }, [product.id, storeId, welcomeMessageAdded, globalInitialized, sessionManager, initializeSession, addMessage, store]);
+
+  // ✅ SURVEILLANCE DES CHANGEMENTS D'ÉTAT GLOBAL
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'vosc-chat-initialized' && e.newValue === 'true') {
+        console.log('🔄 Chat initialized by another instance');
+        setGlobalInitialized(true);
+        setIsInitialized(true);
+        setWelcomeMessageAdded(true);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // ✅ Auto-scroll optimisé
   useEffect(() => {
@@ -235,58 +287,58 @@ Qu'est-ce qui vous intéresse le plus ?`,
         const { data: productData, error }: { data: any, error: any } = await supabase
           .from('products')
           .select('game_rules, name')
-          .eq('id', product.id)  // ✅ product vient des props
+          .eq('id', product.id)
           .maybeSingle();
 
         if (error || !productData) {
           console.error('❌ Erreur récupération produit:', error);
           gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-    Une erreur est survenue lors du chargement des règles. 
+Une erreur est survenue lors du chargement des règles. 
 
-    📞 **Contactez-nous pour plus d'informations :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
+📞 **Contactez-nous pour plus d'informations :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-    Nous vous enverrons les règles détaillées !`;
+Nous vous enverrons les règles détaillées !`;
         } else if (productData.game_rules && productData.game_rules.trim()) {
           console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-    ${productData.game_rules}
+${productData.game_rules}
 
-    🎯 **Prêt(e) à vivre cette expérience ?**`;
+🎯 **Prêt(e) à vivre cette expérience ?**`;
         } else {
           console.log('⚠️ Pas de règles définies pour ce produit');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-    📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
 
-    En attendant, voici ce que vous devez savoir :
-    • Ce jeu est conçu pour renforcer les relations
-    • Il se joue en groupe (2 personnes minimum)
-    • Chaque partie dure environ 30-60 minutes
-    • Aucune préparation spéciale requise
+En attendant, voici ce que vous devez savoir :
+• Ce jeu est conçu pour renforcer les relations
+• Il se joue en groupe (2 personnes minimum)
+• Chaque partie dure environ 30-60 minutes
+• Aucune préparation spéciale requise
 
-    📞 **Pour les règles complètes, contactez-nous :**
-    • WhatsApp : +221 78 136 27 28
-    • Email : contact@viensonseconnait.com
+📞 **Pour les règles complètes, contactez-nous :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-    Nous vous enverrons un guide détaillé !`;
+Nous vous enverrons un guide détaillé !`;
         }
       } catch (dbError) {
         console.error('❌ Erreur base de données:', dbError);
         gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-    😔 **Problème technique temporaire**
+😔 **Problème technique temporaire**
 
-    Nous ne pouvons pas charger les règles du jeu en ce moment.
+Nous ne pouvons pas charger les règles du jeu en ce moment.
 
-    📞 **Solution immédiate :**
-    • WhatsApp : +221 78 136 27 28
-    • Nous vous enverrons les règles par message
+📞 **Solution immédiate :**
+• WhatsApp : +221 78 136 27 28
+• Nous vous enverrons les règles par message
 
-    🔄 **Ou réessayez dans quelques minutes**`;
+🔄 **Ou réessayez dans quelques minutes**`;
       }
 
       return {
@@ -589,7 +641,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
   };
 
   // ✅ CORRECTION DESKTOP: handleChoiceSelect avec traitement spécial "Comment y jouer"
-    const handleChoiceSelect = async (choice: string) => {
+  const handleChoiceSelect = async (choice: string) => {
     if (isProcessing) {
       console.log('⏳ Processing in progress, ignoring choice');
       return;
@@ -641,10 +693,10 @@ Qu'est-ce qui vous intéresse le plus ?`,
             type: 'assistant',
             content: `✅ **Redirection vers WhatsApp**
 
-  Si WhatsApp ne s'est pas ouvert automatiquement, cliquez sur le lien :
-  👉 https://wa.me/221781362728
+Si WhatsApp ne s'est pas ouvert automatiquement, cliquez sur le lien :
+👉 https://wa.me/221781362728
 
-  Notre équipe vous répondra rapidement !`,
+Notre équipe vous répondra rapidement !`,
             choices: [],
             assistant: {
               name: 'Rose',
@@ -691,51 +743,51 @@ Qu'est-ce qui vous intéresse le plus ?`,
             console.error('❌ Erreur récupération produit:', error);
             gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-  Une erreur est survenue lors du chargement des règles. 
+Une erreur est survenue lors du chargement des règles. 
 
-  📞 **Contactez-nous pour plus d'informations :**
-  • WhatsApp : +221 78 136 27 28
-  • Email : contact@viensonseconnait.com
+📞 **Contactez-nous pour plus d'informations :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-  Nous vous enverrons les règles détaillées !`;
+Nous vous enverrons les règles détaillées !`;
           } else if (productData.game_rules && productData.game_rules.trim()) {
             console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
             gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-  ${productData.game_rules}
+${productData.game_rules}
 
-  🎯 **Prêt(e) à vivre cette expérience ?**`;
+🎯 **Prêt(e) à vivre cette expérience ?**`;
           } else {
             console.log('⚠️ Pas de règles définies pour ce produit');
             gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
-  📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
+📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
 
-  En attendant, voici ce que vous devez savoir :
-  • Ce jeu est conçu pour renforcer les relations
-  • Il se joue en groupe (2 personnes minimum)
-  • Chaque partie dure environ 30-60 minutes
-  • Aucune préparation spéciale requise
+En attendant, voici ce que vous devez savoir :
+• Ce jeu est conçu pour renforcer les relations
+• Il se joue en groupe (2 personnes minimum)
+• Chaque partie dure environ 30-60 minutes
+• Aucune préparation spéciale requise
 
-  📞 **Pour les règles complètes, contactez-nous :**
-  • WhatsApp : +221 78 136 27 28
-  • Email : contact@viensonseconnait.com
+📞 **Pour les règles complètes, contactez-nous :**
+• WhatsApp : +221 78 136 27 28
+• Email : contact@viensonseconnait.com
 
-  Nous vous enverrons un guide détaillé !`;
+Nous vous enverrons un guide détaillé !`;
           }
         } catch (dbError) {
           console.error('❌ Erreur base de données:', dbError);
           gameRules = `❓ **Comment jouer au jeu ${product.name} :**
 
-  😔 **Problème technique temporaire**
+😔 **Problème technique temporaire**
 
-  Nous ne pouvons pas charger les règles du jeu en ce moment.
+Nous ne pouvons pas charger les règles du jeu en ce moment.
 
-  📞 **Solution immédiate :**
-  • WhatsApp : +221 78 136 27 28
-  • Nous vous enverrons les règles par message
+📞 **Solution immédiate :**
+• WhatsApp : +221 78 136 27 28
+• Nous vous enverrons les règles par message
 
-  🔄 **Ou réessayez dans quelques minutes**`;
+🔄 **Ou réessayez dans quelques minutes**`;
         }
         
         // Créer et ajouter la réponse assistant
@@ -776,7 +828,7 @@ Qu'est-ce qui vous intéresse le plus ?`,
         type: 'assistant',
         content: `😔 **Erreur temporaire**
 
-  Un problème est survenu. Voulez-vous réessayer ?`,
+Un problème est survenu. Voulez-vous réessayer ?`,
         choices: ['🔄 Réessayer', '📞 Contacter le support'],
         assistant: {
           name: 'Rose',
