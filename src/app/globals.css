@@ -76,6 +76,16 @@
     --foreground: theme('colors.gray.100');
     --border: theme('colors.gray.800');
   }
+
+  /* ✅ NOUVEAU : Variables pour le thème Netflix-style */
+  .netflix-theme {
+    --netflix-bg: linear-gradient(to bottom, #1a1a1a, #000000);
+    --netflix-text: #ffffff;
+    --netflix-accent: #FF7E93;
+    --netflix-secondary: #25D366;
+    --netflix-card: rgba(255, 255, 255, 0.1);
+    --netflix-border: rgba(255, 255, 255, 0.1);
+  }
 }
 
 /* ===== CORRECTIONS SPÉCIFIQUES MOBILE ===== */
@@ -179,6 +189,31 @@
   
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ✅ NOUVEAU : Scrollbar hide pour mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ✅ NOUVEAU : Classes Netflix-style */
+  .netflix-gradient-bg {
+    background: linear-gradient(to bottom, #1a1a1a 0%, #000000 100%);
+  }
+  
+  .netflix-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .netflix-text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
   }
 
   /* Classes responsives améliorées */

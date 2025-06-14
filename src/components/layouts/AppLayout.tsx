@@ -1,10 +1,11 @@
-// src/components/layouts/AppLayout.tsx 
+// src/components/layouts/AppLayout.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client'
 
 import React from 'react'
 import { useLayoutContext } from '../../core/context/LayoutContext'
 import { useBreakpoint } from '@/core/theme/hooks/useBreakpoint'
 import Header from './Header'
+import MobileHeader from './MobileHeader'
 import Footer from './Footer'
 import { DukkaBadge } from '../../components/ui/DukkaBadge'
 import { AnnouncementBar } from '../../features/home/components/sections/AnnouncementBar'
@@ -26,9 +27,19 @@ export function AppLayout({ children }: AppLayoutProps) {
         whatsapp="221781362728"
       />
       
-      {/* ✅ CORRECTION : Header sans sticky problématique */}
+      {/* ✅ NOUVEAU : Header adaptatif selon la taille d'écran */}
       {!hideHeaderGroup && (
-        <Header />
+        <>
+          {/* Mobile Header */}
+          <div className="md:hidden">
+            <MobileHeader />
+          </div>
+          
+          {/* Desktop Header */}
+          <div className="hidden md:block">
+            <Header />
+          </div>
+        </>
       )}
       
       {/* ✅ CORRECTION : Contenu principal simple */}
