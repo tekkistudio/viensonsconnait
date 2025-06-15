@@ -25,6 +25,7 @@ import { useLayoutContext } from '@/core/context/LayoutContext';
 import { useChatStore } from '@/stores/chatStore';
 import { ConversationalCartService } from '@/lib/services/ConversationalCartService';
 import { testimonialsService } from '@/lib/services/testimonials.service';
+import { productStatsService } from '@/lib/services/product-stats.service';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { getProductImages, generateImageProps } from '@/utils/image';
 import type { Product } from '@/types/product';
@@ -87,6 +88,13 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   const [showStats, setShowStats] = useState(true);
   const { setHideDukkaBadge } = useLayoutContext();
   
+  // ✅ NOUVEAU: Stats produit temps réel
+  const [realProductStats, setRealProductStats] = useState({
+    sold: product.stats?.sold || 0,
+    currentViewers: 1,
+    loading: true
+  });
+  
   // Stats des témoignages synchronisées
   const [realTestimonialStats, setRealTestimonialStats] = useState({
     count: 0,
@@ -113,6 +121,55 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   // Images du produit
   const productImages = getProductImages(product);
   const formattedPrice = convertPrice(product.price)?.formatted;
+
+  // ✅ NOUVEAU: Charger les vraies stats produit en temps réel
+  useEffect(() => {
+    const loadRealProductStats = async () => {
+      try {
+        // Tracker la vue de produit avec visitor ID
+        const visitorId = localStorage.getItem('visitorId') || 
+                         `visitor_${Date.now()}_${Math.random()}`;
+        localStorage.setItem('visitorId', visitorId);
+
+        await productStatsService.trackProductView(product.id, visitorId);
+
+        // Charger les stats initiales
+        const stats = await productStatsService.getProductStats(product.id);
+        setRealProductStats({
+          sold: stats.sold || product.stats?.sold || 0,
+          currentViewers: stats.currentViewers || 1,
+          loading: false
+        });
+
+        // Mettre à jour toutes les 30 secondes
+        const interval = setInterval(async () => {
+          try {
+            const updatedStats = await productStatsService.getProductStats(product.id);
+            setRealProductStats(prev => ({
+              ...prev,
+              sold: updatedStats.sold || prev.sold,
+              currentViewers: updatedStats.currentViewers || prev.currentViewers
+            }));
+          } catch (error) {
+            console.error('Error updating stats:', error);
+          }
+        }, 30000);
+
+        return () => clearInterval(interval);
+      } catch (error) {
+        console.error('Error loading product stats:', error);
+        setRealProductStats({
+          sold: product.stats?.sold || 0,
+          currentViewers: 1,
+          loading: false
+        });
+      }
+    };
+
+    if (product.id) {
+      loadRealProductStats();
+    }
+  }, [product.id, product.stats]);
 
   // Charger les stats des témoignages
   useEffect(() => {
@@ -239,13 +296,6 @@ export default function MobileProductPageContent({ productId, product }: MobileP
     }
   };
 
-  // Stats dynamiques (simulées)
-  const liveStats = {
-    viewers: Math.floor(Math.random() * 5) + 1,
-    sales: product.stats?.sold || Math.floor(Math.random() * 1000) + 4000,
-    satisfaction: Math.round((realTestimonialStats.average || 4.9) * 10) / 10
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
       <div className={`${isChatFullscreen ? 'hidden' : 'block'}`}>
@@ -278,9 +328,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
             </motion.div>
           </AnimatePresence>
 
-          {/* Live Stats Overlay - SUPPRIMÉ D'ICI */}
-          
-          {/* Product Info Overlay - VERSION SIMPLIFIÉE */}
+          {/* Product Info Overlay - VERSION SIMPLIFIÉE AVEC STATS RÉELLES */}
           <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -310,8 +358,14 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                   {realTestimonialStats.count} avis
                 </span>
                 <div className="flex items-center gap-1 text-white/60 text-sm">
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>+{product.stats?.sold || liveStats.sales} ventes</span>
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>
+                    {realProductStats.loading ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      `${realProductStats.sold?.toLocaleString() || '0'} ventes`
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -369,7 +423,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
           )}
         </section>
 
-        {/* Quick Stats avec données réelles + UX améliorée */}
+        {/* Quick Stats avec données réelles temps réel */}
         <section className="py-6 -mt-8 relative z-10">
           <div className="px-6">
             <div className="grid grid-cols-3 gap-4">
@@ -392,7 +446,11 @@ export default function MobileProductPageContent({ productId, product }: MobileP
               >
                 <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
                   <Award className="w-4 h-4" />
-                  <span className="font-bold">+{product.stats?.sold || Math.floor(Math.random() * 1000) + 4000}</span>
+                  {realProductStats.loading ? (
+                    <div className="w-12 h-4 bg-blue-400/30 rounded animate-pulse" />
+                  ) : (
+                    <span className="font-bold">{realProductStats.sold?.toLocaleString() || '0'}</span>
+                  )}
                 </div>
                 <span className="text-white/60 text-xs">Ventes</span>
               </motion.div>
@@ -404,16 +462,22 @@ export default function MobileProductPageContent({ productId, product }: MobileP
               >
                 <div className="flex items-center justify-center gap-1 text-brand-pink mb-1">
                   <Users className="w-4 h-4" />
-                  <span className="font-bold">{realTestimonialStats.count || 15}</span>
+                  <span className="font-bold">{realTestimonialStats.count || 0}</span>
                 </div>
                 <span className="text-white/60 text-xs">Avis</span>
               </motion.div>
             </div>
             
-            {/* Indicateur de confiance subtil */}
+            {/* Indicateur de confiance avec stats temps réel */}
             <div className="flex items-center justify-center gap-2 mt-4 text-white/50 text-xs">
               <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-              <span>Produit original • Livraison fiable</span>
+              <span>
+                {realProductStats.loading ? (
+                  "Chargement des stats..."
+                ) : (
+                  `${realProductStats.currentViewers || 1} ${realProductStats.currentViewers === 1 ? 'personne est en ligne' : 'personnes sont en ligne'} • Produit vérifié`
+                )}
+              </span>
             </div>
           </div>
         </section>
@@ -435,7 +499,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                 transition={{ duration: 0.6 }}
               />
               
-              <ShoppingBag className="w-6 h-6 relative z-10" />
+              <MessageCircle className="w-6 h-6 relative z-10" />
               <span className="relative z-10">
                 {orderData?.items && orderData.items.length > 0 
                   ? "Ajouter à ma commande" 
@@ -446,7 +510,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
             
             <div className="text-center mt-3">
               <p className="text-white/40 text-xs mt-1">
-                Cliquez ici pour commander ce jeu ou en savoir plus
+                Cliquez pour commander ce jeu ou en savoir plus
               </p>
             </div>
           </div>
@@ -456,7 +520,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
         <section className="py-6">
           <div className="px-6">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-              <h3 className="text-white font-bold text-lg mb-3">A Propos de ce jeu</h3>
+              <h3 className="text-white font-bold text-lg mb-3">A Propos de ce Jeu</h3>
               <p className="text-white/90 leading-relaxed">
                 {product.description 
                   ? product.description.length > 300 

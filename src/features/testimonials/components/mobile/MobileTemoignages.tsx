@@ -160,7 +160,7 @@ export default function MobileTemoignages() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
       {/* Hero Section */}
-      <section className="relative min-h-[80vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-8">
+      <section className="relative min-h-[60vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-8">
         <div className="absolute inset-0 bg-black/50" />
         <motion.div
           initial={{ opacity: 0, y: 30 }}

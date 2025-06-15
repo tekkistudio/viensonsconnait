@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Info, ChevronDown } from 'lucide-react';
+import { Play, Info, ChevronDown, Eye } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import useCountryStore from '@/core/hooks/useCountryStore';
@@ -234,7 +234,7 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
                 onClick={() => handleProductClick(currentProduct)}
                 className="flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors"
               >
-                <Play className="w-5 h-5 fill-current" />
+                <Eye className="w-5 h-5 fill-current" />
                 <span>Découvrir</span>
               </button>
               

@@ -1,4 +1,4 @@
-// src/utils/image.ts - VERSION CORRIGÉE AVEC SUPPORT IMAGES LOCALES
+// src/utils/image.ts 
 
 import type { Product } from '@/types/product';
 
@@ -59,7 +59,6 @@ export function getHeroImage(product: Product): string {
     famille: '/images/hero/famille-hero.jpg',
     amis: '/images/hero/amis-hero.jpg',
     collegues: '/images/hero/collegues-hero.jpg',
-    // Ajout de stvalentin qui pointe vers couples
     stvalentin: '/images/hero/couples-hero.jpg'
   };
   

@@ -1,4 +1,4 @@
-// src/features/product/components/ProductPageContent.tsx - VERSION MISE À JOUR AVEC AVIS SYNCHRONISÉS
+// src/features/product/components/ProductPageContent.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -261,8 +261,6 @@ export default function ProductPageContent({ productId, product }: ProductPageCo
                   }
                 </span>
               </button>
-
-              {/* ✅ SUPPRIMÉ: Indicateur de panier - plus affiché sur cette page */}
             </div>
 
             {/* ✅ SECTION TÉMOIGNAGES REMONTÉE */}

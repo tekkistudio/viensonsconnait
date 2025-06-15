@@ -149,7 +149,7 @@ export default function MobileProductsCollection() {
             Nos Jeux de Cartes
           </h1>
           <p className="text-white/80 text-lg">
-            {products.length} jeux pour renforcer vos relations
+            {products.length} jeux pour améliorer et renforcer vos relations avec vos proches
           </p>
         </motion.div>
       </section>

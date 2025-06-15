@@ -28,7 +28,7 @@ const quickLinks = [
   { name: "Accueil", href: "/" },
   { name: "Nos Jeux", href: "/nos-jeux" },
   { name: "Notre Histoire", href: "/notre-histoire" },
-  { name: "Contact", href: "/contact" },
+  { name: "Le Concept", href: "/concept" },
 ];
 
 const legalLinks = [
