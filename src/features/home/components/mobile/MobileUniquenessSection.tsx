@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 const stats = [
   {
     icon: Trophy,
-    number: "7000+",
+    number: "+7000",
     label: "Jeux Vendus",
     sublabel: "En seulement 2 ans",
     color: "from-yellow-500 to-orange-500"
@@ -29,7 +29,7 @@ const stats = [
   },
   {
     icon: Target,
-    number: "15+",
+    number: "+3",
     label: "Pays Conquis",
     sublabel: "En Afrique et Europe",
     color: "from-green-500 to-emerald-500"
@@ -50,7 +50,7 @@ export default function MobileUniquenessSection() {
           className="text-center mb-12"
         >
           <h2 className="text-3xl font-bold text-white mb-4">
-            En Quoi Sommes-Nous Uniques ?
+            Voici Pourquoi Nous Sommes Uniques
           </h2>
           <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
             VIENS ON S'CONNAÎT révolutionne les relations humaines en Afrique et au-delà. 
@@ -96,35 +96,35 @@ export default function MobileUniquenessSection() {
           className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
         >
           <h3 className="text-white text-xl font-bold mb-6 text-center">
-            Notre Secret ? Une Approche 100% Africaine
+            Notre Secret ? Une Approche 100% Humaine
           </h3>
           
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
               <p className="text-white/90">
-                <strong>Conçu par et pour les Africains</strong> - Nos jeux reflètent nos valeurs et notre culture
+                <strong>Conçu avec l'aide de Psychologues</strong> - Nos jeux reflètent notre passion pour les relations humaines
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
               <p className="text-white/90">
-                <strong>Livraison dans 15+ pays</strong> - De Dakar à Abidjan, nous sommes partout
+                <strong>Livraison dans +8 pays</strong> - De Dakar à Abidjan, en passant par Paris, nous sommes partout
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
               <p className="text-white/90">
-                <strong>Application mobile gratuite</strong> - Tous nos jeux dans votre poche
+                <strong>Application mobile</strong> - Emportez tous nos jeux dans votre poche
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
               <p className="text-white/90">
-                <strong>Service client en français et langues locales</strong> - Nous parlons votre langue
+                <strong>Service client réactif</strong> - Nous sommes continuellement à votre écoute
               </p>
             </div>
           </div>

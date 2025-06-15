@@ -16,7 +16,7 @@ import { NewsletterSection } from './sections/NewsletterSection';
 import { FAQSection } from './sections/FAQSection';
 
 // Nouveaux composants mobiles
-import NetflixHeroCarousel from './mobile/HeroCarousel';
+import HeroCarousel from './mobile/HeroCarousel';
 import ProductMiniCarousel from './mobile/ProductMiniCarousel';
 import MobileWhyUsSection from './mobile/MobileWhyUsSection';
 import MobileUniquenessSection from './mobile/MobileUniquenessSection';
@@ -40,7 +40,7 @@ export default function HomePage() {
     return (
       <main className="flex-1 bg-gradient-to-b from-gray-900 via-black to-gray-900 min-h-screen">
         {/* Hero Carousel Netflix-style */}
-        <NetflixHeroCarousel className="relative z-10" />
+        <HeroCarousel className="relative z-10" />
         
         {/* Carrousel de miniatures */}
         <ProductMiniCarousel className="relative z-20 -mt-20" />
@@ -63,7 +63,7 @@ export default function HomePage() {
           <MobileWhatsAppSection />
         </div>
       </main>
-    )
+  )
   }
 
   // Version desktop (existante)
@@ -84,4 +84,4 @@ export default function HomePage() {
       <NewsletterSection />
     </main>
   );
-  }
+}

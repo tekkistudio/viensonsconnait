@@ -3,6 +3,7 @@
 
 import { motion } from 'framer-motion';
 import { MessageCircle, Heart, Users, Lightbulb } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const benefits = [
   {
@@ -28,6 +29,11 @@ const benefits = [
 ];
 
 export default function MobileWhyUsSection() {
+  const router = useRouter();
+
+  const handleDiscoverGames = () => {
+    router.push('/nos-jeux');
+  };
   return (
     <section className="bg-gradient-to-b from-black to-gray-900 py-16">
       <div className="container mx-auto px-6">
@@ -43,7 +49,7 @@ export default function MobileWhyUsSection() {
           </h2>
           <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
             Nos jeux de cartes ne sont pas comme les autres. Ils sont spécialement conçus 
-            pour créer des moments authentiques de connexion humaine.
+            pour créer des moments authentiques de connexion avec vos proches.
           </p>
         </motion.div>
 
@@ -89,7 +95,10 @@ export default function MobileWhyUsSection() {
             Plus de 7 000 personnes nous font déjà confiance
           </p>
           <div className="flex justify-center">
-            <button className="bg-gradient-to-r from-brand-pink to-red-500 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <button 
+              onClick={handleDiscoverGames}
+              className="bg-gradient-to-r from-brand-pink to-red-500 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95"
+            >
               Découvrir Nos Jeux
             </button>
           </div>

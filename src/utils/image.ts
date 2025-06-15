@@ -1,4 +1,4 @@
-// src/utils/image.ts - VERSION MISE À JOUR AVEC VOTRE CODE EXISTANT
+// src/utils/image.ts - VERSION CORRIGÉE AVEC SUPPORT IMAGES LOCALES
 
 import type { Product } from '@/types/product';
 
@@ -20,9 +20,17 @@ export function getProductImages(product: Product): string[] {
   return [FALLBACK_IMAGE];
 }
 
+// ✅ CORRECTION : Support des images locales ET Cloudinary
 export function getImageUrl(url: string | undefined): string {
   if (!url) return FALLBACK_IMAGE;
-  return url.startsWith('http') ? url : FALLBACK_IMAGE;
+  
+  // Si c'est une URL complète (HTTP/HTTPS) ou une image locale (/images/), la retourner telle quelle
+  if (url.startsWith('http') || url.startsWith('/images/')) {
+    return url;
+  }
+  
+  // Sinon, utiliser l'image de fallback
+  return FALLBACK_IMAGE;
 }
 
 export function generateImageProps(url: string, alt: string, priority = false) {
@@ -40,7 +48,36 @@ export function generateImageProps(url: string, alt: string, priority = false) {
   };
 }
 
-// ✅ NOUVELLES FONCTIONS AJOUTÉES POUR COMPATIBILITÉ
+// ✅ FONCTION HERO IMAGES AVEC DEBUG
+export function getHeroImage(product: Product): string {
+  const category = product.category || product.metadata?.category;
+  
+  // Mapping des catégories vers les images hero
+  const heroImages = {
+    couples: '/images/hero/couples-hero.jpg',
+    maries: '/images/hero/maries-hero.jpg', 
+    famille: '/images/hero/famille-hero.jpg',
+    amis: '/images/hero/amis-hero.jpg',
+    collegues: '/images/hero/collegues-hero.jpg',
+    // Ajout de stvalentin qui pointe vers couples
+    stvalentin: '/images/hero/couples-hero.jpg'
+  };
+  
+  console.log('🎯 getHeroImage - Product:', product.name, 'Category:', category);
+  
+  if (category && heroImages[category as keyof typeof heroImages]) {
+    const heroImagePath = heroImages[category as keyof typeof heroImages];
+    console.log('✅ Hero image found:', heroImagePath);
+    return heroImagePath;
+  }
+  
+  // Fallback vers la première image du produit
+  const fallbackImage = getProductImages(product)[0];
+  console.log('⚠️ No hero image, using fallback:', fallbackImage);
+  return fallbackImage;
+}
+
+// NOUVELLES FONCTIONS AJOUTÉES POUR COMPATIBILITÉ
 export function optimizeCloudinaryUrl(
   url: string, 
   options: {

@@ -1,6 +1,6 @@
 // app/concept/page.tsx
 import { Metadata } from 'next';
-import LeConcept from '../../../features/concept/components/LeConcept';
+import { AdaptiveLeConcept } from '../../../features/concept/components/AdaptiveLeConcept';
 
 export const metadata: Metadata = {
   title: 'Le Concept | VIENS ON S\'CONNAÎT',
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LeConceptPage() {
-  return <LeConcept />;
+  return <AdaptiveLeConcept />;
 }

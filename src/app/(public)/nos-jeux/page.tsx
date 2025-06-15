@@ -1,6 +1,6 @@
 // src/app/(public)/nos-jeux/page.tsx
 import { Metadata } from "next";
-import { ProductsCollection } from "@/features/product/components/ProductsCollection";
+import { AdaptiveProductsCollection } from "@/features/product/components/AdaptiveProductsCollection";
 
 export const metadata: Metadata = {
   title: "Nos Jeux de Cartes | VIENS ON S'CONNAÎT",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default function ProductsPage() {
-  return <ProductsCollection />;
+  return <AdaptiveProductsCollection />;
 }
 

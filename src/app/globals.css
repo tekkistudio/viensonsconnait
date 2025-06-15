@@ -26,6 +26,8 @@
     max-width: 100vw;
     /* ✅ CORRECTION : Autoriser le pull-to-refresh */
     overscroll-behavior-y: auto;
+    /* ✅ NOUVEAU : Scroll fluide optimisé */
+    scroll-behavior: smooth;
     /* Empêche le zoom sur les inputs mobiles */
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
@@ -101,6 +103,8 @@
     -webkit-overflow-scrolling: touch;
     /* ✅ CORRECTION : Permettre les gestes de rafraîchissement */
     touch-action: pan-y;
+    /* ✅ NOUVEAU : Background sombre par défaut pour éviter le blanc */
+    background: linear-gradient(to bottom, #1a1a1a, #000000) !important;
   }
   
   /* Empêche tout débordement des enfants */
@@ -223,6 +227,11 @@
 
   .mobile-full-height {
     min-height: calc(100vh - var(--header-height) - var(--mobile-footer-height));
+  }
+
+  /* ✅ NOUVEAU : Safe area pour les mobiles avec encoche */
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom, 0px);
   }
 
   /* Flexbox responsifs */

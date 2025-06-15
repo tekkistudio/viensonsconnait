@@ -7,8 +7,10 @@ import { useBreakpoint } from '@/core/theme/hooks/useBreakpoint'
 import Header from './Header'
 import MobileHeader from './MobileHeader'
 import Footer from './Footer'
+import MobileFooter from './MobileFooter'
 import { DukkaBadge } from '../../components/ui/DukkaBadge'
 import { AnnouncementBar } from '../../features/home/components/sections/AnnouncementBar'
+import { MobileAnnouncementBar } from '../../features/home/components/mobile/MobileAnnouncementBar'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -20,22 +22,30 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ✅ NOUVEAU : AnnouncementBar simple sans positionnement complexe */}
-      <AnnouncementBar
-        text="Livraison gratuite à Dakar 🇸🇳 | Livraison disponible à Abidjan 🇨🇮"
-        phone="221781362728"
-        whatsapp="221781362728"
-      />
+      {/* ✅ NOUVEAU : Barre d'annonce adaptative */}
+      {isMobile ? (
+        <MobileAnnouncementBar
+          text="Livraison gratuite à Dakar 🇸🇳 | Livraison disponible à Abidjan 🇨🇮"
+          phone="221781362728"
+          whatsapp="221781362728"
+        />
+      ) : (
+        <AnnouncementBar
+          text="Livraison gratuite à Dakar 🇸🇳 | Livraison disponible à Abidjan 🇨🇮"
+          phone="221781362728"
+          whatsapp="221781362728"
+        />
+      )}
       
-      {/* ✅ NOUVEAU : Header adaptatif selon la taille d'écran */}
+      {/* ✅ NOUVEAU : Header adaptatif selon la taille d'écran - POSITION ABSOLUE POUR MOBILE */}
       {!hideHeaderGroup && (
         <>
-          {/* Mobile Header */}
+          {/* Mobile Header - Position absolue */}
           <div className="md:hidden">
             <MobileHeader />
           </div>
           
-          {/* Desktop Header */}
+          {/* Desktop Header - Position normale */}
           <div className="hidden md:block">
             <Header />
           </div>
@@ -47,8 +57,16 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       
-      {/* Footer */}
-      <Footer />
+      {/* ✅ NOUVEAU : Footer adaptatif selon la taille d'écran */}
+      {/* Mobile Footer */}
+      <div className="md:hidden">
+        <MobileFooter />
+      </div>
+      
+      {/* Desktop Footer */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
       
       {/* Dukka Badge */}
       {!hideDukkaBadge && !isMobile && <DukkaBadge />}

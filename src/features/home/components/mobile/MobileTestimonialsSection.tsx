@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 interface Testimonial {
@@ -33,11 +34,16 @@ interface TestimonialRow {
 const AUTOPLAY_INTERVAL = 4000;
 
 export default function MobileTestimonialsSection() {
+  const router = useRouter();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleViewMoreTestimonials = () => {
+    router.push('/temoignages');
+  };
 
   useEffect(() => {
     async function fetchTestimonials() {
@@ -284,7 +290,10 @@ export default function MobileTestimonialsSection() {
           <p className="text-white/60 text-sm mb-6">
             Rejoignez les milliers de personnes qui nous font confiance
           </p>
-          <button className="bg-gradient-to-r from-brand-pink to-red-500 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
+          <button 
+            onClick={handleViewMoreTestimonials}
+            className="bg-gradient-to-r from-brand-pink to-red-500 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95"
+          >
             Voir Plus de Témoignages
           </button>
         </motion.div>

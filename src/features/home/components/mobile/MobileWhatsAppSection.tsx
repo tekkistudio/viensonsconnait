@@ -103,7 +103,7 @@ export default function MobileWhatsAppSection() {
             Rejoignez Notre Communauté
           </h2>
           <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
-            Plus de 5 000 membres reçoivent déjà nos actualités, conseils et offres 
+            Plus de 2 500 membres reçoivent déjà nos actualités, conseils et offres 
             exclusives directement sur WhatsApp. Rejoignez-les !
           </p>
         </motion.div>
@@ -250,7 +250,7 @@ export default function MobileWhatsAppSection() {
           <div className="flex items-center justify-center gap-4 text-white/60 text-sm">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              <span>5 000+ membres</span>
+              <span>+ 2 500 membres</span>
             </div>
             <div className="w-1 h-1 bg-white/30 rounded-full" />
             <div className="flex items-center gap-2">

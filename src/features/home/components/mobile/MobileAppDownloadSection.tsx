@@ -9,7 +9,7 @@ const features = [
   {
     icon: Smartphone,
     title: "Tous vos jeux dans la poche",
-    description: "Accédez à tous les jeux VIENS ON S'CONNAÎT depuis votre smartphone"
+    description: "Accédez à tous les jeux VIENS ON S'CONNAÎT depuis votre Smartphone"
   },
   {
     icon: Wifi,
@@ -19,12 +19,12 @@ const features = [
   {
     icon: Volume2,
     title: "Lecture vocale",
-    description: "Écoutez vos questions en français, wolof, anglais et plus"
+    description: "Écoutez vos questions en français, et bientôt en anglais, wolof, lingala et plus"
   },
   {
     icon: MessageSquare,
     title: "IA intégrée",
-    description: "Notre IA vous aide à mieux comprendre les questions"
+    description: "Notre IA vous aide à mieux comprendre les questions pour mieux y répondre"
   }
 ];
 
@@ -96,7 +96,7 @@ export default function MobileAppDownloadSection() {
               <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-black rounded-[3rem] p-2 shadow-2xl">
                 <div className="w-full h-full bg-black rounded-[2.5rem] overflow-hidden">
                   <Image
-                    src="/images/app/app-preview.png"
+                    src="/images/app/preview.png"
                     alt="Application VIENS ON S'CONNAÎT"
                     fill
                     className="object-cover"
@@ -133,7 +133,7 @@ export default function MobileAppDownloadSection() {
           className="text-center mt-12"
         >
           <h3 className="text-white text-xl font-bold mb-6">
-            Téléchargez maintenant, c'est gratuit !
+            Téléchargez maintenant, et profitez !
           </h3>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -169,7 +169,7 @@ export default function MobileAppDownloadSection() {
           </div>
 
           <p className="text-white/60 text-sm mt-6">
-            Compatible iPhone • Plus de 10 000 téléchargements
+            Compatible iPhone • Déjà plus de 300 téléchargements
           </p>
         </motion.div>
       </div>

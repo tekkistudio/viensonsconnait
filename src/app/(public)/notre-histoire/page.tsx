@@ -1,5 +1,6 @@
+// src/app/(public)/notre-histoire/page.tsx
 import { Metadata } from "next";
-import NotreHistoire from "../../../features/about/components/NotreHistoire";
+import { AdaptiveNotreHistoire } from "../../../features/about/components/AdaptiveNotreHistoire";
 
 export const metadata: Metadata = {
   title: "Notre Histoire | VIENS ON S'CONNAÎT",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function NotreHistoirePage() {
-  return <NotreHistoire />;
+  return <AdaptiveNotreHistoire />;
 }

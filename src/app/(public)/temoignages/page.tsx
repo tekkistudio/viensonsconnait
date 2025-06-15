@@ -1,6 +1,6 @@
 // app/temoignages/page.tsx
 import { Metadata } from 'next';
-import Temoignages from '@/features/testimonials/components/Temoignages';
+import { AdaptiveTemoignages } from '@/features/testimonials/components/AdaptiveTemoignages';
 
 export const metadata: Metadata = {
   title: 'Témoignages | VIENS ON S\'CONNAÎT',
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function TemoignagesPage() {
-  return <Temoignages />;
+  return <AdaptiveTemoignages />;
 }

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import ClientOnly from '@/components/utils/ClientOnly';
 import { productService } from '@/lib/services/product.service';
 import type { Product } from '@/types/product';
-import ProductPageContent from '@/features/product/components/ProductPageContent';
+import AdaptiveProductPageContent from '@/features/product/components/AdaptiveProductPageContent';
 import { ChatProvider } from '@/features/product/context/ChatContext';
 import ProductNotFound from './not-found';
 
@@ -62,7 +62,7 @@ export default function ProductPage() {
   return (
     <ClientOnly>
       <ChatProvider product={product}>
-        <ProductPageContent productId={product.id} product={product} />
+        <AdaptiveProductPageContent productId={product.id} product={product} />
       </ChatProvider>
     </ClientOnly>
   );

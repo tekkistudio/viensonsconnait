@@ -1,7 +1,7 @@
 // src/components/layouts/MobileHeader.tsx
 "use client"
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -21,14 +21,45 @@ const navigation = [
 export default function MobileHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCountrySelector, setShowCountrySelector] = useState(false);
+  const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
   const { currentCountry } = useCountryStore();
+
+  // Vérifier si la barre d'annonce est fermée
+  useEffect(() => {
+    const checkAnnouncementVisibility = () => {
+      const wasClosed = sessionStorage.getItem('mobile-announcement-bar-closed');
+      setIsAnnouncementVisible(wasClosed !== 'true');
+    };
+
+    // Vérifier au montage
+    checkAnnouncementVisibility();
+
+    // Écouter les changements dans le sessionStorage
+    const handleStorageChange = () => {
+      checkAnnouncementVisibility();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Polling pour détecter les changements de sessionStorage dans la même tab
+    const interval = setInterval(checkAnnouncementVisibility, 500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <>
-      {/* Header principal */}
-      <header className="relative z-40 bg-gradient-to-b from-black/80 to-transparent">
+      {/* Header principal - POSITIONNÉ DYNAMIQUEMENT */}
+      <header 
+        className={`absolute left-0 right-0 z-50 bg-transparent transition-all duration-300 ${
+          isAnnouncementVisible ? 'top-12' : 'top-0'
+        }`}
+      >
         <div className="flex items-center justify-between px-4 py-3">
-          {/* Logo */}
+          {/* Logo avec ombre portée forte pour contraste */}
           <Link href="/" className="flex-shrink-0">
             <Image 
               src="/images/logos/logo-white.svg" 
@@ -36,25 +67,28 @@ export default function MobileHeader() {
               width={120}
               height={36}
               className="h-9 w-auto"
+              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
               priority
             />
           </Link>
 
-          {/* Actions droite */}
+          {/* Actions droite avec ombres fortes */}
           <div className="flex items-center gap-3">
-            {/* Country Selector */}
+            {/* Country Selector avec ombre */}
             <button
               onClick={() => setShowCountrySelector(true)}
-              className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-white hover:text-white/80 transition-colors"
+              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
             >
               <span className="text-lg">{currentCountry?.flag}</span>
               <span className="text-sm font-medium">{currentCountry?.currency?.symbol}</span>
             </button>
 
-            {/* Menu Button */}
+            {/* Menu Button avec ombre */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-white/90 hover:text-white transition-colors"
+              className="p-2 text-white hover:text-white/80 transition-colors"
+              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
               aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -66,22 +100,22 @@ export default function MobileHeader() {
         <AnimatePresence>
           {isMenuOpen && (
             <>
-              {/* Overlay */}
+              {/* Overlay avec opacité réduite */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 z-30"
+                className="fixed inset-0 bg-black/30 z-30"
                 onClick={() => setIsMenuOpen(false)}
               />
               
-              {/* Menu Panel */}
+              {/* Menu Panel - FOND BLEU SOLIDE */}
               <motion.div
                 initial={{ opacity: 0, x: '100%' }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed right-0 top-0 h-full w-80 bg-black/95 backdrop-blur-xl z-40 border-l border-white/10"
+                className="fixed right-0 top-0 h-full w-80 bg-brand-blue z-40 border-l border-brand-blue/20"
               >
                 <div className="p-6">
                   {/* Header du menu */}
@@ -116,7 +150,7 @@ export default function MobileHeader() {
                   </nav>
 
                   {/* Country selector dans le menu */}
-                  <div className="mt-8 pt-6 border-t border-white/10">
+                  <div className="mt-8 pt-6 border-t border-white/20">
                     <button
                       onClick={() => {
                         setShowCountrySelector(true);

@@ -134,19 +134,9 @@ export default function ProductMiniCarousel({
 
                 {/* Prix */}
                 {formattedPrice && (
-                  <p className="text-white/70 text-xs">
+                  <p className="text-white/70 text-xs font-medium">
                     {formattedPrice}
                   </p>
-                )}
-
-                {/* Note si applicable */}
-                {product.stats?.satisfaction && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="text-yellow-400 text-xs">★</span>
-                    <span className="text-white/60 text-xs">
-                      {product.stats.satisfaction}/5
-                    </span>
-                  </div>
                 )}
               </motion.div>
             );

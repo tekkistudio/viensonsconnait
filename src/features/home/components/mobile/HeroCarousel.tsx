@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/HeroCarousel.tsx - VERSION CORRIGÉE
+// src/features/home/components/mobile/HeroCarousel.tsx - VERSION AVEC DEBUG
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { productService } from '@/lib/services/product.service';
 import type { Product } from '@/types/product';
-import { getProductImages, generateImageProps } from '@/utils/image';
+import { generateImageProps, getHeroImage } from '@/utils/image';
 
 const SWIPE_THRESHOLD = 50;
 const AUTO_PLAY_INTERVAL = 5000;
@@ -25,7 +25,28 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showProductInfo, setShowProductInfo] = useState(false);
+  const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Vérifier la visibilité de la barre d'annonce
+  useEffect(() => {
+    const checkAnnouncementVisibility = () => {
+      const wasClosed = sessionStorage.getItem('mobile-announcement-bar-closed');
+      setIsAnnouncementVisible(wasClosed !== 'true');
+    };
+
+    checkAnnouncementVisibility();
+
+    const handleAnnouncementClose = () => {
+      setIsAnnouncementVisible(false);
+    };
+
+    window.addEventListener('announcementBarClosed', handleAnnouncementClose);
+    
+    return () => {
+      window.removeEventListener('announcementBarClosed', handleAnnouncementClose);
+    };
+  }, []);
 
   // Charger les produits
   useEffect(() => {
@@ -37,6 +58,13 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
           .filter(p => p.status === 'active')
           .sort((a, b) => (a.display_order || 999) - (b.display_order || 999))
           .slice(0, 5);
+        
+        console.log('🎮 Products loaded for hero:', featuredProducts.map(p => ({
+          name: p.name,
+          category: p.category,
+          metadataCategory: p.metadata?.category
+        })));
+        
         setProducts(featuredProducts);
       } catch (error) {
         console.error('Error loading products:', error);
@@ -76,14 +104,12 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     
     if (Math.abs(offset.x) > swipeThreshold) {
       if (offset.x > 0) {
-        // Swipe vers la droite - produit précédent
         setCurrentIndex(prev => (prev - 1 + products.length) % products.length);
       } else {
-        // Swipe vers la gauche - produit suivant
         setCurrentIndex(prev => (prev + 1) % products.length);
       }
       stopAutoPlay();
-      setTimeout(startAutoPlay, 3000); // Redémarrer l'auto-play après 3s
+      setTimeout(startAutoPlay, 3000);
     }
   };
 
@@ -106,12 +132,18 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
   }
 
   const currentProduct = products[currentIndex];
-  const images = getProductImages(currentProduct);
+  const heroImagePath = getHeroImage(currentProduct);
   const formattedPrice = convertPrice(currentProduct.price)?.formatted;
 
+  console.log('🖼️ Current hero image path:', heroImagePath);
+
   return (
-    <div className={`relative h-[70vh] overflow-hidden ${className}`}>
-      {/* Background avec dégradé */}
+    <div 
+      className={`relative overflow-hidden transition-all duration-300 ${
+        isAnnouncementVisible ? 'h-[100vh] pt-12' : 'h-[100vh]'
+      } ${className}`}
+    >
+      {/* Background avec dégradé - COUVRE TOUT L'ÉCRAN */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black/80 to-black" />
       
       <AnimatePresence mode="wait">
@@ -132,18 +164,28 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
           {/* Image de fond */}
           <div className="absolute inset-0">
             <Image
-              {...generateImageProps(images[0], currentProduct.name, true)}
+              {...generateImageProps(heroImagePath, currentProduct.name, true)}
               fill
               className="object-cover"
               sizes="100vw"
               priority
+              onError={(e) => {
+                console.error('❌ Image failed to load:', heroImagePath);
+                const img = e.currentTarget;
+                img.src = 'https://res.cloudinary.com/dq6pustuw/image/upload/v1/products/placeholder.jpg';
+              }}
+              onLoad={() => {
+                console.log('✅ Image loaded successfully:', heroImagePath);
+              }}
             />
             {/* Overlay dégradé */}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
           </div>
 
-          {/* Contenu */}
-          <div className="relative z-10 h-full flex flex-col justify-end p-6 pb-20">
+          {/* Contenu avec padding-top conditionnel */}
+          <div className={`relative z-10 h-full flex flex-col justify-end p-6 ${
+            isAnnouncementVisible ? 'pb-20 pt-16' : 'pb-20'
+          }`}>
             {/* Badge */}
             {currentProduct.badges && currentProduct.badges.length > 0 && (
               <div className="mb-4">
@@ -168,8 +210,13 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
             </div>
 
             {/* Description courte */}
-            <p className="text-white/90 text-base mb-6 max-w-md line-clamp-3">
-              {currentProduct.description || `Découvrez ${currentProduct.name}, un jeu conçu pour créer des moments authentiques et renforcer vos relations.`}
+            <p className="text-white/90 text-base mb-6 max-w-md line-clamp-2">
+              {currentProduct.description 
+                ? currentProduct.description.length > 80 
+                  ? `${currentProduct.description.substring(0, 80).trim()}...`
+                  : currentProduct.description
+                : `Découvrez ${currentProduct.name}, un jeu conçu pour créer des moments authentiques.`
+              }
             </p>
 
             {/* Prix */}
