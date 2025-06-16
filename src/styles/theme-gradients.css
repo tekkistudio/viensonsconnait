@@ -1,0 +1,152 @@
+/* src/styles/theme-gradients.css - Gradients adaptatifs pour les thèmes */
+
+@layer utilities {
+  /* ✅ GRADIENTS ADAPTATIFS POUR LES THÈMES */
+  
+  /* Gradient principal - adaptatif selon le thème */
+  .bg-adaptive-gradient {
+    background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
+  }
+  
+  /* Gradient hero - adaptatif */
+  .bg-hero-gradient {
+    background: linear-gradient(
+      to right, 
+      rgba(255, 126, 147, 0.3), 
+      rgba(19, 45, 93, 0.3)
+    );
+  }
+  
+  /* Overlay gradients adaptatifs */
+  .bg-overlay-gradient {
+    background: linear-gradient(
+      to top, 
+      var(--bg-primary), 
+      rgba(0, 0, 0, 0.4), 
+      transparent
+    );
+  }
+  
+  /* Section backgrounds alternés pour le thème clair */
+  .light .bg-section-alt {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+  
+  .dark .bg-section-alt {
+    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+  }
+  
+  /* Cards avec gradients subtils */
+  .light .bg-card-gradient {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  }
+  
+  .dark .bg-card-gradient {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+  }
+  
+  /* Gradient pour les sections importantes */
+  .light .bg-highlight-gradient {
+    background: linear-gradient(135deg, rgba(255, 126, 147, 0.05) 0%, rgba(19, 45, 93, 0.05) 100%);
+  }
+  
+  .dark .bg-highlight-gradient {
+    background: linear-gradient(135deg, rgba(255, 126, 147, 0.1) 0%, rgba(19, 45, 93, 0.1) 100%);
+  }
+  
+  /* Textes avec gradients adaptatifs */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #FF7E93 0%, #132D5D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Boutons avec gradients adaptatifs */
+  .btn-gradient-primary {
+    background: linear-gradient(135deg, #FF7E93 0%, #e63946 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-gradient-primary:hover {
+    background: linear-gradient(135deg, #e63946 0%, #FF7E93 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 126, 147, 0.3);
+  }
+  
+  .btn-gradient-secondary {
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+  }
+  
+  .btn-gradient-secondary:hover {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+    transform: translateY(-1px);
+  }
+}
+
+/* ✅ CLASSES UTILITAIRES POUR LES TRANSITIONS DE THÈME */
+@layer utilities {
+  .theme-transition {
+    transition: background-color 0.3s ease, 
+                color 0.3s ease, 
+                border-color 0.3s ease,
+                backdrop-filter 0.3s ease;
+  }
+  
+  .theme-card {
+    @apply bg-card-gradient border-theme theme-transition;
+  }
+  
+  .theme-section {
+    @apply bg-theme-primary theme-transition;
+  }
+  
+  .theme-section-alt {
+    @apply bg-section-alt theme-transition;
+  }
+  
+  .theme-highlight {
+    @apply bg-highlight-gradient theme-transition;
+  }
+}
+
+/* ✅ RESPONSIVE ADAPTATIF POUR MOBILE */
+@media (max-width: 768px) {
+  .mobile-gradient-bg {
+    background: var(--bg-primary);
+  }
+  
+  .light .mobile-gradient-bg {
+    background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
+  }
+  
+  .dark .mobile-gradient-bg {
+    background: linear-gradient(to bottom, #000000 0%, #1a1a1a 50%, #000000 100%);
+  }
+  
+  /* Sections mobiles avec alternance de backgrounds */
+  .mobile-section-primary {
+    background: var(--bg-primary);
+  }
+  
+  .mobile-section-secondary {
+    background: var(--bg-secondary);
+  }
+  
+  .light .mobile-section-accent {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+  
+  .dark .mobile-section-accent {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0d1117 100%);
+  }
+}

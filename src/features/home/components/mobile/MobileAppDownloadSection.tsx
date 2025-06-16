@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileAppDownloadSection.tsx
+// src/features/home/components/mobile/MobileAppDownloadSection.tsx - VERSION COMPLÈTE AVEC THÈME
 "use client"
 
 import { motion } from 'framer-motion';
@@ -30,7 +30,7 @@ const features = [
 
 export default function MobileAppDownloadSection() {
   return (
-    <section className="bg-gradient-to-b from-black to-gray-900 py-16 overflow-hidden">
+    <section className="bg-theme-primary py-16 overflow-hidden transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -44,10 +44,10 @@ export default function MobileAppDownloadSection() {
             <span className="text-sm font-medium">Application Mobile</span>
           </div>
           
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-theme-primary mb-4">
             Emportez Vos Jeux Partout
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
+          <p className="text-theme-secondary text-lg leading-relaxed max-w-2xl mx-auto">
             Téléchargez l'application VIENS ON S'CONNAÎT et transformez chaque moment 
             en opportunité de connexion avec vos proches.
           </p>
@@ -71,10 +71,10 @@ export default function MobileAppDownloadSection() {
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold text-lg mb-2">
+                    <h3 className="text-theme-primary font-semibold text-lg mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-white/80 leading-relaxed">
+                    <p className="text-theme-secondary leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -100,6 +100,7 @@ export default function MobileAppDownloadSection() {
                     alt="Application VIENS ON S'CONNAÎT"
                     fill
                     className="object-cover"
+                    sizes="256px"
                   />
                 </div>
               </div>
@@ -132,7 +133,7 @@ export default function MobileAppDownloadSection() {
           transition={{ delay: 0.8, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <h3 className="text-white text-xl font-bold mb-6">
+          <h3 className="text-theme-primary text-xl font-bold mb-6">
             Téléchargez maintenant, et profitez !
           </h3>
           
@@ -143,7 +144,7 @@ export default function MobileAppDownloadSection() {
               rel="noopener noreferrer"
               className="group"
             >
-              <div className="bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-2xl p-4 transition-all group-hover:scale-105">
+              <div className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-2xl p-4 transition-all group-hover:scale-105 border border-theme">
                 <Image
                   src="/images/badges/app-store-badge.svg"
                   alt="Télécharger sur l'App Store"
@@ -155,20 +156,20 @@ export default function MobileAppDownloadSection() {
             </a>
             
             {/* Coming soon badge pour Play Store */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+            <div className="bg-theme-card backdrop-blur-sm rounded-2xl p-4 border border-theme">
               <div className="flex items-center gap-3">
                 <div className="bg-gray-600 rounded-lg p-2">
                   <Smartphone className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="text-white font-medium">Google Play</div>
-                  <div className="text-white/60 text-sm">Bientôt disponible</div>
+                  <div className="text-theme-primary font-medium">Google Play</div>
+                  <div className="text-theme-secondary text-sm">Bientôt disponible</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <p className="text-white/60 text-sm mt-6">
+          <p className="text-theme-secondary text-sm mt-6">
             Compatible iPhone • Déjà plus de 300 téléchargements
           </p>
         </motion.div>

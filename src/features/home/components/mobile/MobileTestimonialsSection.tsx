@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileTestimonialsSection.tsx
+// src/features/home/components/mobile/MobileTestimonialsSection.tsx - VERSION AVEC THÈME
 "use client"
 
 import { useState, useEffect, useRef } from 'react';
@@ -139,10 +139,10 @@ export default function MobileTestimonialsSection() {
 
   if (isLoading) {
     return (
-      <section className="bg-gradient-to-b from-gray-900 to-black py-16">
+      <section className="bg-theme-secondary/5 py-16 transition-colors duration-300">
         <div className="container mx-auto px-6">
           <div className="text-center">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-2 border-brand-pink border-t-transparent rounded-full animate-spin mx-auto" />
           </div>
         </div>
       </section>
@@ -157,7 +157,7 @@ export default function MobileTestimonialsSection() {
 
   return (
     <section 
-      className="bg-gradient-to-b from-black to-gray-900 py-16"
+      className="bg-theme-primary py-16 transition-colors duration-300"
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setTimeout(() => setIsPaused(false), 2000)}
     >
@@ -174,10 +174,10 @@ export default function MobileTestimonialsSection() {
             <span className="text-sm font-medium">Témoignages Clients</span>
           </div>
           
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-theme-primary mb-4">
             Ce Que Disent Nos Clients
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
+          <p className="text-theme-secondary text-lg leading-relaxed max-w-2xl mx-auto">
             Découvrez comment nos jeux transforment les relations de milliers de personnes 
             à travers l'Afrique et au-delà.
           </p>
@@ -192,7 +192,7 @@ export default function MobileTestimonialsSection() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
-              className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/10"
+              className="bg-theme-card backdrop-blur-sm rounded-3xl p-8 border border-theme"
             >
               {/* Quote icon */}
               <div className="flex justify-center mb-6">
@@ -202,7 +202,7 @@ export default function MobileTestimonialsSection() {
               </div>
 
               {/* Content */}
-              <blockquote className="text-white text-lg leading-relaxed text-center mb-6">
+              <blockquote className="text-theme-primary text-lg leading-relaxed text-center mb-6">
                 "{currentTestimonial.content}"
               </blockquote>
 
@@ -227,10 +227,10 @@ export default function MobileTestimonialsSection() {
                     {currentTestimonial.author_name[0]}
                   </span>
                 </div>
-                <h4 className="text-white font-semibold text-lg">
+                <h4 className="text-theme-primary font-semibold text-lg">
                   {currentTestimonial.author_name}
                 </h4>
-                <p className="text-white/60 text-sm mb-2">
+                <p className="text-theme-secondary text-sm mb-2">
                   {currentTestimonial.author_location}
                 </p>
                 {currentTestimonial.product_name && (
@@ -247,10 +247,10 @@ export default function MobileTestimonialsSection() {
             <div className="flex items-center justify-between mt-8">
               <button
                 onClick={handlePrevious}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-3 transition-colors"
+                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme"
                 aria-label="Témoignage précédent"
               >
-                <ChevronLeft className="w-6 h-6 text-white" />
+                <ChevronLeft className="w-6 h-6 text-theme-primary" />
               </button>
 
               {/* Indicateurs */}
@@ -261,8 +261,8 @@ export default function MobileTestimonialsSection() {
                     onClick={() => setCurrentIndex(index)}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${
                       index === currentIndex 
-                        ? 'bg-white w-8' 
-                        : 'bg-white/40 hover:bg-white/60'
+                        ? 'bg-brand-pink w-8' 
+                        : 'bg-theme-secondary/40 hover:bg-theme-secondary/60'
                     }`}
                   />
                 ))}
@@ -270,10 +270,10 @@ export default function MobileTestimonialsSection() {
 
               <button
                 onClick={handleNext}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-3 transition-colors"
+                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme"
                 aria-label="Témoignage suivant"
               >
-                <ChevronRight className="w-6 h-6 text-white" />
+                <ChevronRight className="w-6 h-6 text-theme-primary" />
               </button>
             </div>
           )}
@@ -287,7 +287,7 @@ export default function MobileTestimonialsSection() {
           transition={{ delay: 0.6, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <p className="text-white/60 text-sm mb-6">
+          <p className="text-theme-secondary text-sm mb-6">
             Rejoignez les milliers de personnes qui nous font confiance
           </p>
           <button 

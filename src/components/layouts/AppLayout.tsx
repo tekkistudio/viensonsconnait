@@ -1,4 +1,4 @@
-// src/components/layouts/AppLayout.tsx - VERSION AVEC LIEN APP STORE
+// src/components/layouts/AppLayout.tsx 
 'use client'
 
 import React from 'react'
@@ -21,8 +21,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { isMobile } = useBreakpoint();
   
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* ✅ NOUVEAU : Barre d'annonce adaptative avec lien App Store */}
+    <div className="min-h-screen flex flex-col bg-white dark:bg-black transition-colors duration-300">
+      {/* ✅ Barre d'annonce adaptative */}
       {isMobile ? (
         <MobileAnnouncementBar
           text="🌟 Téléchargez notre App Mobile 📲"
@@ -39,33 +39,27 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
       
-      {/* ✅ NOUVEAU : Header adaptatif selon la taille d'écran - POSITION ABSOLUE POUR MOBILE */}
+      {/* ✅ Header adaptatif */}
       {!hideHeaderGroup && (
         <>
-          {/* Mobile Header - Position absolue */}
           <div className="md:hidden">
             <MobileHeader />
           </div>
-          
-          {/* Desktop Header - Position normale */}
           <div className="hidden md:block">
             <Header />
           </div>
         </>
       )}
       
-      {/* ✅ CORRECTION : Contenu principal simple */}
-      <main className="flex-1" role="main" aria-label="Contenu principal">
+      {/* ✅ Contenu principal */}
+      <main className="flex-1 bg-theme-primary theme-container transition-colors duration-300" role="main">
         {children}
       </main>
       
-      {/* ✅ NOUVEAU : Footer adaptatif selon la taille d'écran */}
-      {/* Mobile Footer */}
+      {/* ✅ Footer adaptatif */}
       <div className="md:hidden">
         <MobileFooter />
       </div>
-      
-      {/* Desktop Footer */}
       <div className="hidden md:block">
         <Footer />
       </div>

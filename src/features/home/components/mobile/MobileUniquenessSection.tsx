@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileUniquenessSection.tsx
+// src/features/home/components/mobile/MobileUniquenessSection.tsx - VERSION AVEC THÈME
 "use client"
 
 import { motion } from 'framer-motion';
@@ -40,7 +40,7 @@ export default function MobileUniquenessSection() {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <section className="bg-gradient-to-b from-gray-900 to-black py-16">
+    <section className="bg-gradient-to-b from-theme-primary to-theme-secondary/10 py-16 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -49,10 +49,10 @@ export default function MobileUniquenessSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-theme-primary mb-4">
             Voici Pourquoi Nous Sommes Uniques
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
+          <p className="text-theme-secondary text-lg leading-relaxed max-w-2xl mx-auto">
             VIENS ON S'CONNAÎT révolutionne les relations humaines en Afrique et au-delà. 
             Voici ce qui nous rend spéciaux.
           </p>
@@ -68,18 +68,18 @@ export default function MobileUniquenessSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-white/15 transition-all"
+                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-theme-secondary/10 transition-all border border-theme"
               >
                 <div className={`bg-gradient-to-r ${stat.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4`}>
                   <Icon className="w-8 h-8 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white mb-2">
+                <div className="text-3xl font-bold text-theme-primary mb-2">
                   {stat.number}
                 </div>
-                <div className="text-white font-semibold mb-1">
+                <div className="text-theme-primary font-semibold mb-1">
                   {stat.label}
                 </div>
-                <div className="text-white/60 text-sm">
+                <div className="text-theme-secondary text-sm">
                   {stat.sublabel}
                 </div>
               </motion.div>
@@ -93,38 +93,38 @@ export default function MobileUniquenessSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+          className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-theme"
         >
-          <h3 className="text-white text-xl font-bold mb-6 text-center">
+          <h3 className="text-theme-primary text-xl font-bold mb-6 text-center">
             Notre Secret ? Une Approche 100% Humaine
           </h3>
           
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
-              <p className="text-white/90">
-                <strong>Conçu avec l'aide de Psychologues</strong> - Nos jeux reflètent notre passion pour les relations humaines
+              <p className="text-theme-secondary">
+                <strong className="text-theme-primary">Conçu avec l'aide de Psychologues</strong> - Nos jeux reflètent notre passion pour les relations humaines
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
-              <p className="text-white/90">
-                <strong>Livraison dans +8 pays</strong> - De Dakar à Abidjan, en passant par Paris, nous sommes partout
+              <p className="text-theme-secondary">
+                <strong className="text-theme-primary">Livraison dans +8 pays</strong> - De Dakar à Abidjan, en passant par Paris, nous sommes partout
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
-              <p className="text-white/90">
-                <strong>Application mobile</strong> - Emportez tous nos jeux dans votre poche
+              <p className="text-theme-secondary">
+                <strong className="text-theme-primary">Application mobile</strong> - Emportez tous nos jeux dans votre poche
               </p>
             </div>
             
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-brand-pink rounded-full mt-2 flex-shrink-0" />
-              <p className="text-white/90">
-                <strong>Service client réactif</strong> - Nous sommes continuellement à votre écoute
+              <p className="text-theme-secondary">
+                <strong className="text-theme-primary">Service client réactif</strong> - Nous sommes continuellement à votre écoute
               </p>
             </div>
           </div>

@@ -136,9 +136,9 @@ export default function MobileProductsCollection() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      <div className="min-h-screen bg-theme-primary">
         {/* Hero Section Loading */}
-        <div className="relative h-64 bg-gradient-to-r from-brand-pink/20 to-brand-blue/20">
+        <div className="relative h-64 bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 bg-theme-secondary/10">
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
           </div>

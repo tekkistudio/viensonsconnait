@@ -58,11 +58,11 @@ export default function MobileBlog() {
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center p-6">
         <div className="text-center">
           <div className="text-6xl mb-4">😔</div>
-          <h2 className="text-white text-xl font-bold mb-2">Erreur</h2>
+          <h2 className="text-theme-primary text-xl font-bold mb-2">Erreur</h2>
           <p className="text-white/70 mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-brand-pink text-white px-6 py-3 rounded-full font-semibold"
+            className="bg-brand-pink text-theme-primary px-6 py-3 rounded-full font-semibold"
           >
             Réessayer
           </button>
@@ -72,7 +72,7 @@ export default function MobileBlog() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+    <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
       <section className="relative h-96 bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-16">
         <div className="absolute inset-0 bg-black/50" />
@@ -81,12 +81,12 @@ export default function MobileBlog() {
           animate={{ opacity: 1, y: 0 }}
           className="relative h-full flex flex-col justify-center px-6 text-center"
         >
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full mb-6 mx-auto">
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-theme-primary px-4 py-2 rounded-full mb-6 mx-auto">
             <Star className="w-4 h-4" />
             <span className="text-sm font-medium">Blog</span>
           </div>
           
-          <h1 className="text-3xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-3xl font-bold text-theme-primary mb-4 leading-tight">
             Conseils & Inspiration
           </h1>
           <p className="text-white/80 text-lg mb-8 max-w-md mx-auto leading-relaxed">
@@ -101,7 +101,7 @@ export default function MobileBlog() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm text-white placeholder-white/60 rounded-full border border-white/30 focus:border-white/60 focus:outline-none"
+              className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm text-theme-primary placeholder-white/60 rounded-full border border-white/30 focus:border-white/60 focus:outline-none"
             />
           </div>
         </motion.div>
@@ -297,31 +297,109 @@ export default function MobileBlog() {
         </div>
       </section>
 
-      {/* Newsletter Section */}
+      {/* ✅ NOUVEAU: Section WhatsApp au lieu de Newsletter */}
       <section className="py-12 bg-gradient-to-r from-brand-pink/10 to-brand-blue/10">
         <div className="px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10 text-center"
+            className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme text-center"
           >
-            <div className="text-3xl mb-4">📬</div>
-            <h3 className="text-white text-xl font-bold mb-3">
-              Restez inspiré
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#25D366] rounded-full mb-6">
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.893 3.386"/>
+              </svg>
+            </div>
+            
+            <h3 className="text-theme-primary text-xl font-bold mb-3">
+              Rejoignez notre communauté WhatsApp
             </h3>
-            <p className="text-white/80 mb-6 leading-relaxed">
-              Recevez nos meilleurs articles et conseils directement dans votre boîte mail.
+            <p className="text-theme-secondary mb-6 leading-relaxed">
+              Recevez nos meilleurs articles, conseils relationnels et offres exclusives 
+              directement sur WhatsApp. Plus de 2500 membres nous font déjà confiance !
             </p>
-            <div className="space-y-3">
-              <input
-                type="email"
-                placeholder="Votre adresse email"
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm text-white placeholder-white/60 rounded-full border border-white/30 focus:border-white/60 focus:outline-none"
-              />
-              <button className="w-full bg-brand-pink text-white py-3 px-6 rounded-full font-semibold hover:bg-brand-pink/90 transition-colors">
-                S'inscrire à la newsletter
+            
+            <div className="space-y-4">
+              {/* Avantages */}
+              <div className="grid grid-cols-1 gap-3 text-left">
+                <div className="flex items-center gap-3 bg-theme-secondary/5 rounded-lg p-3">
+                  <div className="bg-[#25D366] rounded-full p-1.5 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-theme-primary text-sm font-medium">
+                    Articles exclusifs en avant-première
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3 bg-theme-secondary/5 rounded-lg p-3">
+                  <div className="bg-[#25D366] rounded-full p-1.5 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-theme-primary text-sm font-medium">
+                    Conseils relationnels personnalisés
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3 bg-theme-secondary/5 rounded-lg p-3">
+                  <div className="bg-[#25D366] rounded-full p-1.5 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-theme-primary text-sm font-medium">
+                    Offres spéciales sur nos jeux
+                  </span>
+                </div>
+              </div>
+              
+              {/* Bouton d'inscription WhatsApp */}
+              <button 
+                onClick={() => {
+                  const message = encodeURIComponent(
+                    "Bonjour ! 👋\n\nJe souhaite rejoindre la communauté VIENS ON S'CONNAÎT pour recevoir :\n" +
+                    "📚 Les articles exclusifs\n" +
+                    "💝 Les conseils relationnels\n" +
+                    "🎁 Les offres spéciales\n" +
+                    "✨ Les nouveautés en avant-première"
+                  );
+                  window.open(`https://wa.me/221781362728?text=${message}`, '_blank');
+                }}
+                className="w-full bg-[#25D366] text-white py-4 px-6 rounded-full font-bold hover:bg-[#128C7E] transition-colors flex items-center justify-center gap-2 shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.893 3.386"/>
+                </svg>
+                <span>Rejoindre la communauté</span>
               </button>
+              
+              {/* Stats sociales */}
+              <div className="flex items-center justify-center gap-4 text-theme-secondary text-xs pt-3">
+                <div className="flex items-center gap-1">
+                  <svg className="w-3 h-3 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  </svg>
+                  <span>+2500 membres</span>
+                </div>
+                <div className="w-1 h-1 bg-theme-secondary/30 rounded-full" />
+                <div className="flex items-center gap-1">
+                  <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>100% gratuit</span>
+                </div>
+                <div className="w-1 h-1 bg-theme-secondary/30 rounded-full" />
+                <div className="flex items-center gap-1">
+                  <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <span>Désabonnement facile</span>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

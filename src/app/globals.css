@@ -1,6 +1,37 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import '../styles/theme-gradients.css';
+
+/* ===== GRADIENTS ADAPTATIFS POUR LES THÈMES ===== */
+@layer utilities {
+  /* Backgrounds alternatifs pour diversifier le thème clair */
+  .bg-theme-alt {
+    background: var(--bg-secondary);
+  }
+  
+  .light .bg-theme-alt {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+  
+  .dark .bg-theme-alt {
+    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+  }
+  
+  /* Sections avec gradients subtils */
+  .light .bg-theme-secondary\/5 {
+    background: rgba(107, 114, 128, 0.03);
+  }
+  
+  .light .bg-theme-secondary\/3 {
+    background: rgba(107, 114, 128, 0.02);
+  }
+  
+  /* Gradients pour sections importantes */
+  .bg-gradient-theme {
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  }
+}
 
 /* ===== CORRECTIONS CRITIQUES CONTAINER MOBILE ===== */
 @layer base {
@@ -715,4 +746,156 @@
   .smooth-transition {
     @apply transition-all duration-300 ease-in-out;
   }
+}
+
+/* ===== VARIABLES THÈME DYNAMIQUE ===== */
+@layer base {
+  :root {
+    /* Variables thème clair (par défaut) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7280;
+    --header-bg: #132D5D;
+    --footer-bg: #132D5D;
+    --card-bg: #ffffff;
+    --border-color: #e5e7eb;
+    
+    /* Variables couleurs marque (constantes) */
+    --brand-blue: #132D5D;
+    --brand-pink: #FF7E93;
+  }
+
+  /* Thème sombre */
+  .dark {
+    --bg-primary: #000000;
+    --bg-secondary: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --header-bg: #000000;
+    --footer-bg: #000000;
+    --card-bg: rgba(255, 255, 255, 0.1);
+    --border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Classes utilitaires pour les thèmes */
+  .bg-theme-primary {
+    background-color: var(--bg-primary);
+  }
+  
+  .bg-theme-secondary {
+    background-color: var(--bg-secondary);
+  }
+  
+  .bg-theme-card {
+    background-color: var(--card-bg);
+  }
+  
+  .text-theme-primary {
+    color: var(--text-primary);
+  }
+  
+  .text-theme-secondary {
+    color: var(--text-secondary);
+  }
+  
+  .border-theme {
+    border-color: var(--border-color);
+  }
+  
+  .bg-header {
+    background-color: var(--header-bg);
+  }
+  
+  .bg-footer {
+    background-color: var(--footer-bg);
+  }
+}
+
+/* Transition fluide lors du changement de thème */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Éviter la transition sur les éléments avec animation */
+.no-theme-transition {
+  transition: none !important;
+}
+
+/* Classes pour le mode sombre Netflix-style */
+.dark .netflix-gradient-bg {
+  background: linear-gradient(to bottom, #1a1a1a 0%, #000000 100%);
+}
+
+.dark .netflix-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Classes pour le mode clair */
+.light .netflix-gradient-bg {
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+}
+
+.light .netflix-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* ===== CORRECTIONS GRADIENTS POUR LES THÈMES ===== */
+
+/* Gradients adaptatifs pour le thème */
+.bg-gradient-theme-dark {
+  background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
+}
+
+.bg-gradient-theme-overlay {
+  background: linear-gradient(to top, var(--bg-primary), rgba(0,0,0,0.4), transparent);
+}
+
+/* Mode clair */
+.light .bg-gradient-theme-dark {
+  background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+}
+
+.light .bg-gradient-theme-overlay {
+  background: linear-gradient(to top, #ffffff, rgba(255,255,255,0.4), transparent);
+}
+
+/* Mode sombre */
+.dark .bg-gradient-theme-dark {
+  background: linear-gradient(to bottom, #000000, #1a1a1a);
+}
+
+.dark .bg-gradient-theme-overlay {
+  background: linear-gradient(to top, #000000, rgba(0,0,0,0.4), transparent);
+}
+
+/* Force le background sur les conteneurs principaux */
+.theme-container {
+  background-color: var(--bg-primary) !important;
+  min-height: 100vh;
+}
+
+/* Correction pour les sections qui ne prennent pas le thème */
+section[class*="bg-gradient-to-"] {
+  background: var(--bg-primary) !important;
+}
+
+/* Override des gradients hardcodés */
+.bg-gradient-to-b.from-gray-900,
+.bg-gradient-to-b.from-black {
+  background: var(--bg-primary) !important;
+}
+
+/* Assurer que le body prend bien le thème */
+body {
+  background-color: var(--bg-primary) !important;
+}
+
+/* Container principal pour forcer le thème */
+main {
+  background-color: var(--bg-primary) !important;
 }

@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileWhatsAppSection.tsx
+// src/features/home/components/mobile/MobileWhatsAppSection.tsx - VERSION AVEC THÈME
 "use client"
 
 import { useState } from 'react';
@@ -86,7 +86,7 @@ export default function MobileWhatsAppSection() {
   };
 
   return (
-    <section className="bg-gradient-to-b from-gray-900 to-black py-16">
+    <section className="bg-theme-primary py-16 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -99,10 +99,10 @@ export default function MobileWhatsAppSection() {
             <WhatsAppIcon className="w-10 h-10 text-white" />
           </div>
           
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-theme-primary mb-4">
             Rejoignez Notre Communauté
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
+          <p className="text-theme-secondary text-lg leading-relaxed max-w-2xl mx-auto">
             Plus de 2 500 membres reçoivent déjà nos actualités, conseils et offres 
             exclusives directement sur WhatsApp. Rejoignez-les !
           </p>
@@ -125,12 +125,12 @@ export default function MobileWhatsAppSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
-                className="flex items-center gap-3 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10"
+                className="flex items-center gap-3 bg-theme-card backdrop-blur-sm rounded-xl p-4 border border-theme"
               >
                 <div className="bg-[#25D366] rounded-full p-2 flex-shrink-0">
                   <Icon className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-white text-sm font-medium">
+                <span className="text-theme-primary text-sm font-medium">
                   {benefit.text}
                 </span>
               </motion.div>
@@ -153,10 +153,10 @@ export default function MobileWhatsAppSection() {
                     value={phoneNumber}
                     onChange={handlePhoneChange}
                     placeholder="Ex: +221 77 123 45 67"
-                    className={`w-full px-4 py-4 rounded-xl text-white placeholder-white/50 bg-white/10 backdrop-blur-sm border transition-all focus:outline-none focus:ring-2 ${
+                    className={`w-full px-4 py-4 rounded-xl text-theme-primary placeholder-theme-secondary bg-theme-card backdrop-blur-sm border transition-all focus:outline-none focus:ring-2 ${
                       isValid 
                         ? 'border-[#25D366] focus:ring-[#25D366]/50' 
-                        : 'border-white/20 focus:ring-brand-pink/50'
+                        : 'border-theme focus:ring-brand-pink/50'
                     }`}
                     required
                   />
@@ -204,7 +204,7 @@ export default function MobileWhatsAppSection() {
                   </motion.p>
                 )}
 
-                <p className="text-white/50 text-xs text-center leading-relaxed">
+                <p className="text-theme-secondary text-xs text-center leading-relaxed">
                   En vous inscrivant, vous acceptez de recevoir nos messages WhatsApp. 
                   Vous pourrez vous désabonner à tout moment en envoyant "STOP".
                 </p>
@@ -221,11 +221,11 @@ export default function MobileWhatsAppSection() {
                   <Check className="w-8 h-8 text-white" />
                 </div>
                 
-                <h3 className="text-white text-xl font-bold mb-4">
+                <h3 className="text-theme-primary text-xl font-bold mb-4">
                   Parfait ! WhatsApp va s'ouvrir...
                 </h3>
                 
-                <p className="text-white/80 mb-6">
+                <p className="text-theme-secondary mb-6">
                   Cliquez sur "Envoyer" dans WhatsApp pour finaliser votre inscription 
                   et commencer à recevoir nos contenus exclusifs !
                 </p>
@@ -247,17 +247,17 @@ export default function MobileWhatsAppSection() {
           transition={{ delay: 0.8, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <div className="flex items-center justify-center gap-4 text-white/60 text-sm">
+          <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span>+ 2 500 membres</span>
             </div>
-            <div className="w-1 h-1 bg-white/30 rounded-full" />
+            <div className="w-1 h-1 bg-theme-secondary/30 rounded-full" />
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4" />
               <span>100% gratuit</span>
             </div>
-            <div className="w-1 h-1 bg-white/30 rounded-full" />
+            <div className="w-1 h-1 bg-theme-secondary/30 rounded-full" />
             <div className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4" />
               <span>Désabonnement facile</span>

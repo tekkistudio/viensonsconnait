@@ -34,8 +34,9 @@ export default function MobileWhyUsSection() {
   const handleDiscoverGames = () => {
     router.push('/nos-jeux');
   };
+
   return (
-    <section className="bg-gradient-to-b from-black to-gray-900 py-16">
+    <section className="bg-theme-primary py-16 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -44,16 +45,16 @@ export default function MobileWhyUsSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-theme-primary mb-4">
             Pourquoi Jouer à Nos Jeux ?
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed max-w-2xl mx-auto">
+          <p className="text-theme-secondary text-lg leading-relaxed max-w-2xl mx-auto">
             Nos jeux de cartes ne sont pas comme les autres. Ils sont spécialement conçus 
             pour créer des moments authentiques de connexion avec vos proches.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-6 bg-theme-secondary/5 rounded-3xl p-6">
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon;
             return (
@@ -63,17 +64,17 @@ export default function MobileWhyUsSection() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 hover:bg-white/15 transition-colors"
+                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 hover:bg-theme-secondary/10 transition-colors border border-theme"
               >
                 <div className="flex items-start gap-4">
                   <div className="bg-brand-pink rounded-full p-3 flex-shrink-0">
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold text-lg mb-2">
+                    <h3 className="text-theme-primary font-semibold text-lg mb-2">
                       {benefit.title}
                     </h3>
-                    <p className="text-white/80 leading-relaxed">
+                    <p className="text-theme-secondary leading-relaxed">
                       {benefit.description}
                     </p>
                   </div>
@@ -91,7 +92,7 @@ export default function MobileWhyUsSection() {
           transition={{ delay: 0.8, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <p className="text-white/60 text-sm mb-6">
+          <p className="text-theme-secondary text-sm mb-6">
             Plus de 7 000 personnes nous font déjà confiance
           </p>
           <div className="flex justify-center">

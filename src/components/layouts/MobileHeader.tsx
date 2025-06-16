@@ -115,7 +115,7 @@ export default function MobileHeader() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed right-0 top-0 h-full w-80 bg-brand-blue z-40 border-l border-brand-blue/20"
+                className="fixed right-0 top-0 h-full w-80 bg-header z-40 border-l border-white/20"
               >
                 <div className="p-6">
                   {/* Header du menu */}

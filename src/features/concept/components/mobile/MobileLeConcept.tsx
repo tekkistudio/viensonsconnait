@@ -107,7 +107,7 @@ const stats = [
 
 export default function MobileLeConcept() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+    <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
       <section className="relative min-h-[85vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-12">
         <div className="absolute inset-0 bg-black/50" />
