@@ -1,4 +1,4 @@
-// src/components/layouts/AppLayout.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/components/layouts/AppLayout.tsx - VERSION AVEC LIEN APP STORE
 'use client'
 
 import React from 'react'
@@ -22,12 +22,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ✅ NOUVEAU : Barre d'annonce adaptative */}
+      {/* ✅ NOUVEAU : Barre d'annonce adaptative avec lien App Store */}
       {isMobile ? (
         <MobileAnnouncementBar
-          text="Livraison gratuite à Dakar 🇸🇳 | Livraison disponible à Abidjan 🇨🇮"
+          text="🌟 Téléchargez notre App Mobile 📲"
           phone="221781362728"
           whatsapp="221781362728"
+          href="https://apps.apple.com/app/viensonsconnait/id6464125284"
+          linkText="🌟 Téléchargez notre App Mobile 📲"
         />
       ) : (
         <AnnouncementBar

@@ -156,16 +156,15 @@ const ChatContainer = ({
 
 Je vois que vous vous intéressez à notre jeu **${product.name}** !
 
-✨ Je peux vous aider à :
-- **Commander rapidement** (moins de 60 secondes)
+✨ Je peux :
+- Vous aider à **commander rapidement** (moins de 60 secondes)
 - **Répondre à vos questions**
-- **Vous conseiller** sur l'utilisation
+- **Vous expliquer** comment y jouer
 
 Que souhaitez-vous faire ?`,
                 choices: [
                   '⚡ Commander rapidement',
                   '❓ Poser une question',
-                  '📦 Infos livraison',
                   '💬 En savoir plus le jeu'
                 ],
                 assistant: {
@@ -249,13 +248,13 @@ Que souhaitez-vous faire ?`,
     if (content.includes('Poser une question') || content.includes('❓')) {
       return {
         type: 'assistant',
-        content: `🤔 **Parfait !** Posez-moi toutes vos questions sur le jeu **${product.name}**.
+        content: `☺️ Parfait ! Posez-moi toutes vos questions sur le jeu **${product.name}**.
 
 Je peux vous expliquer :
-- Comment ça fonctionne
+- Comment y jouer
 - Pour qui c'est adapté
 - Les bénéfices pour vous
-- Les témoignages clients
+- Ce que nos clients en disent
 
 Qu'est-ce qui vous intéresse le plus ?`,
         choices: [
@@ -309,16 +308,16 @@ ${productData.game_rules}
 
 🎯 **Prêt(e) à vivre cette expérience ?**`;
         } else {
-          console.log('⚠️ Pas de règles définies pour ce produit');
+          console.log('⚠️ Pas de règles définies pour ce jeu');
           gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
 
 📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
 
 En attendant, voici ce que vous devez savoir :
-• Ce jeu est conçu pour renforcer les relations
+• Ce jeu est conçu pour renforcer vos relations
 • Il se joue en groupe (2 personnes minimum)
-• Chaque partie dure environ 30-60 minutes
-• Aucune préparation spéciale requise
+• La durée de jeu dépend essentiellement des joueurs
+• L'objectif est d'avoir des conversations significatives
 
 📞 **Pour les règles complètes, contactez-nous :**
 • WhatsApp : +221 78 136 27 28
@@ -424,7 +423,7 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
         deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
         deliveryContent += `💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       } else {
-        deliveryContent += `📍 **Zones principales :**\n• Dakar : Gratuit\n• Autres villes Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
+        deliveryContent += `📍 **Zones principales :**\n• Dakar : Gratuit\n• Autres villes du Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
       }
       
       deliveryContent += `Voulez-vous commander maintenant ?`;
@@ -766,8 +765,8 @@ ${productData.game_rules}
 En attendant, voici ce que vous devez savoir :
 • Ce jeu est conçu pour renforcer les relations
 • Il se joue en groupe (2 personnes minimum)
-• Chaque partie dure environ 30-60 minutes
-• Aucune préparation spéciale requise
+• La durée d'une partie dépend des joueurs
+• L'objectif est d'avoir des conversations significatives
 
 📞 **Pour les règles complètes, contactez-nous :**
 • WhatsApp : +221 78 136 27 28

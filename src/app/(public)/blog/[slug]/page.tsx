@@ -1,6 +1,6 @@
-// app/blog/[slug]/page.tsx
+// app/blog/[slug]/page.tsx - VERSION MISE À JOUR
 import { Metadata } from 'next';
-import BlogPost from '../../../../features/blog/components/BlogPost';
+import { AdaptiveBlogPost } from '../../../../features/blog/components/AdaptiveBlogPost';
 import { blogService } from '../../../../features/blog/services/blogService';
 
 interface Props {
@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: article?.excerpt || `Article du blog ${SITE_NAME}`,
       type: 'article',
       url: `https://viens-on-sconnait.com/blog/${params.slug}`,
+      images: article?.image ? [{ url: article.image }] : [],
     },
   };
 }
@@ -29,5 +30,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogArticlePage({ params }: Props) {
   const { slug } = params;
   
-  return <BlogPost slug={slug} />;
+  return <AdaptiveBlogPost slug={slug} />;
 }

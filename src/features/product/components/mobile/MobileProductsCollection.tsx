@@ -1,12 +1,13 @@
-// src/features/product/components/mobile/MobileProductsCollection.tsx
+// src/features/product/components/mobile/MobileProductsCollection.tsx - VERSION AMÉLIORÉE
 "use client"
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, Grid, List, Heart, Star } from "lucide-react";
+import { Search, Filter, Grid, List, Star, ShoppingBag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { productService } from '@/lib/services/product.service';
+import { productStatsService } from '@/lib/services/product-stats.service';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { getProductImages, generateImageProps } from '@/utils/image';
 import type { Product } from '@/types/product';
@@ -26,11 +27,16 @@ const sortOptions = [
   { id: "popular", name: "Populaire", icon: "🔥" }
 ];
 
+interface ProductWithSales extends Product {
+  salesCount?: number;
+  averageRating?: number;
+}
+
 export default function MobileProductsCollection() {
   const router = useRouter();
   const { convertPrice } = useCountryStore();
   
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithSales[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -45,7 +51,31 @@ export default function MobileProductsCollection() {
       try {
         const data = await productService.getAllProducts();
         const activeProducts = data.filter(p => p.status === 'active');
-        setProducts(activeProducts);
+        
+        // ✅ NOUVEAU: Charger les stats de ventes pour chaque produit
+        const productsWithSales = await Promise.all(
+          activeProducts.map(async (product) => {
+            try {
+              // Récupérer les stats de ventes depuis le service
+              const stats = await productStatsService.getProductStats(product.id);
+              
+              return {
+                ...product,
+                salesCount: stats.sold || product.stats?.sold || 0,
+                averageRating: product.stats?.satisfaction || 5
+              };
+            } catch (error) {
+              console.error(`Error loading sales for product ${product.id}:`, error);
+              return {
+                ...product,
+                salesCount: product.stats?.sold || 0,
+                averageRating: product.stats?.satisfaction || 5
+              };
+            }
+          })
+        );
+        
+        setProducts(productsWithSales);
       } catch (err) {
         setError('Erreur lors du chargement des produits');
         console.error(err);
@@ -84,7 +114,7 @@ export default function MobileProductsCollection() {
         case "price-desc":
           return b.price - a.price;
         case "popular":
-          return (b.stats?.sold || 0) - (a.stats?.sold || 0);
+          return (b.salesCount || 0) - (a.salesCount || 0);
         default:
           return (a.display_order || 999) - (b.display_order || 999);
       }
@@ -321,7 +351,7 @@ export default function MobileProductsCollection() {
                   }`}
                 >
                   {viewMode === 'grid' ? (
-                    // Grid View
+                    // Grid View - ✅ AMÉLIORÉ: Sans heart + avec ventes
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden border border-white/10">
                       <div className="relative aspect-[3/4]">
                         <Image
@@ -339,13 +369,6 @@ export default function MobileProductsCollection() {
                             </span>
                           </div>
                         )}
-                        
-                        {/* Heart Icon */}
-                        <div className="absolute top-2 right-2">
-                          <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
-                            <Heart className="w-4 h-4 text-white/80" />
-                          </div>
-                        </div>
                       </div>
                       
                       <div className="p-3">
@@ -359,17 +382,17 @@ export default function MobileProductsCollection() {
                           </p>
                         )}
                         
-                        {/* Rating */}
-                        <div className="flex items-center gap-1 mt-2">
-                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-white/60 text-xs">
-                            {product.stats?.satisfaction || 5}/5
-                          </span>
+                        {/* ✅ NOUVEAU: Affichage des stats des ventes */}
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1 text-white/60 text-xs">
+                            <ShoppingBag className="w-3 h-3" />
+                            <span>{product.salesCount?.toLocaleString() || '0'} vendus</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    // List View
+                    // List View - ✅ AMÉLIORÉ: Sans heart + avec ventes
                     <div className="flex gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                       <div className="relative w-20 h-24 flex-shrink-0">
                         <Image
@@ -396,11 +419,11 @@ export default function MobileProductsCollection() {
                             </span>
                           )}
                           
-                          <div className="flex items-center gap-1">
-                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-white/60 text-xs">
-                              {product.stats?.satisfaction || 5}/5
-                            </span>
+                          <div className="flex items-center gap-3 text-white/60 text-xs">
+                            <div className="flex items-center gap-1">
+                              <ShoppingBag className="w-3 h-3" />
+                              <span>{product.salesCount?.toLocaleString() || '0'} vendus</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -422,14 +445,14 @@ export default function MobileProductsCollection() {
       >
         <div className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
           <h3 className="text-white text-xl font-bold mb-2">
-            Besoin d'aide pour choisir ?
+            Vous ne savez pas quel jeu choisir ?
           </h3>
           <p className="text-white/70 mb-4">
-            Cliquez sur un jeu et discutez avec Rose, votre assistante
+            Cliquez sur un jeu et posez vos questions à Rose, votre assistante d'achat.
           </p>
           <div className="flex items-center justify-center gap-2 text-brand-pink">
-            <Heart className="w-5 h-5" />
-            <span className="text-sm font-medium">+ de 7000 jeux vendus</span>
+            <ShoppingBag className="w-5 h-5" />
+            <span className="text-sm font-medium">Plus de 7000 jeux vendus</span>
           </div>
         </div>
       </motion.div>

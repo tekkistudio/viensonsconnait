@@ -2,7 +2,7 @@
 export interface Author {
   id: number;
   name: string;
-  role: string;
+  role?: string;
   image: string;
   bio?: string;
 }

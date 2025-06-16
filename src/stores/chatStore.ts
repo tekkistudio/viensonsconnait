@@ -1,11 +1,11 @@
-// src/stores/chatStore.ts - VERSION CORRIGÉE ANTI-BOUCLE INFINIE
+// src/stores/chatStore.ts - CORRECTION MESSAGE DUPLIQUÉ
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ChatMessage, ConversationStep, ChatOrderData } from '@/types/chat';
 import type { PaymentProvider } from '@/types/order';
 import { v4 as uuidv4 } from 'uuid';
 
-// ✅ INTERFACES COMPLÈTES
+// Interfaces complètes (maintenir les mêmes)
 interface PaymentState {
   selectedMethod: PaymentProvider | null;
   status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
@@ -42,33 +42,21 @@ interface SessionStats {
 }
 
 interface ChatState {
-  // État principal
   sessionId: string;
   messages: ChatMessage[];
   isTyping: boolean;
   currentStep: ConversationStep | null;
-  
-  // État de commande
   orderData: Partial<ChatOrderData>;
   isExpressMode: boolean;
-  
-  // États de paiement
   payment: PaymentState;
   paymentModal: PaymentModalState;
-  
-  // Contexte de conversation élargi
   conversationContext: ConversationContext;
-  
-  // Statistiques de session
   sessionStats: SessionStats;
-  
-  // Métadonnées
   productId: string | null;
   storeId: string | null;
   startedAt: string;
   lastActivity: string;
   
-  // Flags d'état
   flags: {
     hasError: boolean;
     stockReserved: boolean;
@@ -108,11 +96,19 @@ interface ChatState {
 }
 
 // Constantes
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 heures
-const CONTINUE_MESSAGE_THRESHOLD = 10 * 60 * 1000; // 10 minutes
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+const CONTINUE_MESSAGE_THRESHOLD = 10 * 60 * 1000;
 const MAX_STORED_MESSAGES = 100;
 
-// ✅ STORAGE SÉCURISÉ SIMPLIFIÉ
+// ✅ SOLUTION ANTI-DUPLICATA: Cache global des messages ajoutés
+const addedMessageCache = new Set<string>();
+
+// ✅ FONCTION: Générer un ID unique pour les messages
+const generateMessageId = (message: ChatMessage): string => {
+  return `${message.type}-${message.content.substring(0, 50)}-${message.timestamp}`;
+};
+
+// Storage sécurisé
 const safeStorage = {
   getItem: (name: string): string | null => {
     try {
@@ -126,7 +122,7 @@ const safeStorage = {
   setItem: (name: string, value: string): void => {
     try {
       if (typeof window === 'undefined' || !value || value === 'undefined') return;
-      JSON.parse(value); // Validation JSON
+      JSON.parse(value);
       window.sessionStorage.setItem(name, value);
     } catch (error) {
       console.warn(`Storage error for ${name}:`, error);
@@ -197,10 +193,25 @@ export const useChatStore = create<ChatState>()(
         showSessionRestored: false
       },
 
-      // ✅ CORRECTION CRITIQUE: initializeSession sans boucles
+      // ✅ CORRECTION: initializeSession avec protection globale
       initializeSession: (productId?: string, storeId?: string, providedSessionId?: string) => {
         const state = get();
         const now = new Date().toISOString();
+        
+        // ✅ CLÉ GLOBALE pour éviter les initialisations multiples
+        const globalInitKey = `vosc-init-${productId}-${storeId}`;
+        
+        // Vérifier si l'initialisation est déjà en cours globalement
+        if (typeof window !== 'undefined') {
+          const isAlreadyInitializing = window.sessionStorage.getItem(globalInitKey);
+          if (isAlreadyInitializing === 'true') {
+            console.log('🚫 Initialization already in progress, skipping');
+            return;
+          }
+          
+          // Marquer l'initialisation comme en cours
+          window.sessionStorage.setItem(globalInitKey, 'true');
+        }
         
         // Vérifier session existante
         const existingSession = state.messages.length > 0;
@@ -215,6 +226,11 @@ export const useChatStore = create<ChatState>()(
             lastActivity: now,
             flags: { ...state.flags, isInitialized: true }
           });
+          
+          // Nettoyer le flag d'initialisation
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem(globalInitKey);
+          }
           return;
         }
         
@@ -271,33 +287,57 @@ export const useChatStore = create<ChatState>()(
             showSessionRestored: false
           }
         });
+        
+        // ✅ NETTOYER LE FLAG D'INITIALISATION après un délai
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem(globalInitKey);
+          }
+        }, 2000);
       },
 
-      // ✅ CORRECTION CRITIQUE: addMessage sans condition de re-render
+      // ✅ CORRECTION ANTI-DUPLICATA: addMessage avec cache global
       addMessage: (message: ChatMessage) => {
         if (!message?.content || !message?.type) {
           console.warn('⚠️ Invalid message:', message);
           return;
         }
 
+        // ✅ GÉNÉRATION ID UNIQUE POUR LE MESSAGE
+        const messageId = generateMessageId(message);
+        
+        // ✅ VÉRIFIER CACHE GLOBAL
+        if (addedMessageCache.has(messageId)) {
+          console.log('🚫 Message already added to cache, ignoring duplicate:', messageId);
+          return;
+        }
+
         set((state) => {
-          // Vérifier doublons
+          // ✅ DOUBLE VÉRIFICATION: Cache + état actuel
           const exists = state.messages.some(
-            m => m.timestamp === message.timestamp && m.content === message.content
+            m => generateMessageId(m) === messageId
           );
           
           if (exists) {
-            console.log('⚠️ Duplicate message ignored');
-            return state; // Retourner l'état actuel sans modification
+            console.log('⚠️ Duplicate message in state, ignored');
+            return state;
           }
 
-          console.log('📝 Adding message:', message.type);
+          console.log('📝 Adding message:', message.type, messageId);
+          
+          // ✅ AJOUTER AU CACHE GLOBAL
+          addedMessageCache.add(messageId);
+          
+          // ✅ NETTOYER LE CACHE APRÈS 5 SECONDES
+          setTimeout(() => {
+            addedMessageCache.delete(messageId);
+          }, 5000);
           
           const now = new Date().toISOString();
           const isUserMessage = message.type === 'user';
           const newMessages = [...state.messages, message].slice(-MAX_STORED_MESSAGES);
           
-          // Construire le nouvel état en une seule fois
+          // Construire le nouvel état
           const newState: ChatState = {
             ...state,
             messages: newMessages,
@@ -337,7 +377,7 @@ export const useChatStore = create<ChatState>()(
         });
       },
 
-      // Actions simplifiées
+      // Actions simplifiées (garder les mêmes que dans la version précédente)
       updateTypingStatus: (isTyping: boolean) => 
         set(state => state.isTyping !== isTyping ? { 
           isTyping, 
@@ -437,11 +477,17 @@ export const useChatStore = create<ChatState>()(
       dismissSessionRestored: () => 
         set(state => ({ flags: { ...state.flags, showSessionRestored: false } })),
 
-      cleanup: () => 
-        set(state => ({ flags: { ...state.flags, isInitialized: false } })),
+      cleanup: () => {
+        // ✅ NETTOYER LE CACHE GLOBAL
+        addedMessageCache.clear();
+        set(state => ({ flags: { ...state.flags, isInitialized: false } }));
+      },
 
       clearSession: () => {
         const now = new Date().toISOString();
+        // ✅ NETTOYER LE CACHE GLOBAL
+        addedMessageCache.clear();
+        
         set({
           sessionId: uuidv4(),
           messages: [],
@@ -537,7 +583,7 @@ export const useChatStore = create<ChatState>()(
   )
 );
 
-// Hooks utilitaires
+// ✅ HOOKS UTILITAIRES (garder les mêmes)
 export const useChatConversation = () => {
   const store = useChatStore();
   return {

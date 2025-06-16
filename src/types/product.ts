@@ -1,4 +1,4 @@
-// src/types/product.ts
+// src/types/product.ts - VERSION AVEC TAGS
 
 export interface CloudinaryImage {
   url: string;
@@ -55,6 +55,8 @@ export interface Product {
   metadata: ProductMetadata;
   benefits: string[];
   topics: string[];
+  // ✅ NOUVEAU: Propriété tags ajoutée
+  tags?: string[];
   howToPlay?: string;
   testimonials?: string;
   stats: {
@@ -104,6 +106,8 @@ export interface AdminProduct {
   stock_quantity: number;
   media?: MediaUpload[];
   game_rules?: string; 
+  // ✅ NOUVEAU: Tags pour l'admin
+  tags?: string[];
   createdAt?: string;
   updatedAt?: string;
   // ✅ AJOUT : Ordre d'affichage direct
@@ -119,6 +123,8 @@ export interface DatabaseProduct {
   compare_at_price?: number;
   status: 'active' | 'draft' | 'archived';
   display_order?: number;
+  // ✅ NOUVEAU: Tags dans la base de données
+  tags?: string[];
   metadata?: {
     category?: string;
     players?: string;

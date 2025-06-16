@@ -1,16 +1,25 @@
-// src/features/home/components/mobile/MobileAnnouncementBar.tsx
+// src/features/home/components/mobile/MobileAnnouncementBar.tsx - VERSION AVEC LIEN
 "use client"
 
-import { Phone, MessageSquare, X } from "lucide-react";
+import { Phone, MessageSquare, X, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface MobileAnnouncementBarProps {
   text: string;
   phone: string;
   whatsapp: string;
+  // ✅ NOUVEAU: Props pour le lien
+  href?: string;
+  linkText?: string;
 }
 
-export function MobileAnnouncementBar({ text, phone, whatsapp }: MobileAnnouncementBarProps) {
+export function MobileAnnouncementBar({ 
+  text, 
+  phone, 
+  whatsapp,
+  href = "https://apps.apple.com/app/viensonsconnait/id6464125284",
+  linkText = "🌟 Téléchargez notre App Mobile 📲"
+}: MobileAnnouncementBarProps) {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -28,6 +37,14 @@ export function MobileAnnouncementBar({ text, phone, whatsapp }: MobileAnnouncem
     window.dispatchEvent(new CustomEvent('announcementBarClosed'));
   };
 
+  // ✅ NOUVEAU: Gestion du clic sur la barre
+  const handleBarClick = () => {
+    if (href) {
+      // Ouvrir le lien dans un nouvel onglet
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (!isVisible) return null;
 
   const formattedPhone = phone.replace(/(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})/, "+$1 $2 $3 $4 $5");
@@ -36,11 +53,17 @@ export function MobileAnnouncementBar({ text, phone, whatsapp }: MobileAnnouncem
     <div className="bg-gradient-to-r from-brand-pink to-red-500 text-white relative z-50">
       <div className="px-4 py-2">
         <div className="flex items-center justify-between">
-          {/* Texte condensé pour mobile */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* ✅ AMÉLIORATION: Zone cliquable pour le lien */}
+          <div 
+            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={handleBarClick}
+          >
             <span className="text-sm font-medium truncate">
-              🌟 Téléchargez notre App Mobile 📲
+              {linkText}
             </span>
+            {href && (
+              <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-80" />
+            )}
           </div>
 
           {/* Actions */}
@@ -52,13 +75,17 @@ export function MobileAnnouncementBar({ text, phone, whatsapp }: MobileAnnouncem
               rel="noopener noreferrer"
               className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
               aria-label="WhatsApp"
+              onClick={(e) => e.stopPropagation()} // Empêcher la propagation vers le clic de la barre
             >
               <MessageSquare className="w-4 h-4" />
             </a>
 
             {/* Bouton fermer */}
             <button
-              onClick={handleClose}
+              onClick={(e) => {
+                e.stopPropagation(); // Empêcher la propagation vers le clic de la barre
+                handleClose();
+              }}
               className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
               aria-label="Fermer"
             >

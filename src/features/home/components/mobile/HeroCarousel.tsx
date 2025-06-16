@@ -1,9 +1,9 @@
-// src/features/home/components/mobile/HeroCarousel.tsx - VERSION AVEC DEBUG
+// src/features/home/components/mobile/HeroCarousel.tsx - VERSION CORRIGÉE TYPESCRIPT
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react'; // ✅ CORRECTION 1: Import React explicite
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Info, ChevronDown, Eye } from 'lucide-react';
+import { Play, ChevronDown, Eye, ShoppingBag } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import useCountryStore from '@/core/hooks/useCountryStore';
@@ -18,13 +18,17 @@ interface HeroCarouselProps {
   className?: string;
 }
 
+// ✅ CORRECTION 2: Interface pour Product avec tags
+interface ProductWithTags extends Product {
+  tags?: string[];
+}
+
 export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
   const router = useRouter();
   const { convertPrice } = useCountryStore();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithTags[]>([]); // ✅ CORRECTION 3: Type avec tags
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [showProductInfo, setShowProductInfo] = useState(false);
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -62,7 +66,7 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
         console.log('🎮 Products loaded for hero:', featuredProducts.map(p => ({
           name: p.name,
           category: p.category,
-          metadataCategory: p.metadata?.category
+          tags: (p as any).tags // Type assertion temporaire
         })));
         
         setProducts(featuredProducts);
@@ -113,8 +117,14 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     }
   };
 
-  const handleProductClick = (product: Product) => {
+  // ✅ NOUVEAU: Navigation vers page produit
+  const handleDiscoverProduct = (product: Product) => {
     router.push(`/products/${product.slug || product.id}`);
+  };
+
+  // ✅ NOUVEAU: Navigation vers tous les jeux
+  const handleViewAllGames = () => {
+    router.push('/nos-jeux');
   };
 
   if (isLoading) {
@@ -134,6 +144,30 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
   const currentProduct = products[currentIndex];
   const heroImagePath = getHeroImage(currentProduct);
   const formattedPrice = convertPrice(currentProduct.price)?.formatted;
+  
+  // ✅ NOUVEAU: Fonction de calcul dynamique de la réduction
+  const calculateDiscountPercentage = (originalPrice: number, currentPrice: number): number | null => {
+    // Vérifier que les prix sont valides
+    if (!originalPrice || !currentPrice || originalPrice <= currentPrice) {
+      return null;
+    }
+    
+    // Calculer le pourcentage de réduction
+    const discount = ((originalPrice - currentPrice) / originalPrice) * 100;
+    
+    // Arrondir à l'entier le plus proche
+    return Math.round(discount);
+  };
+
+  // Calcul de la réduction pour le produit actuel
+  const discountPercentage = currentProduct.compareAtPrice 
+    ? calculateDiscountPercentage(currentProduct.compareAtPrice, currentProduct.price)
+    : null;
+
+  // ✅ CORRECTION 4: Tags dynamiques avec typage correct
+  const productTags = (currentProduct as any).tags && Array.isArray((currentProduct as any).tags) && (currentProduct as any).tags.length > 0 
+    ? (currentProduct as any).tags 
+    : ['Conversations', 'Relations', 'Connexion']; // Fallback par défaut
 
   console.log('🖼️ Current hero image path:', heroImagePath);
 
@@ -186,27 +220,24 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
           <div className={`relative z-10 h-full flex flex-col justify-end p-6 ${
             isAnnouncementVisible ? 'pb-20 pt-16' : 'pb-20'
           }`}>
-            {/* Badge */}
-            {currentProduct.badges && currentProduct.badges.length > 0 && (
-              <div className="mb-4">
-                <span className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium">
-                  {currentProduct.badges[0].text}
-                </span>
-              </div>
-            )}
 
             {/* Titre */}
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
               {currentProduct.name}
             </h1>
 
-            {/* Genres/Tags */}
-            <div className="flex items-center gap-2 mb-4 text-white/80">
-              <span className="text-sm">Conversations</span>
-              <span className="w-1 h-1 bg-white/60 rounded-full" />
-              <span className="text-sm">Relations</span>
-              <span className="w-1 h-1 bg-white/60 rounded-full" />
-              <span className="text-sm">Connexion</span>
+            {/* ✅ NOUVEAU: Tags dynamiques depuis la base de données avec typage correct */}
+            <div className="flex items-center gap-2 mb-4 text-white/80 flex-wrap">
+              {productTags.slice(0, 3).map((tag: string, index: number) => ( // ✅ CORRECTION 5: Types explicites
+                <React.Fragment key={tag}>
+                  <span className="text-sm bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full">
+                    {tag}
+                  </span>
+                  {index < Math.min(productTags.length - 1, 2) && (
+                    <span className="w-1 h-1 bg-white/60 rounded-full" />
+                  )}
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Description courte */}
@@ -219,32 +250,41 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
               }
             </p>
 
-            {/* Prix */}
+            {/* ✅ AMÉLIORATION: Prix avec badge de remise dynamique et prix barré */}
             {formattedPrice && (
-              <div className="mb-6">
+              <div className="flex items-center gap-3 mb-6 flex-wrap">
                 <span className="text-2xl font-bold text-white">
                   {formattedPrice}
                 </span>
+                {discountPercentage && discountPercentage > 0 && (
+                  <span className="bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                    -{discountPercentage}%
+                  </span>
+                )}
               </div>
             )}
 
-            {/* Boutons d'action */}
+            {/* ✅ NOUVEAUX: Boutons d'action améliorés */}
             <div className="flex gap-4">
-              <button
-                onClick={() => handleProductClick(currentProduct)}
-                className="flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors"
+              <motion.button
+                onClick={() => handleDiscoverProduct(currentProduct)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors shadow-lg"
               >
-                <Eye className="w-5 h-5 fill-current" />
-                <span>Découvrir</span>
-              </button>
+                <Eye className="w-5 h-5" />
+                <span>Découvrir le jeu</span>
+              </motion.button>
               
-              <button
-                onClick={() => setShowProductInfo(!showProductInfo)}
-                className="flex items-center gap-2 bg-white/20 text-white px-6 py-3 rounded-lg font-semibold hover:bg-white/30 transition-colors backdrop-blur-sm"
+              <motion.button
+                onClick={handleViewAllGames}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 bg-white/20 text-white px-6 py-3 rounded-lg font-semibold hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30"
               >
-                <Info className="w-5 h-5" />
-                <span>Plus d'infos</span>
-              </button>
+                <ShoppingBag className="w-5 h-5" />
+                <span>Tous les jeux</span>
+              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -279,37 +319,6 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
           <ChevronDown className="w-6 h-6" />
         </motion.div>
       </div>
-
-      {/* Info Panel (optionnel) */}
-      <AnimatePresence>
-        {showProductInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            className="absolute inset-x-0 bottom-0 bg-black/95 backdrop-blur-xl p-6 z-30"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold text-white">{currentProduct.name}</h3>
-              <button
-                onClick={() => setShowProductInfo(false)}
-                className="text-white/60 hover:text-white"
-              >
-                <ChevronDown className="w-6 h-6" />
-              </button>
-            </div>
-            <p className="text-white/80 mb-4">
-              {currentProduct.description}
-            </p>
-            <button
-              onClick={() => handleProductClick(currentProduct)}
-              className="w-full bg-brand-pink text-white py-3 rounded-lg font-semibold hover:bg-brand-pink/90 transition-colors"
-            >
-              Voir ce jeu - {formattedPrice}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
