@@ -192,7 +192,7 @@ export default function MobileTestimonialsSection() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
-              className="bg-theme-card backdrop-blur-sm rounded-3xl p-8 border border-theme shadow-lg"
+              className="bg-theme-secondary/5 backdrop-blur-sm rounded-3xl p-8 border border-theme shadow-lg"
             >
               {/* Quote icon */}
               <div className="flex justify-center mb-6">
@@ -235,7 +235,7 @@ export default function MobileTestimonialsSection() {
                 </p>
                 {currentTestimonial.product_name && (
                   <p className="text-brand-pink text-sm font-medium">
-                    Jeu: {currentTestimonial.product_name}
+                    A Propos du Jeu {currentTestimonial.product_name}
                   </p>
                 )}
               </div>

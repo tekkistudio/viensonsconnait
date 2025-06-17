@@ -1,7 +1,7 @@
-// src/features/product/components/mobile/MobileProductPageContent.tsx
+// src/features/product/components/mobile/MobileProductPageContent.tsx 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MessageCircle, 
   Star, 
@@ -28,20 +28,13 @@ import { testimonialsService } from '@/lib/services/testimonials.service';
 import { productStatsService } from '@/lib/services/product-stats.service';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { getProductImages, generateImageProps } from '@/utils/image';
+import { useSafeTheme } from '@/core/context/ThemeContext';
 import type { Product } from '@/types/product';
 import dynamic from 'next/dynamic';
 import MobileRelatedProducts from './MobileRelatedProducts';
 
 // Imports dynamiques
 const MobileChatContainer = dynamic(() => import('../ProductChat/components/MobileChatContainer'), {
-  ssr: false
-});
-
-const ProductTestimonials = dynamic(() => import('../ProductTestimonials'), {
-  ssr: false
-});
-
-const RelatedProducts = dynamic(() => import('../RelatedProducts'), {
   ssr: false
 });
 
@@ -81,6 +74,9 @@ const fallbackTestimonials = [
 export default function MobileProductPageContent({ productId, product }: MobileProductPageContentProps) {
   const router = useRouter();
   const { convertPrice } = useCountryStore();
+  const themeContext = useSafeTheme();
+  const theme = themeContext?.theme || 'light';
+  
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -88,7 +84,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   const [showStats, setShowStats] = useState(true);
   const { setHideDukkaBadge } = useLayoutContext();
   
-  // ✅ NOUVEAU: Stats produit temps réel
+  // Stats produit temps réel
   const [realProductStats, setRealProductStats] = useState({
     sold: product.stats?.sold || 0,
     currentViewers: 1,
@@ -122,18 +118,16 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   const productImages = getProductImages(product);
   const formattedPrice = convertPrice(product.price)?.formatted;
 
-  // ✅ NOUVEAU: Charger les vraies stats produit en temps réel
+  // Charger les vraies stats produit en temps réel
   useEffect(() => {
     const loadRealProductStats = async () => {
       try {
-        // Tracker la vue de produit avec visitor ID
         const visitorId = localStorage.getItem('visitorId') || 
                          `visitor_${Date.now()}_${Math.random()}`;
         localStorage.setItem('visitorId', visitorId);
 
         await productStatsService.trackProductView(product.id, visitorId);
 
-        // Charger les stats initiales
         const stats = await productStatsService.getProductStats(product.id);
         setRealProductStats({
           sold: stats.sold || product.stats?.sold || 0,
@@ -141,7 +135,6 @@ export default function MobileProductPageContent({ productId, product }: MobileP
           loading: false
         });
 
-        // Mettre à jour toutes les 30 secondes
         const interval = setInterval(async () => {
           try {
             const updatedStats = await productStatsService.getProductStats(product.id);
@@ -260,16 +253,29 @@ export default function MobileProductPageContent({ productId, product }: MobileP
     return () => clearInterval(interval);
   }, [testimonials.length]);
 
-  // Gestion du swipe pour la galerie
+  // Navigation simple pour le carousel
+  const handlePrevImage = () => {
+    setCurrentImageIndex(prev => 
+      prev === 0 ? productImages.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex(prev => 
+      prev === productImages.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  // Gestion du swipe
   const handleImageSwipe = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const { offset } = info;
     const swipeThreshold = 50;
     
     if (Math.abs(offset.x) > swipeThreshold) {
-      if (offset.x > 0 && currentImageIndex > 0) {
-        setCurrentImageIndex(prev => prev - 1);
-      } else if (offset.x < 0 && currentImageIndex < productImages.length - 1) {
-        setCurrentImageIndex(prev => prev + 1);
+      if (offset.x > 0) {
+        handlePrevImage();
+      } else {
+        handleNextImage();
       }
     }
   };
@@ -297,19 +303,20 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+    <div className="min-h-screen bg-theme-primary">
       <div className={`${isChatFullscreen ? 'hidden' : 'block'}`}>
         
-        {/* Hero Image Gallery */}
-        <section className="relative h-[70vh] overflow-hidden pt-16">
-          <AnimatePresence mode="wait">
+        {/* 🎯 NOUVEAU CAROUSEL OPTIMISÉ UX MOBILE */}
+        <section className="relative pt-16 bg-theme-primary">
+          
+          {/* Image principale avec swipe */}
+          <div className="relative h-[60vh] min-h-[400px] bg-theme-card">
             <motion.div
               key={currentImageIndex}
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.6 }}
-              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="relative w-full h-full"
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
@@ -323,25 +330,84 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                 priority
               />
               
-              {/* Overlay gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+              {/* Overlay simple */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              
+              {/* Navigation arrows (si plus d'une image) */}
+              {productImages.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-sm rounded-full p-2 z-20 hover:bg-black/60 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-white" />
+                  </button>
+                  
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-sm rounded-full p-2 z-20 hover:bg-black/60 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-white" />
+                  </button>
+                </>
+              )}
+              
+              {/* Indicateur image courante */}
+              {productImages.length > 1 && (
+                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 z-20">
+                  <span className="text-white text-sm font-medium">
+                    {currentImageIndex + 1}/{productImages.length}
+                  </span>
+                </div>
+              )}
             </motion.div>
-          </AnimatePresence>
+          </div>
 
-          {/* Product Info Overlay - VERSION SIMPLIFIÉE AVEC STATS RÉELLES */}
+          {/* 🎯 MINIATURES EN DESSOUS (style e-commerce classique) */}
+          {productImages.length > 1 && (
+            <div className="px-4 py-4 bg-theme-primary">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {productImages.map((image, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      index === currentImageIndex
+                        ? 'border-brand-pink shadow-lg'
+                        : 'border-transparent hover:border-gray-300'
+                    }`}
+                  >
+                    <Image
+                      {...generateImageProps(image, `${product.name} ${index + 1}`)}
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                    {/* Overlay sur image non sélectionnée */}
+                    {index !== currentImageIndex && (
+                      <div className="absolute inset-0 bg-black/30" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Infos produit avec overlay sur l'image */}
           <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.2 }}
+              className="text-white"
             >
               {/* Titre */}
-              <h1 className="text-2xl font-bold text-white mb-3 leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2 leading-tight drop-shadow-lg">
                 {product.name}
               </h1>
 
-              {/* Rating et avis */}
-              <div className="flex items-center gap-4 mb-4">
+              {/* Rating et stats */}
+              <div className="flex items-center gap-4 mb-3">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -349,17 +415,17 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                       className={`w-4 h-4 ${
                         i < Math.round(realTestimonialStats.average)
                           ? 'text-yellow-400 fill-current'
-                          : 'text-gray-600'
+                          : 'text-gray-400'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-theme-secondary text-sm">
+                <span className="text-sm opacity-90 drop-shadow">
                   {realTestimonialStats.count} avis
                 </span>
-                <div className="flex items-center gap-1 text-white/60 text-sm">
+                <div className="flex items-center gap-1 text-sm opacity-75">
                   <ShoppingBag className="w-4 h-4" />
-                  <span>
+                  <span className="drop-shadow">
                     {realProductStats.loading ? (
                       <span className="animate-pulse">...</span>
                     ) : (
@@ -369,78 +435,51 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                 </div>
               </div>
 
-              {/* Prix avec badge de réduction */}
-              <div className="flex items-center gap-3 mb-4">
+              {/* Prix */}
+              <div className="flex items-center gap-3">
                 {formattedPrice && (
-                  <span className="text-3xl font-bold text-white">
+                  <span className="text-2xl md:text-3xl font-bold drop-shadow-lg">
                     {formattedPrice}
                   </span>
                 )}
                 {product.compareAtPrice && product.compareAtPrice > product.price && (
-                  <span className="bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                  <span className="bg-red-600 text-white px-2 py-1 rounded-full text-sm font-medium shadow-lg">
                     -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
                   </span>
                 )}
               </div>
             </motion.div>
           </div>
-
-          {/* Image Navigation */}
-          {productImages.length > 1 && (
-            <>
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
-                {productImages.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentImageIndex 
-                        ? 'bg-white w-8' 
-                        : 'bg-white/40'
-                    }`}
-                  />
-                ))}
-              </div>
-              
-              {currentImageIndex > 0 && (
-                <button
-                  onClick={() => setCurrentImageIndex(prev => prev - 1)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 backdrop-blur-sm rounded-full p-2 z-20"
-                >
-                  <ChevronLeft className="w-6 h-6 text-white" />
-                </button>
-              )}
-              
-              {currentImageIndex < productImages.length - 1 && (
-                <button
-                  onClick={() => setCurrentImageIndex(prev => prev + 1)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 backdrop-blur-sm rounded-full p-2 z-20"
-                >
-                  <ChevronRight className="w-6 h-6 text-white" />
-                </button>
-              )}
-            </>
-          )}
         </section>
 
         {/* Quick Stats avec données réelles temps réel */}
-        <section className="py-6 -mt-8 relative z-10">
+        <section className="py-6">
           <div className="px-6">
             <div className="grid grid-cols-3 gap-4">
               <motion.div 
-                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10 hover:bg-white/15 transition-colors"
+                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
+                  theme === 'light' 
+                    ? 'stats-card-light hover:bg-white' 
+                    : 'stats-card-dark hover:bg-white/20'
+                }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className="flex items-center justify-center gap-1 text-green-400 mb-1">
+                <div className="flex items-center justify-center gap-1 text-green-500 mb-1">
                   <TrendingUp className="w-4 h-4" />
                   <span className="font-bold">{Math.round((realTestimonialStats.average || 4.9) * 10) / 10}/5</span>
                 </div>
-                <span className="text-white/60 text-xs">Satisfaction</span>
+                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
+                  Satisfaction
+                </span>
               </motion.div>
               
               <motion.div 
-                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10 hover:bg-white/15 transition-colors"
+                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
+                  theme === 'light' 
+                    ? 'stats-card-light hover:bg-white' 
+                    : 'stats-card-dark hover:bg-white/20'
+                }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -452,11 +491,17 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                     <span className="font-bold">{realProductStats.sold?.toLocaleString() || '0'}</span>
                   )}
                 </div>
-                <span className="text-white/60 text-xs">Ventes</span>
+                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
+                  Ventes
+                </span>
               </motion.div>
               
               <motion.div 
-                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10 hover:bg-white/15 transition-colors"
+                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
+                  theme === 'light' 
+                    ? 'stats-card-light hover:bg-white' 
+                    : 'stats-card-dark hover:bg-white/20'
+                }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -464,12 +509,14 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                   <Users className="w-4 h-4" />
                   <span className="font-bold">{realTestimonialStats.count || 0}</span>
                 </div>
-                <span className="text-white/60 text-xs">Avis</span>
+                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
+                  Avis
+                </span>
               </motion.div>
             </div>
             
-            {/* Indicateur de confiance avec stats temps réel */}
-            <div className="flex items-center justify-center gap-2 mt-4 text-white/50 text-xs">
+            {/* Indicateur de confiance */}
+            <div className="flex items-center justify-center gap-2 mt-4 text-theme-secondary text-xs">
               <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
               <span>
                 {realProductStats.loading ? (
@@ -482,7 +529,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
           </div>
         </section>
 
-        {/* CTA Button amélioré avec feedback visuel */}
+        {/* CTA Button */}
         <section className="py-6">
           <div className="px-6">
             <motion.button
@@ -491,7 +538,6 @@ export default function MobileProductPageContent({ productId, product }: MobileP
               whileTap={{ scale: 0.98 }}
               className="w-full bg-gradient-to-r from-brand-pink to-red-500 text-white py-4 px-8 rounded-full flex items-center justify-center gap-3 shadow-lg font-bold text-lg relative overflow-hidden"
             >
-              {/* Effet de brillance au survol */}
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                 initial={{ x: '-100%' }}
@@ -509,7 +555,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
             </motion.button>
             
             <div className="text-center mt-3">
-              <p className="text-white/40 text-xs mt-1">
+              <p className="text-theme-secondary text-xs mt-1">
                 Cliquez pour commander ce jeu ou en savoir plus
               </p>
             </div>
@@ -519,9 +565,9 @@ export default function MobileProductPageContent({ productId, product }: MobileP
         {/* Description */}
         <section className="py-6">
           <div className="px-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-              <h3 className="text-white font-bold text-lg mb-3">A Propos de ce Jeu</h3>
-              <p className="text-white/90 leading-relaxed">
+            <div className="bg-theme-card backdrop-blur-sm rounded-xl p-6 border border-theme shadow-sm">
+              <h3 className="text-theme-primary font-bold text-lg mb-3">A Propos de ce Jeu</h3>
+              <p className="text-theme-secondary leading-relaxed">
                 {product.description 
                   ? product.description.length > 300 
                     ? `${product.description.substring(0, 300).trim()}...`
@@ -536,7 +582,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
         {/* Testimonials Carousel */}
         <section className="py-6">
           <div className="px-6">
-            <h3 className="text-white font-bold text-lg mb-4">Ce que disent nos clients</h3>
+            <h3 className="text-theme-primary font-bold text-lg mb-4">Ce que disent nos clients</h3>
             
             <div className="relative">
               <AnimatePresence mode="wait">
@@ -546,7 +592,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -50 }}
                   transition={{ duration: 0.4 }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10"
+                  className="bg-theme-card backdrop-blur-sm rounded-xl p-6 border border-theme shadow-sm"
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <div className="bg-brand-pink rounded-full w-10 h-10 flex items-center justify-center">
@@ -555,16 +601,16 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                       </span>
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold">
+                      <h4 className="text-theme-primary font-semibold">
                         {testimonials[currentTestimonialIndex]?.author_name}
                       </h4>
-                      <p className="text-white/60 text-sm">
+                      <p className="text-theme-secondary text-sm">
                         {testimonials[currentTestimonialIndex]?.author_location}
                       </p>
                     </div>
                   </div>
                   
-                  <p className="text-white/90 mb-4 italic">
+                  <p className="text-theme-primary mb-4 italic">
                     "{testimonials[currentTestimonialIndex]?.content}"
                   </p>
                   
@@ -590,8 +636,8 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                     onClick={() => setCurrentTestimonialIndex(index)}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${
                       index === currentTestimonialIndex 
-                        ? 'bg-white w-6' 
-                        : 'bg-white/40'
+                        ? 'bg-brand-pink w-6' 
+                        : 'bg-theme-secondary/40'
                     }`}
                   />
                 ))}
@@ -601,7 +647,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
         </section>
 
         {/* Related Products Mobile */}
-        <section className="py-8">
+        <section className="py-8 bg-theme-secondary/5">
           <div className="px-6">
             <MobileRelatedProducts
               currentProductId={product.id}

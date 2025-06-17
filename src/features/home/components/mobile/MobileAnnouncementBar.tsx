@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileAnnouncementBar.tsx - VERSION AVEC LIEN
+// src/features/home/components/mobile/MobileAnnouncementBar.tsx - VERSION AVEC HAUTEUR FIXE
 "use client"
 
 import { Phone, MessageSquare, X, ExternalLink } from "lucide-react";
@@ -50,8 +50,8 @@ export function MobileAnnouncementBar({
   const formattedPhone = phone.replace(/(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})/, "+$1 $2 $3 $4 $5");
 
   return (
-    <div className="bg-gradient-to-r from-brand-pink to-red-500 text-white relative z-50">
-      <div className="px-4 py-2">
+    <div className="bg-gradient-to-r from-brand-pink to-red-500 text-white relative z-50 mobile-announcement-bar h-12 flex items-center">
+      <div className="px-4 w-full">
         <div className="flex items-center justify-between">
           {/* ✅ AMÉLIORATION: Zone cliquable pour le lien */}
           <div 

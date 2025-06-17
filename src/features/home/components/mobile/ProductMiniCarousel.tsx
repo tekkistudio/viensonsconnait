@@ -120,7 +120,7 @@ export default function ProductMiniCarousel({
       <div className="p-6">
         {/* ✅ Header avec contrôles de vue */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-semibold">Nos Jeux</h2>
+          <h2 className="text-theme-primary text-lg font-semibold">Nos Jeux</h2>
           <div className="flex items-center gap-3">
             <button 
               onClick={() => router.push('/nos-jeux')}

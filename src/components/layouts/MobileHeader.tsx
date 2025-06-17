@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { CountrySelector } from '@/features/shared/components/CountrySelector';
+import { useSafeTheme } from '@/core/context/ThemeContext';
 
 const navigation = [
   { name: 'Accueil', href: '/' },
@@ -23,6 +24,10 @@ export default function MobileHeader() {
   const [showCountrySelector, setShowCountrySelector] = useState(false);
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
   const { currentCountry } = useCountryStore();
+  
+  // Utilisation du hook sécurisé pour éviter les erreurs
+  const themeContext = useSafeTheme();
+  const theme = themeContext?.theme || 'light'; // Fallback vers 'light' si pas de contexte
 
   // Vérifier si la barre d'annonce est fermée
   useEffect(() => {
@@ -52,14 +57,18 @@ export default function MobileHeader() {
 
   return (
     <>
-      {/* Header principal - POSITIONNÉ DYNAMIQUEMENT */}
+      {/* Header principal - BACKGROUND ADAPTATIF AU THEME */}
       <header 
-        className={`absolute left-0 right-0 z-50 bg-transparent transition-all duration-300 ${
+        className={`absolute left-0 right-0 z-50 transition-all duration-300 ${
           isAnnouncementVisible ? 'top-12' : 'top-0'
+        } ${
+          theme === 'light' 
+            ? 'bg-brand-blue' // Bleu dans le thème clair
+            : 'bg-transparent' // Transparent dans le thème sombre
         }`}
       >
         <div className="flex items-center justify-between px-4 py-3">
-          {/* Logo avec ombre portée forte pour contraste */}
+          {/* Logo avec ombre portée adaptative */}
           <Link href="/" className="flex-shrink-0">
             <Image 
               src="/images/logos/logo-white.svg" 
@@ -67,28 +76,40 @@ export default function MobileHeader() {
               width={120}
               height={36}
               className="h-9 w-auto"
-              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
+              style={{ 
+                filter: theme === 'light' 
+                  ? 'none' // Pas d'ombre sur fond bleu
+                  : 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' // Ombre sur fond transparent
+              }}
               priority
             />
           </Link>
 
-          {/* Actions droite avec ombres fortes */}
+          {/* Actions droite avec styles adaptatifs */}
           <div className="flex items-center gap-3">
-            {/* Country Selector avec ombre */}
+            {/* Country Selector */}
             <button
               onClick={() => setShowCountrySelector(true)}
-              className="flex items-center gap-2 text-white hover:text-theme-secondary transition-colors"
-              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
+              className="flex items-center gap-2 text-white hover:text-brand-pink transition-colors"
+              style={{ 
+                filter: theme === 'light' 
+                  ? 'none' 
+                  : 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' 
+              }}
             >
               <span className="text-lg">{currentCountry?.flag}</span>
               <span className="text-sm font-medium">{currentCountry?.currency?.symbol}</span>
             </button>
 
-            {/* Menu Button avec ombre */}
+            {/* Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-white hover:text-theme-secondary transition-colors"
-              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
+              className="p-2 text-white hover:text-brand-pink transition-colors"
+              style={{ 
+                filter: theme === 'light' 
+                  ? 'none' 
+                  : 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' 
+              }}
               aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -100,7 +121,7 @@ export default function MobileHeader() {
         <AnimatePresence>
           {isMenuOpen && (
             <>
-              {/* Overlay avec opacité réduite */}
+              {/* Overlay */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -109,7 +130,7 @@ export default function MobileHeader() {
                 onClick={() => setIsMenuOpen(false)}
               />
               
-              {/* Menu Panel - FOND BLEU SOLIDE */}
+              {/* Menu Panel */}
               <motion.div
                 initial={{ opacity: 0, x: '100%' }}
                 animate={{ opacity: 1, x: 0 }}
@@ -123,7 +144,7 @@ export default function MobileHeader() {
                     <h2 className="text-white text-lg font-semibold">Menu</h2>
                     <button
                       onClick={() => setIsMenuOpen(false)}
-                      className="p-2 text-theme-secondary hover:text-white transition-colors"
+                      className="p-2 text-brand-pink hover:text-white transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>

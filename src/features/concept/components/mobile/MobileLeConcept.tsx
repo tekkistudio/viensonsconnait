@@ -1,4 +1,4 @@
-// src/features/concept/components/mobile/MobileLeConcept.tsx - VERSION OPTIMISÉE THÈMES
+// src/features/concept/components/mobile/MobileLeConcept.tsx - VERSION AVEC DÉGRADÉS ADAPTATIFS
 "use client"
 
 import { motion } from 'framer-motion';
@@ -108,13 +108,16 @@ const stats = [
 export default function MobileLeConcept() {
   return (
     <div className="min-h-screen bg-theme-primary">
-      {/* Hero Section */}
-      <section className="relative min-h-[85vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-12">
-        <div className="absolute inset-0 bg-theme-primary/50" />
+      {/* Hero Section avec dégradé adaptatif */}
+      <section className="relative min-h-[85vh] overflow-hidden pt-24 pb-12">
+        {/* Dégradé adaptatif selon le thème */}
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-pink/30 via-brand-pink/20 to-brand-blue/30 light:to-brand-blue/30 dark:to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-theme-primary/80" />
+        
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative h-full flex flex-col justify-center px-6 text-center"
+          className="relative h-full flex flex-col justify-center px-6 text-center z-10"
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -133,7 +136,7 @@ export default function MobileLeConcept() {
             <span className="text-brand-pink"> les relations</span> avec vos proches
           </h1>
           
-          <p className="text-theme-secondary text-lg mb-10 max-w-md mx-auto leading-relaxed">
+          <p className="text-theme-primary text-lg mb-10 max-w-md mx-auto leading-relaxed">
             Au-delà de simples moments de divertissement, nos jeux offrent une plateforme 
             ludique pour mieux se connaître.
           </p>
@@ -165,7 +168,7 @@ export default function MobileLeConcept() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-theme-card backdrop-blur-sm rounded-xl p-4 text-center border border-theme shadow-sm"
+                className="bg-theme-secondary/5 backdrop-blur-sm rounded-xl p-4 text-center border border-theme shadow-sm"
               >
                 <div className="text-2xl font-bold text-theme-primary mb-1">
                   {stat.number}
@@ -203,7 +206,7 @@ export default function MobileLeConcept() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme mb-8 shadow-sm"
+            className="bg-theme-secondary/5 backdrop-blur-sm rounded-2xl p-6 border border-theme mb-8 shadow-sm"
           >
             <div className="relative aspect-video rounded-xl overflow-hidden mb-6">
               <Image
@@ -331,7 +334,7 @@ export default function MobileLeConcept() {
       </section>
 
       {/* Values Section */}
-      <section className="py-16">
+      <section className="py-16 bg-theme-secondary/5">
         <div className="px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -387,7 +390,7 @@ export default function MobileLeConcept() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm"
+            className="bg-theme-secondary/5 backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm"
           >
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-theme-primary mb-3">
@@ -441,7 +444,7 @@ export default function MobileLeConcept() {
             <h2 className="text-2xl font-bold text-theme-primary mb-3">
               Prêt à renforcer vos relations ?
             </h2>
-            <p className="text-theme-secondary mb-8 leading-relaxed">
+            <p className="text-theme-primary mb-8 leading-relaxed">
               Choisissez le jeu qui correspond à vos besoins et commencez à créer 
               des moments de connexion authentiques avec vos proches.
             </p>

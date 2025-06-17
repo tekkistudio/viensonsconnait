@@ -86,7 +86,7 @@ export default function MobileWhatsAppSection() {
   };
 
   return (
-    <section className="bg-theme-primary py-16 transition-colors duration-300">
+    <section className="bg-theme-secondary/5 py-16 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

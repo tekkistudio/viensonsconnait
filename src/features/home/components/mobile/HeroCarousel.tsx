@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/HeroCarousel.tsx - VERSION SLIDE + KEN BURNS
+// src/features/home/components/mobile/HeroCarousel.tsx - VERSION FADE AVEC BACKGROUNDS CORRIGÉS
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -22,70 +22,66 @@ interface ProductWithTags extends Product {
   tags?: string[];
 }
 
-// Animation variants pour les transitions modernes
-const slideVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 1000 : -1000,
-    opacity: 0
-  }),
-  center: {
-    zIndex: 1,
-    x: 0,
-    opacity: 1
+// Animation variants pour transition en fondu
+const fadeVariants = {
+  enter: {
+    opacity: 0,
+    scale: 1.05
   },
-  exit: (direction: number) => ({
-    zIndex: 0,
-    x: direction < 0 ? 1000 : -1000,
-    opacity: 0
-  })
+  center: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.8,
+      ease: "easeOut"
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    transition: {
+      duration: 0.4,
+      ease: "easeIn"
+    }
+  }
 };
 
 // Ken Burns effect pour les images
 const kenBurnsVariants = {
   enter: {
-    scale: 1.2,
-    x: 0,
-    y: 0
+    scale: 1.1
   },
   center: {
     scale: 1,
-    x: 0,
-    y: 0,
     transition: {
-      duration: 8,
+      duration: 10,
       ease: "easeOut"
-    }
-  },
-  exit: {
-    scale: 1.1,
-    transition: {
-      duration: 0.6
     }
   }
 };
 
-// Animation pour le contenu qui slide
+// Animation pour le contenu
 const contentVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 300 : -300,
+  enter: {
+    y: 30,
     opacity: 0
-  }),
+  },
   center: {
-    x: 0,
+    y: 0,
     opacity: 1,
     transition: {
-      delay: 0.2,
-      duration: 0.8,
+      delay: 0.3,
+      duration: 0.6,
       ease: "easeOut"
     }
   },
-  exit: (direction: number) => ({
-    x: direction < 0 ? 300 : -300,
+  exit: {
+    y: -30,
     opacity: 0,
     transition: {
-      duration: 0.4
+      duration: 0.3
     }
-  })
+  }
 };
 
 export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
@@ -96,6 +92,7 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true);
   const [direction, setDirection] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
   // Vérifier la visibilité de la barre d'annonce
@@ -128,12 +125,6 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
           .sort((a, b) => (a.display_order || 999) - (b.display_order || 999))
           .slice(0, 5);
         
-        console.log('🎮 Products loaded for hero:', featuredProducts.map(p => ({
-          name: p.name,
-          category: p.category,
-          tags: (p as any).tags
-        })));
-        
         setProducts(featuredProducts);
       } catch (error) {
         console.error('Error loading products:', error);
@@ -144,23 +135,33 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     loadProducts();
   }, []);
 
-  // Navigation avec direction
+  // Navigation avec fondu
   const navigate = useCallback((newDirection: number) => {
+    if (isTransitioning) return; // Empêcher les transitions rapides
+    
+    setIsTransitioning(true);
     setDirection(newDirection);
-    setCurrentIndex(prevIndex => {
-      if (newDirection > 0) {
-        return (prevIndex + 1) % products.length;
-      } else {
-        return (prevIndex - 1 + products.length) % products.length;
-      }
-    });
-  }, [products.length]);
+    
+    setTimeout(() => {
+      setCurrentIndex(prevIndex => {
+        if (newDirection > 0) {
+          return (prevIndex + 1) % products.length;
+        } else {
+          return (prevIndex - 1 + products.length) % products.length;
+        }
+      });
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 500);
+    }, 100);
+  }, [products.length, isTransitioning]);
 
-  // Auto-play avec direction
+  // Auto-play
   const startAutoPlay = useCallback(() => {
     if (autoPlayRef.current) clearInterval(autoPlayRef.current);
     autoPlayRef.current = setInterval(() => {
-      navigate(1); // Toujours vers la droite en auto
+      navigate(1);
     }, AUTO_PLAY_INTERVAL);
   }, [navigate]);
 
@@ -178,17 +179,17 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     return () => stopAutoPlay();
   }, [products.length, startAutoPlay, stopAutoPlay]);
 
-  // Gestion du swipe avec direction
+  // Gestion du swipe
   const handleSwipe = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const { offset } = info;
     const swipeThreshold = SWIPE_THRESHOLD;
     
-    if (Math.abs(offset.x) > swipeThreshold) {
+    if (Math.abs(offset.x) > swipeThreshold && !isTransitioning) {
       stopAutoPlay();
       if (offset.x > 0) {
-        navigate(-1); // Swipe vers la droite = image précédente
+        navigate(-1);
       } else {
-        navigate(1);  // Swipe vers la gauche = image suivante
+        navigate(1);
       }
       setTimeout(startAutoPlay, 3000);
     }
@@ -202,8 +203,10 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     router.push('/nos-jeux');
   };
 
-  // Navigation manuelle avec direction
+  // Navigation manuelle
   const goToSlide = (index: number) => {
+    if (isTransitioning || index === currentIndex) return;
+    
     const newDirection = index > currentIndex ? 1 : -1;
     setDirection(newDirection);
     setCurrentIndex(index);
@@ -248,30 +251,60 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
     ? (currentProduct as any).tags 
     : ['Conversations', 'Relations', 'Connexion'];
 
-  console.log('🖼️ Current hero image path:', heroImagePath);
-
   return (
     <div className={`relative overflow-hidden transition-all duration-300 bg-theme-primary ${
       isAnnouncementVisible ? 'h-[70vh] min-h-[400px]' : 'h-[70vh] min-h-[400px]'
     } ${className}`}>
-      {/* Background avec dégradé adaptatif au thème */}
-      <div className="absolute inset-0 bg-theme-primary" />
       
-      {/* Container pour les slides */}
-      <div className="relative w-full h-full overflow-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+      {/* Container pour les slides - FOND FIXE SANS CLASSE CAROUSEL-NO-FLASH */}
+      <div className="relative w-full h-full bg-theme-primary">
+        {/* Images en arrière-plan avec transition fade */}
+        <div className="absolute inset-0">
+          {products.map((product, index) => {
+            const isActive = index === currentIndex;
+            const imagePath = getHeroImage(product);
+            
+            return (
+              <motion.div
+                key={`bg-${product.id}`}
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ 
+                  opacity: isActive ? 1 : 0,
+                  scale: isActive ? 1 : 1.05
+                }}
+                transition={{ 
+                  duration: 0.8,
+                  ease: "easeInOut"
+                }}
+                style={{ zIndex: isActive ? 1 : 0 }}
+              >
+                <Image
+                  {...generateImageProps(imagePath, product.name, true)}
+                  fill
+                  className="object-cover"
+                  sizes="100vw"
+                  priority={index === 0}
+                />
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Overlay dégradé */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
+
+        {/* Contenu avec animation */}
+        <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
-            custom={direction}
-            variants={slideVariants}
+            variants={contentVariants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.6 }
-            }}
-            className="absolute inset-0"
+            className={`relative z-20 h-full flex flex-col justify-end p-4 ${
+              isAnnouncementVisible ? 'pb-6' : 'pb-6'
+            }`}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.2}
@@ -279,127 +312,97 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
             onTouchStart={stopAutoPlay}
             onTouchEnd={startAutoPlay}
           >
-            {/* Image avec Ken Burns effect */}
-            <motion.div 
-              className="absolute inset-0 w-full h-full"
-              variants={kenBurnsVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <Image
-                {...generateImageProps(heroImagePath, currentProduct.name, true)}
-                fill
-                className="object-cover"
-                sizes="100vw"
-                priority
-                onError={(e) => {
-                  console.error('❌ Image failed to load:', heroImagePath);
-                  const img = e.currentTarget;
-                  img.src = 'https://res.cloudinary.com/dq6pustuw/image/upload/v1/products/placeholder.jpg';
-                }}
-                onLoad={() => {
-                  console.log('✅ Image loaded successfully:', heroImagePath);
-                }}
-              />
-            </motion.div>
+            {/* Titre */}
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">
+              {currentProduct.name}
+            </h1>
 
-            {/* Overlay dégradé */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-            {/* Contenu avec animation indépendante */}
-            <motion.div
-              custom={direction}
-              variants={contentVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              className={`relative z-10 h-full flex flex-col justify-end p-4 ${
-                isAnnouncementVisible ? 'pb-6' : 'pb-6'
-              }`}
-            >
-              {/* Titre */}
-              <motion.h1 
-                className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-              >
-                {currentProduct.name}
-              </motion.h1>
-
-              {/* Tags */}
-              <motion.div 
-                className="flex items-center gap-2 mb-3 text-white/80 flex-wrap"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                {productTags.slice(0, 3).map((tag: string, index: number) => (
-                  <React.Fragment key={tag}>
-                    <span className="text-xs bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full">
-                      {tag}
-                    </span>
-                    {index < Math.min(productTags.length - 1, 2) && (
-                      <span className="w-1 h-1 bg-white/60 rounded-full" />
-                    )}
-                  </React.Fragment>
-                ))}
-              </motion.div>
-
-              {/* Prix */}
-              {formattedPrice && (
-                <motion.div 
-                  className="flex items-center gap-3 mb-4 flex-wrap"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5, duration: 0.6 }}
-                >
-                  <span className="text-xl md:text-2xl font-bold text-white">
-                    {formattedPrice}
+            {/* Tags - AVEC BACKGROUND PRESERVÉ */}
+            <div className="flex items-center gap-2 mb-3 text-white/80 flex-wrap">
+              {productTags.slice(0, 3).map((tag: string, index: number) => (
+                <React.Fragment key={tag}>
+                  <span 
+                    className="text-xs backdrop-blur-sm px-2 py-1 rounded-full"
+                    style={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
+                    {tag}
                   </span>
-                  {discountPercentage && discountPercentage > 0 && (
-                    <span className="bg-red-600 text-white px-2 py-1 rounded-full text-xs font-medium">
-                      -{discountPercentage}%
-                    </span>
+                  {index < Math.min(productTags.length - 1, 2) && (
+                    <span className="w-1 h-1 bg-white/60 rounded-full" />
                   )}
-                </motion.div>
-              )}
+                </React.Fragment>
+              ))}
+            </div>
 
-              {/* Boutons */}
-              <motion.div 
-                className="flex flex-col sm:flex-row gap-3 mb-4"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
+            {/* Prix */}
+            {formattedPrice && (
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <span className="text-xl md:text-2xl font-bold text-white">
+                  {formattedPrice}
+                </span>
+                {discountPercentage && discountPercentage > 0 && (
+                  <span 
+                    className="px-2 py-1 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: '#dc2626' }}
+                  >
+                    -{discountPercentage}%
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Boutons - AVEC BACKGROUNDS PRESERVÉS */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <motion.button
+                onClick={() => handleDiscoverProduct(currentProduct)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-colors shadow-lg text-sm"
+                style={{ 
+                  backgroundColor: '#ffffff',
+                  color: '#000000'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ffffff';
+                }}
               >
-                <motion.button
-                  onClick={() => handleDiscoverProduct(currentProduct)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2.5 rounded-lg font-semibold hover:bg-white/90 transition-colors shadow-lg text-sm"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Découvrir ce jeu</span>
-                </motion.button>
-                
-                <motion.button
-                  onClick={handleViewAllGames}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center gap-2 bg-white/20 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30 text-sm"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Voir tous les jeux</span>
-                </motion.button>
-              </motion.div>
-            </motion.div>
+                <Eye className="w-4 h-4" />
+                <span>Découvrir ce jeu</span>
+              </motion.button>
+              
+              <motion.button
+                onClick={handleViewAllGames}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-colors backdrop-blur-sm border text-sm"
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  color: '#ffffff'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                }}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Voir tous les jeux</span>
+              </motion.button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
       {/* Indicateurs avec animation */}
-      <div className="absolute bottom-4 left-4 flex gap-2 z-20">
+      <div className="absolute bottom-4 left-4 flex gap-2 z-30">
         {products.map((_, index) => (
           <motion.button
             key={index}
@@ -411,12 +414,13 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
             }`}
             whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.9 }}
+            disabled={isTransitioning}
           />
         ))}
       </div>
 
-      {/* Scroll indicator avec animation */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-20">
+      {/* Scroll indicator */}
+      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-30">
         <motion.div
           animate={{ y: [0, 8, 0] }}
           transition={{ repeat: Infinity, duration: 2 }}
@@ -424,31 +428,6 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
         >
           <ChevronDown className="w-5 h-5" />
         </motion.div>
-      </div>
-
-      {/* Navigation arrows (optionnel, masqué par défaut sur mobile) */}
-      <div className="hidden md:block">
-        {currentIndex > 0 && (
-          <motion.button
-            onClick={() => navigate(-1)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 backdrop-blur-sm rounded-full p-3 z-20 hover:bg-black/70 transition-colors"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ChevronDown className="w-6 h-6 text-white rotate-90" />
-          </motion.button>
-        )}
-        
-        {currentIndex < products.length - 1 && (
-          <motion.button
-            onClick={() => navigate(1)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 backdrop-blur-sm rounded-full p-3 z-20 hover:bg-black/70 transition-colors"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ChevronDown className="w-6 h-6 text-white -rotate-90" />
-          </motion.button>
-        )}
       </div>
     </div>
   );

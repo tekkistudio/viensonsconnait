@@ -159,13 +159,16 @@ export default function MobileTemoignages() {
 
   return (
     <div className="min-h-screen bg-theme-primary">
-      {/* Hero Section */}
-      <section className="relative min-h-[60vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-8">
-        <div className="absolute inset-0 bg-theme-primary/50" />
+      {/* Hero Section avec dégradé adaptatif */}
+      <section className="relative min-h-[75vh] overflow-hidden pt-24 pb-12">
+        {/* Dégradé adaptatif selon le thème */}
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-pink/30 via-brand-pink/20 to-brand-blue/30 light:to-brand-blue/30 dark:to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-theme-primary/80" />
+        
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative h-full flex flex-col justify-center px-6 text-center"
+          className="relative h-full flex flex-col justify-center px-6 text-center z-10"
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -184,7 +187,7 @@ export default function MobileTemoignages() {
             <span className="text-brand-pink"> clients</span>
           </h1>
           
-          <p className="text-theme-secondary text-lg mb-8 max-w-md mx-auto leading-relaxed">
+          <p className="text-theme-primary text-lg mb-8 max-w-md mx-auto leading-relaxed">
             Découvrez les expériences authentiques de personnes qui ont renforcé leurs relations
           </p>
 
@@ -391,7 +394,7 @@ export default function MobileTemoignages() {
               >
                 <button
                   onClick={handleLoadMore}
-                  className="bg-theme-card backdrop-blur-sm text-theme-primary px-6 py-3 rounded-full font-semibold border border-theme hover:bg-theme-secondary/10 transition-colors flex items-center gap-2 mx-auto shadow-sm"
+                  className="bg-theme-secondary/5 backdrop-blur-sm text-theme-primary px-6 py-3 rounded-full font-semibold border border-theme hover:bg-theme-secondary/10 transition-colors flex items-center gap-2 mx-auto shadow-sm"
                 >
                   <span>Voir plus de témoignages</span>
                   <ChevronDown className="w-4 h-4" />
@@ -421,20 +424,20 @@ export default function MobileTemoignages() {
 
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-brand-pink">7000+</div>
-              <div className="text-theme-secondary text-sm">Jeux vendus</div>
+              <div className="text-2xl font-bold text-brand-pink">+7000</div>
+              <div className="text-theme-primary text-sm">Jeux vendus</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-brand-blue">98%</div>
-              <div className="text-theme-secondary text-sm">Satisfaction</div>
+              <div className="text-2xl font-bold text-theme-primary">98%</div>
+              <div className="text-theme-primary text-sm">Taux de Satisfaction</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-brand-pink">4.9/5</div>
-              <div className="text-theme-secondary text-sm">Note moyenne</div>
+              <div className="text-theme-primary text-sm">Note moyenne</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-theme-secondary text-sm">
+          <div className="flex items-center justify-center gap-2 text-theme-primary text-sm">
             <Sparkles className="w-4 h-4 text-brand-pink" />
             <span>Rejoignez l'aventure dès aujourd'hui</span>
           </div>

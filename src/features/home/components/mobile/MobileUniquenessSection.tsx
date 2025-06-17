@@ -17,7 +17,7 @@ const stats = [
     icon: Heart,
     number: "98%",
     label: "Satisfaction",
-    sublabel: "Clients satisfaits",
+    sublabel: "sur +5000 clients",
     color: "from-pink-500 to-red-500"
   },
   {
@@ -68,7 +68,7 @@ export default function MobileUniquenessSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
-                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-theme-secondary/10 transition-all border border-theme shadow-sm hover:shadow-lg"
+                className="bg-theme-secondary/5 backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-theme-secondary/10 transition-all border border-theme shadow-sm hover:shadow-lg"
               >
                 <div className={`bg-gradient-to-r ${stat.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg`}>
                   <Icon className="w-8 h-8 text-white" />

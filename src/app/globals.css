@@ -32,6 +32,156 @@
   }
 }
 
+@layer utilities {
+  /* ===== DÉGRADÉS ADAPTATIFS BRAND ===== */
+  
+  /* Dégradé principal hero - Rose vers Bleu en clair, Rose vers Noir en sombre */
+  .hero-gradient {
+    background: linear-gradient(
+      135deg, 
+      rgba(255, 126, 147, 0.3) 0%, 
+      rgba(19, 45, 93, 0.3) 100%
+    );
+  }
+  
+  .dark .hero-gradient {
+    background: linear-gradient(
+      135deg, 
+      rgba(255, 126, 147, 0.4) 0%, 
+      rgba(0, 0, 0, 0.7) 100%
+    );
+  }
+  
+  /* Dégradé hero alternatif */
+  .hero-gradient-alt {
+    background: linear-gradient(
+      45deg, 
+      rgba(255, 126, 147, 0.25) 0%, 
+      rgba(255, 126, 147, 0.15) 50%,
+      rgba(19, 45, 93, 0.25) 100%
+    );
+  }
+  
+  .dark .hero-gradient-alt {
+    background: linear-gradient(
+      45deg, 
+      rgba(255, 126, 147, 0.3) 0%, 
+      rgba(255, 126, 147, 0.1) 50%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+  }
+  
+  /* Overlay pour Hero Sections */
+  .hero-overlay {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      var(--bg-primary) 100%
+    );
+  }
+  
+  .dark .hero-overlay {
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0) 50%,
+      var(--bg-primary) 100%
+    );
+  }
+  
+  /* Classes utilitaires pour les Hero Sections */
+  .hero-section {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .hero-content {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Dégradés pour sections spécifiques */
+  .hero-blog {
+    background: linear-gradient(
+      to right,
+      rgba(255, 126, 147, 0.3) 0%,
+      rgba(19, 45, 93, 0.2) 100%
+    );
+  }
+  
+  .dark .hero-blog {
+    background: linear-gradient(
+      to right,
+      rgba(255, 126, 147, 0.4) 0%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+  }
+  
+  .hero-testimonials {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 126, 147, 0.2) 0%,
+      rgba(255, 126, 147, 0.1) 50%,
+      rgba(19, 45, 93, 0.3) 100%
+    );
+  }
+  
+  .dark .hero-testimonials {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 126, 147, 0.3) 0%,
+      rgba(255, 126, 147, 0.1) 30%,
+      rgba(0, 0, 0, 0.9) 100%
+    );
+  }
+  
+  .hero-products {
+    background: linear-gradient(
+      to right,
+      rgba(255, 126, 147, 0.25) 0%,
+      rgba(19, 45, 93, 0.25) 100%
+    );
+  }
+  
+  .dark .hero-products {
+    background: linear-gradient(
+      to right,
+      rgba(255, 126, 147, 0.35) 0%,
+      rgba(0, 0, 0, 0.7) 100%
+    );
+  }
+}
+
+/* ===== ANIMATIONS POUR LES DÉGRADÉS ===== */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease-in-out infinite;
+}
+
+/* ===== RESPONSIVE POUR MOBILE ===== */
+@media (max-width: 768px) {
+  .hero-gradient,
+  .hero-gradient-alt,
+  .hero-blog,
+  .hero-testimonials,
+  .hero-products {
+    background-attachment: scroll; /* Évite les problèmes sur mobile */
+  }
+}
+
 /* ===== CORRECTIONS CRITIQUES CONTAINER MOBILE ===== */
 @layer base {
   /* Configuration viewport et container fixe */
@@ -937,4 +1087,210 @@ main {
 
 .dark .bg-gradient-to-b.from-theme-primary.via-theme-secondary\/5.to-theme-primary {
   background: linear-gradient(to bottom, #000000 0%, rgba(26, 26, 26, 0.5) 50%, #000000 100%);
+}
+
+/* ===== CORRECTIONS SPÉCIFIQUES POUR LES PROBLÈMES IDENTIFIÉS ===== */
+
+/* Correction du background dégradé MobileProductsCollection */
+@layer utilities {
+  .hero-products-collection {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 126, 147, 0.3) 0%,
+      rgba(19, 45, 93, 0.3) 100%
+    );
+  }
+  
+  .dark .hero-products-collection {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 126, 147, 0.4) 0%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+  }
+  
+  /* Overlay pour carousel produit - adaptatif au thème */
+  .product-carousel-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.3) 50%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+  }
+  
+  .light .product-carousel-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 30%,
+      rgba(0, 0, 0, 0.4) 100%
+    );
+  }
+  
+  .dark .product-carousel-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.3) 50%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+  }
+  
+  /* Texte adaptatif pour carousel produit */
+  .product-carousel-text {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+  
+  .light .product-carousel-text {
+    color: white;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  }
+  
+  .dark .product-carousel-text {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+  
+  /* Correction des transitions de carousel */
+  .carousel-container {
+    background-color: var(--bg-primary) !important;
+  }
+  
+  .carousel-slide {
+    background-color: var(--bg-primary) !important;
+  }
+  
+  /* Stats cards avec meilleur contraste */
+  .stats-card-light {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1a1a1a;
+  }
+  
+  .stats-card-dark {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+  
+  /* Header mobile background fix */
+  .mobile-header-light {
+    background-color: #132D5D !important;
+  }
+  
+  .mobile-header-dark {
+    background-color: transparent !important;
+  }
+  
+  /* Amélioration des transitions pour éviter les flashs blancs */
+  .smooth-carousel-transition {
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Force le background sur tous les containers de carousel */
+  .framer-motion > div {
+    background-color: var(--bg-primary) !important;
+  }
+  
+  /* Correction spécifique pour AnimatePresence */
+  [data-framer-appear-id] {
+    background-color: var(--bg-primary) !important;
+  }
+}
+
+/* ===== KEYFRAMES POUR TRANSITIONS FLUIDES ===== */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+}
+
+/* Classes utilitaires pour les animations fluides */
+.slide-in-right {
+  animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-out-right {
+  animation: slideOutRight 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-out-left {
+  animation: slideOutLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== CORRECTION ESPACE BARRE D'ANNONCE ===== */
+.mobile-announcement-bar {
+  height: 48px; /* Hauteur fixe de la barre */
+}
+
+/* Ajustement du header mobile pour coller à la barre */
+@media (max-width: 768px) {
+  .mobile-header-with-announcement {
+    top: 48px !important; /* Exactement la hauteur de la barre */
+  }
+  
+  .mobile-header-without-announcement {
+    top: 0 !important;
+  }
+}
+
+/* Correction pour les carousels - éliminer complètement les flashs */
+.carousel-no-flash {
+  background-color: var(--bg-primary) !important;
+}
+
+.carousel-no-flash * {
+  background-color: transparent !important;
+}
+
+.carousel-no-flash .framer-motion {
+  background-color: var(--bg-primary) !important;
+}
+
+.carousel-no-flash [data-framer-appear-id] {
+  background-color: var(--bg-primary) !important;
 }
