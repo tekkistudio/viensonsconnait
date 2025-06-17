@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileUniquenessSection.tsx - VERSION AVEC THÈME
+// src/features/home/components/mobile/MobileUniquenessSection.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { motion } from 'framer-motion';
@@ -40,7 +40,7 @@ export default function MobileUniquenessSection() {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <section className="bg-gradient-to-b from-theme-primary to-theme-secondary/10 py-16 transition-colors duration-300">
+    <section className="bg-gradient-to-b from-theme-primary to-theme-secondary/5 py-16 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -68,9 +68,9 @@ export default function MobileUniquenessSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
-                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-theme-secondary/10 transition-all border border-theme"
+                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-theme-secondary/10 transition-all border border-theme shadow-sm hover:shadow-lg"
               >
-                <div className={`bg-gradient-to-r ${stat.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4`}>
+                <div className={`bg-gradient-to-r ${stat.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg`}>
                   <Icon className="w-8 h-8 text-white" />
                 </div>
                 <div className="text-3xl font-bold text-theme-primary mb-2">
@@ -93,7 +93,7 @@ export default function MobileUniquenessSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-theme"
+          className="bg-gradient-to-r from-brand-pink/10 to-brand-blue/10 backdrop-blur-sm rounded-2xl p-6 border border-theme transition-colors duration-300"
         >
           <h3 className="text-theme-primary text-xl font-bold mb-6 text-center">
             Notre Secret ? Une Approche 100% Humaine
@@ -138,8 +138,8 @@ export default function MobileUniquenessSection() {
           transition={{ delay: 0.8, duration: 0.6 }}
           className="text-center mt-8"
         >
-          <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-400 px-4 py-2 rounded-full border border-green-500/30">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/30">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-sm font-medium">Marque de confiance depuis 2022</span>
           </div>
         </motion.div>

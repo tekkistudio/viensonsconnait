@@ -1,4 +1,4 @@
-// src/features/blog/components/mobile/MobileRecommendedArticles.tsx - Articles recommandés mobile
+// src/features/blog/components/mobile/MobileRecommendedArticles.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { useMemo } from 'react';
@@ -50,11 +50,11 @@ export function MobileRecommendedArticles({
           viewport={{ once: true }}
           className="mb-8"
         >
-          <h2 className="text-white text-xl font-bold mb-2 flex items-center gap-2">
+          <h2 className="text-theme-primary text-xl font-bold mb-2 flex items-center gap-2">
             <Star className="w-5 h-5 text-brand-pink" />
             Articles recommandés
           </h2>
-          <p className="text-white/70 text-sm">
+          <p className="text-theme-secondary text-sm">
             D'autres articles qui pourraient vous intéresser
           </p>
         </motion.div>
@@ -72,7 +72,7 @@ export function MobileRecommendedArticles({
                 href={`/blog/${article.slug}`}
                 className="group block"
               >
-                <div className="flex gap-4 bg-white/5 hover:bg-white/10 rounded-xl p-4 border border-white/10 transition-colors">
+                <div className="flex gap-4 bg-theme-card hover:bg-theme-secondary/5 rounded-xl p-4 border border-theme transition-colors shadow-sm hover:shadow-lg">
                   {/* Image */}
                   <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
                     <Image
@@ -90,24 +90,24 @@ export function MobileRecommendedArticles({
                       <span className="bg-brand-blue/20 text-brand-blue px-2 py-1 rounded text-xs font-medium">
                         {article.category}
                       </span>
-                      <span className="text-white/60 text-xs flex items-center gap-1">
+                      <span className="text-theme-secondary text-xs flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {article.readTime}
                       </span>
                     </div>
                     
-                    <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
+                    <h3 className="text-theme-primary font-semibold text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
                       {article.title}
                     </h3>
                     
                     {article.excerpt && (
-                      <p className="text-white/70 text-xs line-clamp-2 mb-2">
+                      <p className="text-theme-secondary text-xs line-clamp-2 mb-2">
                         {article.excerpt}
                       </p>
                     )}
                     
                     <div className="flex items-center justify-between">
-                      <span className="text-white/50 text-xs">
+                      <span className="text-theme-secondary text-xs">
                         {article.date}
                       </span>
                       <div className="flex items-center gap-1 text-brand-pink text-xs group-hover:gap-2 transition-all">
@@ -132,7 +132,7 @@ export function MobileRecommendedArticles({
         >
           <Link
             href="/blog"
-            className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm text-white px-6 py-3 rounded-full hover:bg-white/20 transition-colors border border-white/20"
+            className="inline-flex items-center gap-2 bg-theme-card backdrop-blur-sm text-theme-primary px-6 py-3 rounded-full hover:bg-theme-secondary/10 transition-colors border border-theme shadow-sm hover:shadow-lg"
           >
             <span>Voir tous les articles</span>
             <ArrowRight className="w-4 h-4" />

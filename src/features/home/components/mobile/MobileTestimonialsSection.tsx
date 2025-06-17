@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileTestimonialsSection.tsx - VERSION AVEC THÈME
+// src/features/home/components/mobile/MobileTestimonialsSection.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { useState, useEffect, useRef } from 'react';
@@ -110,7 +110,7 @@ export default function MobileTestimonialsSection() {
     fetchTestimonials();
   }, []);
 
-  // Autoplay
+  // Auto-play
   useEffect(() => {
     if (!isPaused && testimonials.length > 1) {
       intervalRef.current = setInterval(() => {
@@ -139,7 +139,7 @@ export default function MobileTestimonialsSection() {
 
   if (isLoading) {
     return (
-      <section className="bg-theme-secondary/5 py-16 transition-colors duration-300">
+      <section className="bg-gradient-to-r from-theme-secondary/5 to-theme-primary py-16 transition-colors duration-300">
         <div className="container mx-auto px-6">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-brand-pink border-t-transparent rounded-full animate-spin mx-auto" />
@@ -157,7 +157,7 @@ export default function MobileTestimonialsSection() {
 
   return (
     <section 
-      className="bg-theme-primary py-16 transition-colors duration-300"
+      className="bg-gradient-to-r from-theme-secondary/5 to-theme-primary py-16 transition-colors duration-300"
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setTimeout(() => setIsPaused(false), 2000)}
     >
@@ -169,7 +169,7 @@ export default function MobileTestimonialsSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 bg-yellow-500/20 text-yellow-400 px-4 py-2 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-4 py-2 rounded-full mb-6">
             <Star className="w-4 h-4 fill-current" />
             <span className="text-sm font-medium">Témoignages Clients</span>
           </div>
@@ -192,11 +192,11 @@ export default function MobileTestimonialsSection() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
-              className="bg-theme-card backdrop-blur-sm rounded-3xl p-8 border border-theme"
+              className="bg-theme-card backdrop-blur-sm rounded-3xl p-8 border border-theme shadow-lg"
             >
               {/* Quote icon */}
               <div className="flex justify-center mb-6">
-                <div className="bg-brand-pink rounded-full p-3">
+                <div className="bg-brand-pink rounded-full p-3 shadow-lg">
                   <Quote className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -214,7 +214,7 @@ export default function MobileTestimonialsSection() {
                     className={`w-5 h-5 ${
                       i < currentTestimonial.rating
                         ? 'text-yellow-400 fill-current'
-                        : 'text-gray-600'
+                        : 'text-gray-400 dark:text-gray-600'
                     }`}
                   />
                 ))}
@@ -222,7 +222,7 @@ export default function MobileTestimonialsSection() {
 
               {/* Author */}
               <div className="text-center">
-                <div className="bg-brand-blue w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div className="bg-brand-blue w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white text-xl font-bold">
                     {currentTestimonial.author_name[0]}
                   </span>
@@ -247,7 +247,7 @@ export default function MobileTestimonialsSection() {
             <div className="flex items-center justify-between mt-8">
               <button
                 onClick={handlePrevious}
-                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme"
+                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme shadow-sm hover:shadow-lg"
                 aria-label="Témoignage précédent"
               >
                 <ChevronLeft className="w-6 h-6 text-theme-primary" />
@@ -270,7 +270,7 @@ export default function MobileTestimonialsSection() {
 
               <button
                 onClick={handleNext}
-                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme"
+                className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-full p-3 transition-colors border border-theme shadow-sm hover:shadow-lg"
                 aria-label="Témoignage suivant"
               >
                 <ChevronRight className="w-6 h-6 text-theme-primary" />

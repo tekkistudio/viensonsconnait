@@ -77,7 +77,7 @@ export default function MobileHeader() {
             {/* Country Selector avec ombre */}
             <button
               onClick={() => setShowCountrySelector(true)}
-              className="flex items-center gap-2 text-white hover:text-white/80 transition-colors"
+              className="flex items-center gap-2 text-white hover:text-theme-secondary transition-colors"
               style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
             >
               <span className="text-lg">{currentCountry?.flag}</span>
@@ -87,7 +87,7 @@ export default function MobileHeader() {
             {/* Menu Button avec ombre */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-white hover:text-white/80 transition-colors"
+              className="p-2 text-white hover:text-theme-secondary transition-colors"
               style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}
               aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
@@ -123,7 +123,7 @@ export default function MobileHeader() {
                     <h2 className="text-white text-lg font-semibold">Menu</h2>
                     <button
                       onClick={() => setIsMenuOpen(false)}
-                      className="p-2 text-white/70 hover:text-white transition-colors"
+                      className="p-2 text-theme-secondary hover:text-white transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>

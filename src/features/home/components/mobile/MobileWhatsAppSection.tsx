@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileWhatsAppSection.tsx - VERSION AVEC THÈME
+// src/features/home/components/mobile/MobileWhatsAppSection.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { useState } from 'react';
@@ -95,7 +95,7 @@ export default function MobileWhatsAppSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#25D366] rounded-full mb-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#25D366] rounded-full mb-6 shadow-lg">
             <WhatsAppIcon className="w-10 h-10 text-white" />
           </div>
           
@@ -125,9 +125,9 @@ export default function MobileWhatsAppSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
-                className="flex items-center gap-3 bg-theme-card backdrop-blur-sm rounded-xl p-4 border border-theme"
+                className="flex items-center gap-3 bg-theme-card backdrop-blur-sm rounded-xl p-4 border border-theme shadow-sm hover:shadow-lg transition-all duration-300"
               >
-                <div className="bg-[#25D366] rounded-full p-2 flex-shrink-0">
+                <div className="bg-[#25D366] rounded-full p-2 flex-shrink-0 shadow-sm">
                   <Icon className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-theme-primary text-sm font-medium">
@@ -181,7 +181,7 @@ export default function MobileWhatsAppSection() {
                   className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all ${
                     isValid && !isLoading
                       ? 'bg-[#25D366] hover:bg-[#128C7E] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-1'
-                      : 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                      : 'bg-gray-400 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed'
                   }`}
                 >
                   {isLoading ? (
@@ -198,7 +198,7 @@ export default function MobileWhatsAppSection() {
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-red-400 text-sm text-center bg-red-500/10 backdrop-blur-sm rounded-lg p-3 border border-red-500/20"
+                    className="text-red-500 dark:text-red-400 text-sm text-center bg-red-500/10 backdrop-blur-sm rounded-lg p-3 border border-red-500/20"
                   >
                     {error}
                   </motion.p>
@@ -217,7 +217,7 @@ export default function MobileWhatsAppSection() {
               className="text-center max-w-md mx-auto"
             >
               <div className="bg-[#25D366]/20 backdrop-blur-sm rounded-2xl p-8 border border-[#25D366]/30">
-                <div className="bg-[#25D366] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="bg-[#25D366] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                   <Check className="w-8 h-8 text-white" />
                 </div>
                 
@@ -247,7 +247,7 @@ export default function MobileWhatsAppSection() {
           transition={{ delay: 0.8, duration: 0.6 }}
           className="text-center mt-12"
         >
-          <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm">
+          <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm flex-wrap">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span>+ 2 500 membres</span>

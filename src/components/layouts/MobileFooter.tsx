@@ -3,8 +3,7 @@
 
 import { Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { TikTokIcon } from '@/components/icons/TikTokIcon';
-// ✅ TEMPORAIREMENT COMMENTÉ pour éviter l'erreur ThemeProvider
-// import { ThemeToggleWithLabel } from '@/components/ui/ThemeToggle';
+import { ThemeToggleWithLabel } from '@/components/ui/ThemeToggle';
 import Link from "next/link";
 import Image from "next/image";
 
@@ -122,83 +121,13 @@ export default function MobileFooter() {
           </div>
         </div>
 
-        {/* ✅ TEMPORAIREMENT COMMENTÉ : Sélecteur de thème
+        {/* ✅ TEMPORAIREMENT COMMENTÉ : Sélecteur de thème*/}
         <div className="mb-8">
           <h3 className="text-center text-white font-semibold mb-4 text-sm">
             Préférences
           </h3>
           <div className="max-w-xs mx-auto">
             <ThemeToggleWithLabel />
-          </div>
-        </div>
-        */}
-
-        {/* ✅ NOUVEAU : Section temporaire pour le changement de thème (solution de contournement) */}
-        <div className="mb-8">
-          <h3 className="text-center text-white font-semibold mb-4 text-sm">
-            Préférences
-          </h3>
-          <div className="max-w-xs mx-auto">
-            <button 
-              onClick={() => {
-                // Logique temporaire pour changer le thème
-                const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                
-                // Mettre à jour les classes
-                document.documentElement.classList.remove('light', 'dark');
-                document.documentElement.classList.add(newTheme);
-                
-                // Sauvegarder dans localStorage
-                try {
-                  localStorage.setItem('vosc-theme', newTheme);
-                } catch (error) {
-                  console.warn('Cannot save theme to localStorage');
-                }
-                
-                // Mettre à jour les variables CSS
-                const root = document.documentElement;
-                if (newTheme === 'light') {
-                  root.style.setProperty('--bg-primary', '#ffffff');
-                  root.style.setProperty('--bg-secondary', '#f8f9fa');
-                  root.style.setProperty('--text-primary', '#1a1a1a');
-                  root.style.setProperty('--text-secondary', '#6b7280');
-                  root.style.setProperty('--header-bg', '#132D5D');
-                  root.style.setProperty('--footer-bg', '#132D5D');
-                  root.style.setProperty('--card-bg', '#ffffff');
-                  root.style.setProperty('--border-color', '#e5e7eb');
-                } else {
-                  root.style.setProperty('--bg-primary', '#000000');
-                  root.style.setProperty('--bg-secondary', '#1a1a1a');
-                  root.style.setProperty('--text-primary', '#ffffff');
-                  root.style.setProperty('--text-secondary', '#9ca3af');
-                  root.style.setProperty('--header-bg', '#000000');
-                  root.style.setProperty('--footer-bg', '#000000');
-                  root.style.setProperty('--card-bg', 'rgba(255, 255, 255, 0.1)');
-                  root.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.1)');
-                }
-              }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 group w-full text-left"
-            >
-              <div className="flex-shrink-0">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-              
-              <div className="flex-1">
-                <div className="text-white font-medium text-sm">
-                  Changer le thème
-                </div>
-                <div className="text-white/70 text-xs">
-                  Basculer entre clair et sombre
-                </div>
-              </div>
-
-              <div className="flex-shrink-0 w-8 h-4 rounded-full border-2 border-white/40 bg-white/20 relative">
-                <div className="absolute top-0.5 left-0.5 w-2.5 h-2.5 rounded-full bg-white transition-transform duration-300" />
-              </div>
-            </button>
           </div>
         </div>
 

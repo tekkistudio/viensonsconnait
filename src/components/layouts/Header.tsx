@@ -215,7 +215,7 @@ export default function Header() {
                         <Link
                           key={subItem.href}
                           href={subItem.href}
-                          className="flex items-center gap-3 text-white/80 hover:text-brand-pink transition-colors py-2 px-2 rounded-lg hover:bg-white/5"
+                          className="flex items-center gap-3 text-theme-secondary hover:text-brand-pink transition-colors py-2 px-2 rounded-lg hover:bg-white/5"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
@@ -256,7 +256,7 @@ export default function Header() {
                 <div className="flex flex-col items-start">
                   <span className="text-base font-semibold">{currentCountry?.name}</span>
                   {currentCountry?.currency && (
-                    <span className="text-sm text-white/70">Devise: {currentCountry.currency.symbol}</span>
+                    <span className="text-sm text-theme-secondary">Devise: {currentCountry.currency.symbol}</span>
                   )}
                 </div>
               </button>

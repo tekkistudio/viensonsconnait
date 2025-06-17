@@ -44,8 +44,8 @@ function useSafeTheme() {
       root.classList.add(newTheme);
       
       if (newTheme === 'light') {
-        root.style.setProperty('--bg-primary', '#ffffff');
-        root.style.setProperty('--text-primary', '#1a1a1a');
+        root.style.setProperty('--bg-primary', '#132D5D');
+        root.style.setProperty('--text-primary', '#F2F2F2');
         root.style.setProperty('--header-bg', '#132D5D');
         root.style.setProperty('--footer-bg', '#132D5D');
       } else {

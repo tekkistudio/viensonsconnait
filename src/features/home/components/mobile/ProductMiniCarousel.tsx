@@ -116,11 +116,11 @@ export default function ProductMiniCarousel({
   }
 
   return (
-    <div className={`bg-theme-primary border-t border-theme ${className}`}>
+    <div className={`bg-theme-primary border-t border-theme mt-1 ${className}`}>
       <div className="p-6">
         {/* ✅ Header avec contrôles de vue */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-theme-primary text-lg font-semibold">Nos Jeux</h2>
+          <h2 className="text-white text-lg font-semibold">Nos Jeux</h2>
           <div className="flex items-center gap-3">
             <button 
               onClick={() => router.push('/nos-jeux')}
@@ -136,7 +136,7 @@ export default function ProductMiniCarousel({
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'grid' 
                     ? 'bg-brand-pink text-white' 
-                    : 'text-theme-secondary hover:text-theme-primary'
+                    : 'text-theme-secondary hover:text-white'
                 }`}
                 title="Vue grille"
               >
@@ -147,7 +147,7 @@ export default function ProductMiniCarousel({
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'list' 
                     ? 'bg-brand-pink text-white' 
-                    : 'text-theme-secondary hover:text-theme-primary'
+                    : 'text-theme-secondary hover:text-white'
                 }`}
                 title="Vue liste"
               >
@@ -262,7 +262,7 @@ export default function ProductMiniCarousel({
                       
                       {/* Contenu */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-theme-primary font-medium text-sm mb-1 line-clamp-1 group-hover:text-brand-pink transition-colors">
+                        <h4 className="text-white font-medium text-sm mb-1 line-clamp-1 group-hover:text-brand-pink transition-colors">
                           {product.name}
                         </h4>
                         

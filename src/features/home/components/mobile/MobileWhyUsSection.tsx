@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileWhyUsSection.tsx
+// src/features/home/components/mobile/MobileWhyUsSection.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { motion } from 'framer-motion';
@@ -54,34 +54,36 @@ export default function MobileWhyUsSection() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 bg-theme-secondary/5 rounded-3xl p-6">
-          {benefits.map((benefit, index) => {
-            const Icon = benefit.icon;
-            return (
-              <motion.div
-                key={benefit.title}
-                initial={{ opacity: 0, x: -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.15, duration: 0.6 }}
-                className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 hover:bg-theme-secondary/10 transition-colors border border-theme"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="bg-brand-pink rounded-full p-3 flex-shrink-0">
-                    <Icon className="w-6 h-6 text-white" />
+        <div className="bg-theme-secondary/5 dark:bg-theme-card rounded-3xl p-6 backdrop-blur-sm border border-theme transition-colors duration-300">
+          <div className="grid grid-cols-1 gap-6">
+            {benefits.map((benefit, index) => {
+              const Icon = benefit.icon;
+              return (
+                <motion.div
+                  key={benefit.title}
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.15, duration: 0.6 }}
+                  className="bg-theme-card hover:bg-theme-secondary/10 rounded-2xl p-6 transition-all duration-300 border border-theme shadow-sm hover:shadow-md"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="bg-brand-pink rounded-full p-3 flex-shrink-0 shadow-lg">
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-theme-primary font-semibold text-lg mb-2">
+                        {benefit.title}
+                      </h3>
+                      <p className="text-theme-secondary leading-relaxed">
+                        {benefit.description}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-theme-primary font-semibold text-lg mb-2">
-                      {benefit.title}
-                    </h3>
-                    <p className="text-theme-secondary leading-relaxed">
-                      {benefit.description}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
         {/* CTA */}

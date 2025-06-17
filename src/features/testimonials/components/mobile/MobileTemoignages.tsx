@@ -1,4 +1,4 @@
-// src/features/testimonials/components/mobile/MobileTemoignages.tsx
+// src/features/testimonials/components/mobile/MobileTemoignages.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { useState, useEffect, useRef } from 'react';
@@ -147,10 +147,10 @@ export default function MobileTemoignages() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      <div className="min-h-screen bg-theme-primary">
         <div className="relative h-64 bg-gradient-to-r from-brand-pink/20 to-brand-blue/20">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-brand-pink border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
       </div>
@@ -161,7 +161,7 @@ export default function MobileTemoignages() {
     <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
       <section className="relative min-h-[60vh] bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-24 pb-8">
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-theme-primary/50" />
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -173,27 +173,27 @@ export default function MobileTemoignages() {
             transition={{ delay: 0.2 }}
             className="mb-8"
           >
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full mb-8 relative z-10">
+            <div className="inline-flex items-center gap-2 bg-theme-card backdrop-blur-sm text-theme-primary px-4 py-2 rounded-full mb-8 relative z-10 border border-theme">
               <MessageSquare className="w-4 h-4" />
               <span className="text-sm font-medium">Témoignages</span>
             </div>
           </motion.div>
           
-          <h1 className="text-3xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-3xl font-bold text-theme-primary mb-6 leading-tight">
             Ce que disent nos 
             <span className="text-brand-pink"> clients</span>
           </h1>
           
-          <p className="text-white/80 text-lg mb-8 max-w-md mx-auto leading-relaxed">
+          <p className="text-theme-secondary text-lg mb-8 max-w-md mx-auto leading-relaxed">
             Découvrez les expériences authentiques de personnes qui ont renforcé leurs relations
           </p>
 
-          <div className="flex items-center justify-center gap-4 text-white/60 text-sm">
+          <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
               <span>4.9/5 moyenne</span>
             </div>
-            <div className="w-1 h-1 bg-white/40 rounded-full" />
+            <div className="w-1 h-1 bg-theme-secondary/40 rounded-full" />
             <div className="flex items-center gap-1">
               <Heart className="w-4 h-4 text-brand-pink" />
               <span>98% satisfaction</span>
@@ -203,17 +203,17 @@ export default function MobileTemoignages() {
       </section>
 
       {/* Search & Filters */}
-      <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-sm border-b border-white/10">
+      <div className="sticky top-0 z-20 bg-theme-primary/90 backdrop-blur-sm border-b border-theme">
         <div className="p-4 space-y-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-secondary" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher un témoignage..."
-              className="w-full pl-10 pr-4 py-3 bg-white/10 text-white placeholder-white/50 rounded-xl border border-white/20 focus:border-brand-pink focus:outline-none"
+              className="w-full pl-10 pr-4 py-3 bg-theme-card text-theme-primary placeholder-theme-secondary rounded-xl border border-theme focus:border-brand-pink focus:outline-none transition-colors"
             />
           </div>
 
@@ -225,7 +225,7 @@ export default function MobileTemoignages() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
                   showFilters 
                     ? 'bg-brand-pink text-white' 
-                    : 'bg-white/10 text-white/70'
+                    : 'bg-theme-card text-theme-secondary'
                 }`}
               >
                 <Filter className="w-4 h-4" />
@@ -233,7 +233,7 @@ export default function MobileTemoignages() {
               </button>
             </div>
 
-            <div className="text-white/60 text-sm">
+            <div className="text-theme-secondary text-sm">
               {filteredTestimonials.length} témoignage{filteredTestimonials.length > 1 ? 's' : ''}
             </div>
           </div>
@@ -246,11 +246,11 @@ export default function MobileTemoignages() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="border-t border-white/10 overflow-hidden"
+              className="border-t border-theme overflow-hidden"
             >
               {/* Categories */}
               <div className="p-4">
-                <h3 className="text-white font-semibold mb-3">Catégories</h3>
+                <h3 className="text-theme-primary font-semibold mb-3">Catégories</h3>
                 <div 
                   ref={categoriesRef}
                   className="flex gap-2 overflow-x-auto scrollbar-hide pb-2"
@@ -262,7 +262,7 @@ export default function MobileTemoignages() {
                       className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
                         selectedCategory === category.value
                           ? "bg-brand-pink text-white"
-                          : "bg-white/10 text-white/70"
+                          : "bg-theme-card text-theme-secondary"
                       }`}
                     >
                       <span>{category.emoji}</span>
@@ -273,8 +273,8 @@ export default function MobileTemoignages() {
               </div>
 
               {/* Sort Options */}
-              <div className="p-4 border-t border-white/10">
-                <h3 className="text-white font-semibold mb-3">Trier par</h3>
+              <div className="p-4 border-t border-theme">
+                <h3 className="text-theme-primary font-semibold mb-3">Trier par</h3>
                 <div className="grid grid-cols-3 gap-2">
                   {filterOptions.map((option) => (
                     <button
@@ -283,7 +283,7 @@ export default function MobileTemoignages() {
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                         sortBy === option.value
                           ? "bg-brand-pink text-white"
-                          : "bg-white/10 text-white/70"
+                          : "bg-theme-card text-theme-secondary"
                       }`}
                     >
                       <span>{option.icon}</span>
@@ -306,10 +306,10 @@ export default function MobileTemoignages() {
             className="text-center py-16"
           >
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-white text-xl font-bold mb-2">
+            <h3 className="text-theme-primary text-xl font-bold mb-2">
               Aucun témoignage trouvé
             </h3>
-            <p className="text-white/60 mb-6">
+            <p className="text-theme-secondary mb-6">
               Essayez de modifier vos critères de recherche
             </p>
             <button
@@ -336,17 +336,17 @@ export default function MobileTemoignages() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+                  className="bg-theme-secondary/5 backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm"
                 >
                   {/* Quote icon */}
                   <div className="flex justify-center mb-4">
-                    <div className="bg-brand-pink rounded-full p-3">
+                    <div className="bg-brand-pink rounded-full p-3 shadow-lg">
                       <Quote className="w-5 h-5 text-white" />
                     </div>
                   </div>
 
                   {/* Content */}
-                  <blockquote className="text-white text-base leading-relaxed text-center mb-6">
+                  <blockquote className="text-theme-primary text-base leading-relaxed text-center mb-6">
                     "{testimonial.content}"
                   </blockquote>
 
@@ -358,7 +358,7 @@ export default function MobileTemoignages() {
                         className={`w-4 h-4 ${
                           i < testimonial.rating
                             ? 'text-yellow-400 fill-current'
-                            : 'text-gray-600'
+                            : 'text-gray-400 dark:text-gray-600'
                         }`}
                       />
                     ))}
@@ -366,15 +366,15 @@ export default function MobileTemoignages() {
 
                   {/* Author */}
                   <div className="text-center">
-                    <div className="bg-brand-blue w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div className="bg-brand-blue w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                       <span className="text-white text-lg font-bold">
                         {testimonial.author_name[0]}
                       </span>
                     </div>
-                    <h4 className="text-white font-semibold">
+                    <h4 className="text-theme-primary font-semibold">
                       {testimonial.author_name}
                     </h4>
-                    <p className="text-white/60 text-sm">
+                    <p className="text-theme-secondary text-sm">
                       {testimonial.author_location}
                     </p>
                   </div>
@@ -391,7 +391,7 @@ export default function MobileTemoignages() {
               >
                 <button
                   onClick={handleLoadMore}
-                  className="bg-white/10 backdrop-blur-sm text-white px-6 py-3 rounded-full font-semibold border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-2 mx-auto"
+                  className="bg-theme-card backdrop-blur-sm text-theme-primary px-6 py-3 rounded-full font-semibold border border-theme hover:bg-theme-secondary/10 transition-colors flex items-center gap-2 mx-auto shadow-sm"
                 >
                   <span>Voir plus de témoignages</span>
                   <ChevronDown className="w-4 h-4" />
@@ -409,12 +409,12 @@ export default function MobileTemoignages() {
         viewport={{ once: true }}
         className="p-6 mt-8"
       >
-        <div className="bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+        <div className="bg-gradient-to-r from-brand-pink/10 to-brand-blue/10 backdrop-blur-sm rounded-2xl p-6 border border-theme">
           <div className="text-center mb-6">
-            <h3 className="text-white text-xl font-bold mb-2">
+            <h3 className="text-theme-primary text-xl font-bold mb-2">
               Rejoignez notre communauté
             </h3>
-            <p className="text-white/70">
+            <p className="text-theme-secondary">
               Des milliers de personnes nous font déjà confiance
             </p>
           </div>
@@ -422,19 +422,19 @@ export default function MobileTemoignages() {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-brand-pink">7000+</div>
-              <div className="text-white/60 text-sm">Jeux vendus</div>
+              <div className="text-theme-secondary text-sm">Jeux vendus</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-brand-blue">98%</div>
-              <div className="text-white/60 text-sm">Satisfaction</div>
+              <div className="text-theme-secondary text-sm">Satisfaction</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-brand-pink">4.9/5</div>
-              <div className="text-white/60 text-sm">Note moyenne</div>
+              <div className="text-theme-secondary text-sm">Note moyenne</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-white/60 text-sm">
+          <div className="flex items-center justify-center gap-2 text-theme-secondary text-sm">
             <Sparkles className="w-4 h-4 text-brand-pink" />
             <span>Rejoignez l'aventure dès aujourd'hui</span>
           </div>
@@ -448,18 +448,18 @@ export default function MobileTemoignages() {
         viewport={{ once: true }}
         className="p-6 mt-4"
       >
-        <div className="text-center bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+        <div className="text-center bg-gradient-to-r from-brand-pink/10 to-brand-blue/10 backdrop-blur-sm rounded-2xl p-6 border border-theme">
           <div className="text-4xl mb-4">💝</div>
-          <h3 className="text-white text-xl font-bold mb-3">
+          <h3 className="text-theme-primary text-xl font-bold mb-3">
             Prêt à créer vos propres souvenirs ?
           </h3>
-          <p className="text-white/80 mb-6">
+          <p className="text-theme-secondary mb-6">
             Découvrez nos jeux et commencez votre propre histoire
           </p>
           
           <a
             href="/nos-jeux"
-            className="w-full bg-brand-pink text-white py-4 px-6 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-brand-pink/90 transition-colors"
+            className="w-full bg-brand-pink text-white py-4 px-6 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-brand-pink/90 transition-colors shadow-lg hover:shadow-xl"
           >
             <Heart className="w-5 h-5" />
             <span>Découvrir nos jeux</span>

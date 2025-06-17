@@ -92,8 +92,8 @@ export default function MobileRelatedProducts({
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-bold text-lg">Nos Autres Jeux</h3>
-          <button className="text-white/60 text-sm">Voir tout</button>
+          <h3 className="text-theme-primary font-bold text-lg">Nos Autres Jeux</h3>
+          <button className="text-theme-secondary text-sm">Voir tout</button>
         </div>
         <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-6 px-6">
           {[...Array(3)].map((_, index) => (
@@ -115,10 +115,10 @@ export default function MobileRelatedProducts({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-bold text-lg">Nos Autres Jeux</h3>
+        <h3 className="text-theme-primary font-bold text-lg">Nos Autres Jeux</h3>
         <button 
           onClick={handleViewAll}
-          className="flex items-center gap-1 text-white/60 text-sm hover:text-white transition-colors"
+          className="flex items-center gap-1 text-theme-secondary text-sm hover:text-white transition-colors"
         >
           <span>Voir tout</span>
           <ChevronRight className="w-4 h-4" />
@@ -176,7 +176,7 @@ export default function MobileRelatedProducts({
               </div>
 
               {/* Nom du produit */}
-              <h4 className="text-white font-medium text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
+              <h4 className="text-theme-primary font-medium text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
                 {product.name}
               </h4>
 
@@ -194,13 +194,13 @@ export default function MobileRelatedProducts({
                     />
                   ))}
                 </div>
-                <span className="text-white/60 text-xs">
+                <span className="text-theme-secondary text-xs">
                   ({product.reviewsCount || 0})
                 </span>
               </div>
 
               {/* Stats complémentaires */}
-              <div className="text-white/50 text-xs">
+              <div className="text-theme-secondary text-xs">
                 {product.stats?.sold ? `${product.stats.sold}+ vendus` : 'Populaire'}
               </div>
             </motion.div>

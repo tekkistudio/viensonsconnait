@@ -1,7 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import '../styles/theme-gradients.css';
 
 /* ===== GRADIENTS ADAPTATIFS POUR LES THÈMES ===== */
 @layer utilities {
@@ -898,4 +897,44 @@ body {
 /* Container principal pour forcer le thème */
 main {
   background-color: var(--bg-primary) !important;
+}
+
+/* ===== STYLES POUR THÈMES CLAIR/SOMBRE ===== */
+
+/* Backgrounds alternatifs pour diversifier le thème clair */
+.bg-theme-alt {
+  background-color: var(--bg-secondary);
+}
+
+.light .bg-theme-secondary\/5 {
+  background-color: rgba(248, 249, 250, 0.8);
+}
+
+.dark .bg-theme-secondary\/5 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.light .bg-theme-secondary\/3 {
+  background-color: rgba(248, 249, 250, 0.5);
+}
+
+.dark .bg-theme-secondary\/3 {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Gradients pour sections importantes */
+.bg-gradient-theme {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.bg-gradient-to-b.from-theme-primary.via-theme-secondary\/5.to-theme-primary {
+  background: linear-gradient(to bottom, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+}
+
+.light .bg-gradient-to-b.from-theme-primary.via-theme-secondary\/5.to-theme-primary {
+  background: linear-gradient(to bottom, #ffffff 0%, rgba(248, 249, 250, 0.3) 50%, #ffffff 100%);
+}
+
+.dark .bg-gradient-to-b.from-theme-primary.via-theme-secondary\/5.to-theme-primary {
+  background: linear-gradient(to bottom, #000000 0%, rgba(26, 26, 26, 0.5) 50%, #000000 100%);
 }

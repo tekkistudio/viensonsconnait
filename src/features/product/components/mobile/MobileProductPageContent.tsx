@@ -354,7 +354,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                     />
                   ))}
                 </div>
-                <span className="text-white/80 text-sm">
+                <span className="text-theme-secondary text-sm">
                   {realTestimonialStats.count} avis
                 </span>
                 <div className="flex items-center gap-1 text-white/60 text-sm">

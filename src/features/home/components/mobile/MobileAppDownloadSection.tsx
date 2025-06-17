@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/MobileAppDownloadSection.tsx - VERSION COMPLÈTE AVEC THÈME
+// src/features/home/components/mobile/MobileAppDownloadSection.tsx - VERSION OPTIMISÉE THÈMES
 "use client"
 
 import { motion } from 'framer-motion';
@@ -30,7 +30,7 @@ const features = [
 
 export default function MobileAppDownloadSection() {
   return (
-    <section className="bg-theme-primary py-16 overflow-hidden transition-colors duration-300">
+    <section className="bg-theme-secondary/5 py-16 overflow-hidden transition-colors duration-300">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -39,7 +39,7 @@ export default function MobileAppDownloadSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 bg-blue-500/20 text-blue-400 px-4 py-2 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-full mb-6">
             <Smartphone className="w-4 h-4" />
             <span className="text-sm font-medium">Application Mobile</span>
           </div>
@@ -67,7 +67,7 @@ export default function MobileAppDownloadSection() {
                   transition={{ delay: index * 0.15, duration: 0.6 }}
                   className="flex items-start gap-4"
                 >
-                  <div className="bg-gradient-to-r from-brand-pink to-purple-500 rounded-full p-3 flex-shrink-0">
+                  <div className="bg-gradient-to-r from-brand-pink to-purple-500 rounded-full p-3 flex-shrink-0 shadow-lg">
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -91,7 +91,7 @@ export default function MobileAppDownloadSection() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="relative"
           >
-            <div className="relative mx-auto w-64 h-[500px]">
+            <div className="relative mx-auto w-64 h-[520px]">
               {/* Phone mockup */}
               <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-black rounded-[3rem] p-2 shadow-2xl">
                 <div className="w-full h-full bg-black rounded-[2.5rem] overflow-hidden">
@@ -144,7 +144,7 @@ export default function MobileAppDownloadSection() {
               rel="noopener noreferrer"
               className="group"
             >
-              <div className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-2xl p-4 transition-all group-hover:scale-105 border border-theme">
+              <div className="bg-theme-card hover:bg-theme-secondary/20 backdrop-blur-sm rounded-2xl p-4 transition-all group-hover:scale-105 border border-theme shadow-sm hover:shadow-lg">
                 <Image
                   src="/images/badges/app-store-badge.svg"
                   alt="Télécharger sur l'App Store"

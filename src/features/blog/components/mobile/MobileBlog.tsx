@@ -47,7 +47,7 @@ export default function MobileBlog() {
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-pink mx-auto mb-4" />
-          <p className="text-white/70">Chargement des articles...</p>
+          <p className="text-theme-secondary">Chargement des articles...</p>
         </div>
       </div>
     );
@@ -58,11 +58,11 @@ export default function MobileBlog() {
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center p-6">
         <div className="text-center">
           <div className="text-6xl mb-4">😔</div>
-          <h2 className="text-theme-primary text-xl font-bold mb-2">Erreur</h2>
-          <p className="text-white/70 mb-6">{error}</p>
+          <h2 className="text-white text-xl font-bold mb-2">Erreur</h2>
+          <p className="text-theme-secondary mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-brand-pink text-theme-primary px-6 py-3 rounded-full font-semibold"
+            className="bg-brand-pink text-white px-6 py-3 rounded-full font-semibold"
           >
             Réessayer
           </button>
@@ -74,22 +74,22 @@ export default function MobileBlog() {
   return (
     <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
-      <section className="relative h-96 bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-16">
+      <section className="relative h-100 bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 overflow-hidden pt-16">
         <div className="absolute inset-0 bg-black/50" />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative h-full flex flex-col justify-center px-6 text-center"
         >
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-theme-primary px-4 py-2 rounded-full mb-6 mx-auto">
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full mb-6 mx-auto">
             <Star className="w-4 h-4" />
             <span className="text-sm font-medium">Blog</span>
           </div>
           
-          <h1 className="text-3xl font-bold text-theme-primary mb-4 leading-tight">
+          <h1 className="text-3xl font-bold text-white mb-4 leading-tight">
             Conseils & Inspiration
           </h1>
-          <p className="text-white/80 text-lg mb-8 max-w-md mx-auto leading-relaxed">
+          <p className="text-white/70 text-lg mb-8 max-w-md mx-auto leading-relaxed">
             Des conseils pratiques pour enrichir vos relations et créer des liens plus profonds.
           </p>
 
@@ -101,7 +101,7 @@ export default function MobileBlog() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm text-theme-primary placeholder-white/60 rounded-full border border-white/30 focus:border-white/60 focus:outline-none"
+              className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm text-white placeholder-white/60 rounded-full border border-white/30 focus:border-white/60 focus:outline-none"
             />
           </div>
         </motion.div>
@@ -115,7 +115,7 @@ export default function MobileBlog() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                showFilters ? 'bg-brand-pink text-white' : 'bg-white/10 text-white/70'
+                showFilters ? 'bg-brand-pink text-white' : 'bg-white/10 text-theme-secondary'
               }`}
             >
               <Filter className="w-4 h-4" />
@@ -139,7 +139,7 @@ export default function MobileBlog() {
                       className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
                         selectedCategory === category.id
                           ? "bg-brand-pink text-white"
-                          : "bg-white/10 text-white/70 hover:bg-white/20"
+                          : "bg-white/10 text-theme-secondary hover:bg-white/20"
                       }`}
                     >
                       <span>{category.emoji}</span>
@@ -157,7 +157,7 @@ export default function MobileBlog() {
       {featuredArticles.length > 0 && (
         <section className="py-8">
           <div className="px-6">
-            <h2 className="text-white text-xl font-bold mb-6 flex items-center gap-2">
+            <h2 className="text-theme-primary text-xl font-bold mb-6 flex items-center gap-2">
               <Star className="w-5 h-5 text-brand-pink" />
               À la une
             </h2>
@@ -208,10 +208,10 @@ export default function MobileBlog() {
       <section className="py-8">
         <div className="px-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-white text-xl font-bold">
+            <h2 className="text-theme-primary text-xl font-bold">
               Tous les articles
             </h2>
-            <span className="text-white/60 text-sm">
+            <span className="text-theme-secondary text-sm">
               {regularArticles.length} article{regularArticles.length > 1 ? 's' : ''}
             </span>
           </div>
@@ -223,10 +223,10 @@ export default function MobileBlog() {
               className="text-center py-16"
             >
               <div className="text-6xl mb-4">📖</div>
-              <h3 className="text-white text-xl font-bold mb-2">
+              <h3 className="text-theme-primary text-xl font-bold mb-2">
                 Aucun article
               </h3>
-              <p className="text-white/60 mb-6">
+              <p className="text-theme-secondary mb-6">
                 Aucun article trouvé pour cette recherche
               </p>
               <button
@@ -265,24 +265,24 @@ export default function MobileBlog() {
                           <span className="bg-brand-blue/20 text-brand-blue px-2 py-1 rounded text-xs">
                             {categories.find(cat => cat.id === article.category)?.name || article.category}
                           </span>
-                          <span className="text-white/60 text-xs flex items-center gap-1">
+                          <span className="text-theme-secondary text-xs flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {article.readTime}
                           </span>
                         </div>
                         
-                        <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
+                        <h3 className="text-theme-primary font-semibold text-sm mb-2 line-clamp-2 group-hover:text-brand-pink transition-colors">
                           {article.title}
                         </h3>
                         
                         {article.excerpt && (
-                          <p className="text-white/70 text-xs line-clamp-2 mb-2">
+                          <p className="text-theme-secondary text-xs line-clamp-2 mb-2">
                             {article.excerpt}
                           </p>
                         )}
                         
                         <div className="flex items-center justify-between">
-                          <span className="text-white/50 text-xs">
+                          <span className="text-theme-secondary text-xs">
                             {article.date}
                           </span>
                           <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-brand-pink transition-colors" />
@@ -329,7 +329,7 @@ export default function MobileBlog() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-theme-primary text-sm font-medium">
+                  <span className="text-theme-secondary text-sm font-medium">
                     Articles exclusifs en avant-première
                   </span>
                 </div>
@@ -340,7 +340,7 @@ export default function MobileBlog() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-theme-primary text-sm font-medium">
+                  <span className="text-theme-secondary text-sm font-medium">
                     Conseils relationnels personnalisés
                   </span>
                 </div>
@@ -351,7 +351,7 @@ export default function MobileBlog() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-theme-primary text-sm font-medium">
+                  <span className="text-theme-secondary text-sm font-medium">
                     Offres spéciales sur nos jeux
                   </span>
                 </div>

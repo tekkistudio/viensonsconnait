@@ -592,7 +592,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-[#FF7E93] to-[#FF6B9D] flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
+                  <span className="text-theme-primary text-xs font-bold">
                     {product.name.charAt(0)}
                   </span>
                 </div>
@@ -627,7 +627,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
-                    <ShoppingBag className="w-3 h-3 text-white" />
+                    <ShoppingBag className="w-3 h-3 text-theme-primary" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-[#132D5D]">

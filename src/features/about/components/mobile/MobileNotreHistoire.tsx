@@ -1,4 +1,4 @@
-// src/features/about/components/mobile/MobileNotreHistoire.tsx
+// src/features/about/components/mobile/MobileNotreHistoire.tsx - VERSION OPTIMISÉE THÈMES
 "use client";
 
 import { motion } from "framer-motion";
@@ -69,7 +69,7 @@ export default function MobileNotreHistoire() {
     <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
       <section className="relative min-h-[65vh] bg-gradient-to-r from-brand-blue/30 to-brand-pink/30 overflow-hidden pt-24 pb-12">
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-theme-primary/50" />
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -81,28 +81,28 @@ export default function MobileNotreHistoire() {
             transition={{ delay: 0.2 }}
             className="mb-8"
           >
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full mb-8 relative z-10">
+            <div className="inline-flex items-center gap-2 bg-theme-card backdrop-blur-sm text-theme-primary px-4 py-2 rounded-full mb-8 relative z-10 border border-theme">
               <Calendar className="w-4 h-4" />
               <span className="text-sm font-medium">Notre Histoire</span>
             </div>
           </motion.div>
           
-          <h1 className="text-3xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-3xl font-bold text-theme-primary mb-6 leading-tight">
             Comment une simple idée est devenue une 
             <span className="text-brand-pink"> mission</span>
           </h1>
           
-          <p className="text-white/80 text-lg mb-10 max-w-md mx-auto leading-relaxed">
+          <p className="text-theme-secondary text-lg mb-10 max-w-md mx-auto leading-relaxed">
             Renforcer les relations humaines à travers le jeu, 
             une carte à la fois.
           </p>
 
-          <div className="flex items-center justify-center gap-4 text-white/60 text-sm">
+          <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm">
             <div className="flex items-center gap-1">
               <MapPin className="w-4 h-4" />
               <span>Dakar, Sénégal</span>
             </div>
-            <div className="w-1 h-1 bg-white/40 rounded-full" />
+            <div className="w-1 h-1 bg-theme-secondary/40 rounded-full" />
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               <span>Depuis 2022</span>
@@ -127,13 +127,13 @@ export default function MobileNotreHistoire() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10"
+                className="bg-theme-card backdrop-blur-sm rounded-xl p-4 text-center border border-theme shadow-sm"
               >
                 <div className="text-2xl mb-2">{achievement.icon}</div>
-                <div className="text-2xl font-bold text-white mb-1">
+                <div className="text-2xl font-bold text-theme-primary mb-1">
                   {achievement.number}
                 </div>
-                <div className="text-white/70 text-sm">
+                <div className="text-theme-secondary text-sm">
                   {achievement.label}
                 </div>
               </motion.div>
@@ -149,10 +149,10 @@ export default function MobileNotreHistoire() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+            className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm"
           >
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-3">
+              <h2 className="text-2xl font-bold text-theme-primary mb-3">
                 Notre Vision
               </h2>
               <div className="w-16 h-1 bg-brand-pink rounded-full mx-auto" />
@@ -176,17 +176,17 @@ export default function MobileNotreHistoire() {
             </div>
             
             <div className="space-y-4">
-              <p className="text-white/90 leading-relaxed">
+              <p className="text-theme-primary leading-relaxed">
                 Dans un monde de plus en plus connecté numériquement mais déconnecté émotionnellement, 
                 nous avons voulu créer quelque chose de différent.
               </p>
-              <p className="text-white/80 leading-relaxed">
+              <p className="text-theme-secondary leading-relaxed">
                 VIENS ON S'CONNAÎT est né de la conviction que les relations humaines méritent du temps, 
                 de l'attention et des outils adaptés pour s'épanouir.
               </p>
               
               <div className="bg-brand-pink/20 rounded-xl p-4 border border-brand-pink/30">
-                <p className="text-white font-medium italic">
+                <p className="text-theme-primary font-medium italic">
                   "Notre mission est simple : créer des jeux qui permettent aux gens de se reconnecter, 
                   une carte à la fois."
                 </p>
@@ -197,7 +197,7 @@ export default function MobileNotreHistoire() {
       </section>
 
       {/* Timeline Section */}
-      <section className="py-16">
+      <section className="py-16 bg-theme-secondary/5">
         <div className="px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -205,10 +205,10 @@ export default function MobileNotreHistoire() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-2xl font-bold text-white mb-3">
+            <h2 className="text-2xl font-bold text-theme-primary mb-3">
               Notre Parcours
             </h2>
-            <p className="text-white/70">
+            <p className="text-theme-secondary">
               L'évolution de notre mission année après année
             </p>
           </motion.div>
@@ -223,17 +223,17 @@ export default function MobileNotreHistoire() {
                 transition={{ delay: index * 0.2 }}
                 className="relative"
               >
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                <div className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm">
                   {/* Year badge */}
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`bg-gradient-to-r ${milestone.color} rounded-full p-3 text-2xl`}>
+                    <div className={`bg-gradient-to-r ${milestone.color} rounded-full p-3 text-2xl shadow-lg`}>
                       {milestone.icon}
                     </div>
                     <div>
                       <div className="text-brand-pink font-bold text-lg">
                         {milestone.year}
                       </div>
-                      <h3 className="text-white font-bold text-xl">
+                      <h3 className="text-theme-primary font-bold text-xl">
                         {milestone.title}
                       </h3>
                     </div>
@@ -249,7 +249,7 @@ export default function MobileNotreHistoire() {
                     />
                   </div>
                   
-                  <p className="text-white/80 leading-relaxed">
+                  <p className="text-theme-secondary leading-relaxed">
                     {milestone.description}
                   </p>
                 </div>
@@ -267,7 +267,7 @@ export default function MobileNotreHistoire() {
       </section>
 
       {/* Values Section */}
-      <section className="py-16 bg-gradient-to-r from-brand-pink/10 to-brand-blue/10">
+      <section className="py-16 bg-gradient-to-r from-brand-pink/5 to-brand-blue/5">
         <div className="px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -275,10 +275,10 @@ export default function MobileNotreHistoire() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-2xl font-bold text-white mb-3">
+            <h2 className="text-2xl font-bold text-theme-primary mb-3">
               Nos Valeurs
             </h2>
-            <p className="text-white/70">
+            <p className="text-theme-secondary">
               Ces principes guident chacune de nos décisions
             </p>
           </motion.div>
@@ -293,20 +293,20 @@ export default function MobileNotreHistoire() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10"
+                  className="bg-theme-card backdrop-blur-sm rounded-xl p-6 border border-theme shadow-sm"
                 >
                   <div className="flex items-start gap-4">
-                    <div className={`bg-gradient-to-r ${value.gradient} rounded-full p-3 flex-shrink-0`}>
+                    <div className={`bg-gradient-to-r ${value.gradient} rounded-full p-3 flex-shrink-0 shadow-lg`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-2xl">{value.emoji}</span>
-                        <h3 className="text-white font-bold text-lg">
+                        <h3 className="text-theme-primary font-bold text-lg">
                           {value.title}
                         </h3>
                       </div>
-                      <p className="text-white/80 leading-relaxed">
+                      <p className="text-theme-secondary leading-relaxed">
                         {value.description}
                       </p>
                     </div>
@@ -325,22 +325,22 @@ export default function MobileNotreHistoire() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+            className="bg-theme-card backdrop-blur-sm rounded-2xl p-6 border border-theme shadow-sm"
           >
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-3">
+              <h2 className="text-2xl font-bold text-theme-primary mb-3">
                 L'équipe derrière VIENS ON S'CONNAÎT
               </h2>
               <div className="w-16 h-1 bg-brand-pink rounded-full mx-auto mb-4" />
             </div>
 
             <div className="space-y-4 mb-6">
-              <p className="text-white/90 leading-relaxed">
+              <p className="text-theme-primary leading-relaxed">
                 Une équipe passionnée de <strong className="text-brand-pink">créatifs</strong>, 
                 <strong className="text-brand-blue"> psychologues</strong> et 
                 <strong className="text-brand-pink"> développeurs</strong> unis par une mission commune.
               </p>
-              <p className="text-white/80 leading-relaxed">
+              <p className="text-theme-secondary leading-relaxed">
                 Nous travaillons chaque jour pour créer des expériences qui transforment 
                 la façon dont les gens se connectent et communiquent.
               </p>
@@ -349,20 +349,20 @@ export default function MobileNotreHistoire() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-brand-pink/20 rounded-xl p-4 text-center border border-brand-pink/30">
                 <div className="text-3xl mb-2">🧠</div>
-                <div className="text-white font-semibold">Psychologues</div>
-                <div className="text-white/60 text-sm">Contenu expert</div>
+                <div className="text-theme-primary font-semibold">Psychologues</div>
+                <div className="text-theme-secondary text-sm">Contenu expert</div>
               </div>
               <div className="bg-brand-blue/20 rounded-xl p-4 text-center border border-brand-blue/30">
                 <div className="text-3xl mb-2">🎨</div>
-                <div className="text-white font-semibold">Créatifs</div>
-                <div className="text-white/60 text-sm">Design unique</div>
+                <div className="text-theme-primary font-semibold">Créatifs</div>
+                <div className="text-theme-secondary text-sm">Design unique</div>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-white/60 text-sm">
+            <div className="flex items-center justify-center gap-2 text-theme-secondary text-sm">
               <MapPin className="w-4 h-4" />
               <span>Basée à Dakar, Sénégal</span>
-              <div className="w-1 h-1 bg-white/40 rounded-full mx-2" />
+              <div className="w-1 h-1 bg-theme-secondary/40 rounded-full mx-2" />
               <span>🇸🇳 Made in Senegal</span>
             </div>
           </motion.div>
@@ -376,13 +376,13 @@ export default function MobileNotreHistoire() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center bg-gradient-to-r from-brand-pink/20 to-brand-blue/20 backdrop-blur-sm rounded-2xl p-8 border border-white/10"
+            className="text-center bg-gradient-to-r from-brand-pink/10 to-brand-blue/10 backdrop-blur-sm rounded-2xl p-8 border border-theme"
           >
             <div className="text-4xl mb-4">🚀</div>
-            <h2 className="text-2xl font-bold text-white mb-3">
+            <h2 className="text-2xl font-bold text-theme-primary mb-3">
               Rejoignez l'aventure
             </h2>
-            <p className="text-white/80 mb-8 leading-relaxed">
+            <p className="text-theme-secondary mb-8 leading-relaxed">
               Découvrez nos jeux et commencez à renforcer vos relations dès aujourd'hui. 
               Faites partie de notre communauté grandissante !
             </p>
@@ -390,7 +390,7 @@ export default function MobileNotreHistoire() {
             <div className="space-y-4">
               <Link
                 href="/nos-jeux"
-                className="w-full bg-white text-gray-900 py-4 px-6 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-white/90 transition-colors"
+                className="w-full bg-brand-pink text-white py-4 px-6 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-brand-pink/90 transition-colors shadow-lg hover:shadow-xl"
               >
                 <span>Découvrir nos jeux</span>
                 <ChevronRight className="w-5 h-5" />
@@ -398,20 +398,20 @@ export default function MobileNotreHistoire() {
               
               <Link
                 href="/temoignages"
-                className="w-full bg-white/10 backdrop-blur-sm text-white py-3 px-6 rounded-full font-medium flex items-center justify-center gap-2 border border-white/20 hover:bg-white/20 transition-colors"
+                className="w-full bg-theme-card backdrop-blur-sm text-theme-primary py-3 px-6 rounded-full font-medium flex items-center justify-center gap-2 border border-theme hover:bg-theme-secondary/10 transition-colors"
               >
                 <Star className="w-4 h-4" />
                 <span>Lire les témoignages</span>
               </Link>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-white/20">
-              <div className="flex items-center justify-center gap-4 text-white/60 text-sm">
+            <div className="mt-6 pt-6 border-t border-theme">
+              <div className="flex items-center justify-center gap-4 text-theme-secondary text-sm">
                 <div className="flex items-center gap-1">
                   <Heart className="w-4 h-4 text-brand-pink" />
                   <span>7000+ jeux vendus</span>
                 </div>
-                <div className="w-1 h-1 bg-white/40 rounded-full" />
+                <div className="w-1 h-1 bg-theme-secondary/40 rounded-full" />
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4 text-brand-blue" />
                   <span>98% satisfaction</span>
