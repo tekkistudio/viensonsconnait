@@ -1,12 +1,11 @@
 // src/features/product/components/mobile/MobileProductPageContent.tsx 
+// 🎯 VERSION FINALE OPTIMISÉE CONVERSION
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MessageCircle, 
   Star, 
-  Heart, 
-  Share2, 
   Eye, 
   ShoppingCart,
   ChevronLeft,
@@ -16,7 +15,13 @@ import {
   Award,
   TrendingUp,
   Clock,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles,
+  Zap,
+  CheckCircle,
+  Download,
+  Smartphone,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import Image from 'next/image';
@@ -31,7 +36,10 @@ import { getProductImages, generateImageProps } from '@/utils/image';
 import { useSafeTheme } from '@/core/context/ThemeContext';
 import type { Product } from '@/types/product';
 import dynamic from 'next/dynamic';
+import ProductPageWithAI from '@/components/product/ProductPageWithAI';
 import MobileRelatedProducts from './MobileRelatedProducts';
+import StockIndicator from '@/components/ui/StockIndicator';
+import { getStockInfo } from '@/utils/stock';
 
 // Imports dynamiques
 const MobileChatContainer = dynamic(() => import('../ProductChat/components/MobileChatContainer'), {
@@ -80,8 +88,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
-  const [showStats, setShowStats] = useState(true);
+  const [isSticky, setIsSticky] = useState(false);
   const { setHideDukkaBadge } = useLayoutContext();
   
   // Stats produit temps réel
@@ -111,8 +118,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   } = useChatStore();
   
   const [cartService] = useState(() => ConversationalCartService.getInstance());
-  const galleryRef = useRef<HTMLDivElement>(null);
-  const testimonialsRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Images du produit
   const productImages = getProductImages(product);
@@ -253,6 +259,19 @@ export default function MobileProductPageContent({ productId, product }: MobileP
     return () => clearInterval(interval);
   }, [testimonials.length]);
 
+  // Sticky scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      if (scrollRef.current) {
+        const rect = scrollRef.current.getBoundingClientRect();
+        setIsSticky(rect.top <= 100);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Navigation simple pour le carousel
   const handlePrevImage = () => {
     setCurrentImageIndex(prev => 
@@ -283,6 +302,16 @@ export default function MobileProductPageContent({ productId, product }: MobileP
   // Gestion du clic sur le bouton d'intérêt
   const handleInterestClick = async () => {
     try {
+      // Vérifier le stock avant d'ouvrir le chat
+      const stockInfo = getStockInfo(product.stock_quantity);
+      
+      if (stockInfo.status === 'out_of_stock') {
+        // Tu peux afficher un message ou rediriger vers une liste d'attente
+        alert('Désolé, ce produit est actuellement en rupture de stock. Contactez-nous pour être notifié du réapprovisionnement.');
+        return;
+      }
+
+      // Logique existante pour ouvrir le chat...
       if (orderData?.items && orderData.items.length > 0) {
         const hasCurrentProduct = orderData.items.some(item => item.productId === product.id);
         
@@ -302,15 +331,27 @@ export default function MobileProductPageContent({ productId, product }: MobileP
     }
   };
 
+  // Gestion du clic app mobile
+  const handleAppDownload = () => {
+    // Redirection vers l'app store ou page dédiée
+    window.open('https://apps.apple.com/app/viensonsconnait/id6464125284', '_blank');
+  };
+
   return (
-    <div className="min-h-screen bg-theme-primary">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      theme === 'light' ? 'bg-white' : 'bg-black'
+    }`}>
       <div className={`${isChatFullscreen ? 'hidden' : 'block'}`}>
         
-        {/* 🎯 NOUVEAU CAROUSEL OPTIMISÉ UX MOBILE */}
-        <section className="relative pt-16 bg-theme-primary">
+        {/* 🎯 SECTION 1: CAROUSEL D'IMAGES SIMPLIFIÉ */}
+        <section className={`relative pt-16 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-white' : 'bg-black'
+        }`}>
           
-          {/* Image principale avec swipe */}
-          <div className="relative h-[60vh] min-h-[400px] bg-theme-card">
+          {/* Image principale - AUCUN BOUTON DE DISTRACTION */}
+          <div className={`relative h-[50vh] min-h-[350px] transition-colors duration-300 ${
+            theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
+          }`}>
             <motion.div
               key={currentImageIndex}
               initial={{ opacity: 0 }}
@@ -329,325 +370,426 @@ export default function MobileProductPageContent({ productId, product }: MobileP
                 sizes="100vw"
                 priority
               />
-              
-              {/* Overlay simple */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              
-              {/* Navigation arrows (si plus d'une image) */}
-              {productImages.length > 1 && (
-                <>
-                  <button
-                    onClick={handlePrevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-sm rounded-full p-2 z-20 hover:bg-black/60 transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-white" />
-                  </button>
-                  
-                  <button
-                    onClick={handleNextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-sm rounded-full p-2 z-20 hover:bg-black/60 transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5 text-white" />
-                  </button>
-                </>
-              )}
-              
-              {/* Indicateur image courante */}
-              {productImages.length > 1 && (
-                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 z-20">
-                  <span className="text-white text-sm font-medium">
-                    {currentImageIndex + 1}/{productImages.length}
-                  </span>
-                </div>
-              )}
             </motion.div>
           </div>
 
-          {/* 🎯 MINIATURES EN DESSOUS (style e-commerce classique) */}
+          {/* Miniatures */}
           {productImages.length > 1 && (
-            <div className="px-4 py-4 bg-theme-primary">
+            <div className={`px-4 py-3 border-b transition-colors duration-300 ${
+              theme === 'light' 
+                ? 'bg-white border-gray-100' 
+                : 'bg-black border-gray-800'
+            }`}>
               <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                 {productImages.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
                       index === currentImageIndex
-                        ? 'border-brand-pink shadow-lg'
-                        : 'border-transparent hover:border-gray-300'
+                        ? 'border-brand-pink shadow-md'
+                        : theme === 'light' 
+                          ? 'border-gray-200 hover:border-gray-300'
+                          : 'border-gray-700 hover:border-gray-600'
                     }`}
                   >
                     <Image
                       {...generateImageProps(image, `${product.name} ${index + 1}`)}
                       fill
                       className="object-cover"
-                      sizes="64px"
+                      sizes="56px"
                     />
-                    {/* Overlay sur image non sélectionnée */}
                     {index !== currentImageIndex && (
-                      <div className="absolute inset-0 bg-black/30" />
+                      <div className={`absolute inset-0 ${
+                        theme === 'light' ? 'bg-white/40' : 'bg-black/40'
+                      }`} />
                     )}
                   </button>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Infos produit avec overlay sur l'image */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-white"
-            >
-              {/* Titre */}
-              <h1 className="text-2xl md:text-3xl font-bold mb-2 leading-tight drop-shadow-lg">
-                {product.name}
-              </h1>
-
-              {/* Rating et stats */}
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${
-                        i < Math.round(realTestimonialStats.average)
-                          ? 'text-yellow-400 fill-current'
-                          : 'text-gray-400'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm opacity-90 drop-shadow">
-                  {realTestimonialStats.count} avis
-                </span>
-                <div className="flex items-center gap-1 text-sm opacity-75">
-                  <ShoppingBag className="w-4 h-4" />
-                  <span className="drop-shadow">
-                    {realProductStats.loading ? (
-                      <span className="animate-pulse">...</span>
-                    ) : (
-                      `${realProductStats.sold?.toLocaleString() || '0'} ventes`
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Prix */}
-              <div className="flex items-center gap-3">
-                {formattedPrice && (
-                  <span className="text-2xl md:text-3xl font-bold drop-shadow-lg">
-                    {formattedPrice}
-                  </span>
-                )}
-                {product.compareAtPrice && product.compareAtPrice > product.price && (
-                  <span className="bg-red-600 text-white px-2 py-1 rounded-full text-sm font-medium shadow-lg">
-                    -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
-                  </span>
-                )}
-              </div>
-            </motion.div>
-          </div>
         </section>
 
-        {/* Quick Stats avec données réelles temps réel */}
-        <section className="py-6">
-          <div className="px-6">
-            <div className="grid grid-cols-3 gap-4">
-              <motion.div 
-                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
-                  theme === 'light' 
-                    ? 'stats-card-light hover:bg-white' 
-                    : 'stats-card-dark hover:bg-white/20'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="flex items-center justify-center gap-1 text-green-500 mb-1">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="font-bold">{Math.round((realTestimonialStats.average || 4.9) * 10) / 10}/5</span>
-                </div>
-                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
-                  Satisfaction
-                </span>
-              </motion.div>
-              
-              <motion.div 
-                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
-                  theme === 'light' 
-                    ? 'stats-card-light hover:bg-white' 
-                    : 'stats-card-dark hover:bg-white/20'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
-                  <Award className="w-4 h-4" />
-                  {realProductStats.loading ? (
-                    <div className="w-12 h-4 bg-blue-400/30 rounded animate-pulse" />
-                  ) : (
-                    <span className="font-bold">{realProductStats.sold?.toLocaleString() || '0'}</span>
-                  )}
-                </div>
-                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
-                  Ventes
-                </span>
-              </motion.div>
-              
-              <motion.div 
-                className={`backdrop-blur-sm rounded-xl p-4 text-center border transition-all shadow-sm hover:shadow-lg ${
-                  theme === 'light' 
-                    ? 'stats-card-light hover:bg-white' 
-                    : 'stats-card-dark hover:bg-white/20'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="flex items-center justify-center gap-1 text-brand-pink mb-1">
-                  <Users className="w-4 h-4" />
-                  <span className="font-bold">{realTestimonialStats.count || 0}</span>
-                </div>
-                <span className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
-                  Avis
-                </span>
-              </motion.div>
-            </div>
+        {/* 🎯 SECTION 2: INFORMATIONS PRODUIT AVEC THÈME */}
+        <section className={`px-6 py-6 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-white' : 'bg-black'
+        }`}>
+          
+          {/* Titre et rating */}
+          <div className="mb-4">
+            <h1 className={`text-3xl font-bold mb-2 leading-tight transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-900' : 'text-white'
+            }`}>
+              {product.name}
+            </h1>
             
-            {/* Indicateur de confiance */}
-            <div className="flex items-center justify-center gap-2 mt-4 text-theme-secondary text-xs">
-              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-              <span>
-                {realProductStats.loading ? (
-                  "Chargement des stats..."
-                ) : (
-                  `${realProductStats.currentViewers || 1} ${realProductStats.currentViewers === 1 ? 'personne est en ligne' : 'personnes sont en ligne'} • Produit vérifié`
-                )}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Button */}
-        <section className="py-6">
-          <div className="px-6">
-            <motion.button
-              onClick={handleInterestClick}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-brand-pink to-red-500 text-white py-4 px-8 rounded-full flex items-center justify-center gap-3 shadow-lg font-bold text-lg relative overflow-hidden"
-            >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                initial={{ x: '-100%' }}
-                whileHover={{ x: '100%' }}
-                transition={{ duration: 0.6 }}
-              />
-              
-              <MessageCircle className="w-6 h-6 relative z-10" />
-              <span className="relative z-10">
-                {orderData?.items && orderData.items.length > 0 
-                  ? "Ajouter à ma commande" 
-                  : "Ce jeu m'intéresse"
-                }
-              </span>
-            </motion.button>
-            
-            <div className="text-center mt-3">
-              <p className="text-theme-secondary text-xs mt-1">
-                Cliquez pour commander ce jeu ou en savoir plus
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Description */}
-        <section className="py-6">
-          <div className="px-6">
-            <div className="bg-theme-card backdrop-blur-sm rounded-xl p-6 border border-theme shadow-sm">
-              <h3 className="text-theme-primary font-bold text-lg mb-3">A Propos de ce Jeu</h3>
-              <p className="text-theme-secondary leading-relaxed">
-                {product.description 
-                  ? product.description.length > 300 
-                    ? `${product.description.substring(0, 300).trim()}...`
-                    : product.description
-                  : `Découvrez ${product.name}, un jeu conçu pour créer des moments authentiques et renforcer vos relations avec vos proches. Chaque carte a été soigneusement élaborée pour encourager des conversations profondes et significatives.`
-                }
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials Carousel */}
-        <section className="py-6">
-          <div className="px-6">
-            <h3 className="text-theme-primary font-bold text-lg mb-4">Ce que disent nos clients</h3>
-            
-            <div className="relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentTestimonialIndex}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.4 }}
-                  className="bg-theme-card backdrop-blur-sm rounded-xl p-6 border border-theme shadow-sm"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-brand-pink rounded-full w-10 h-10 flex items-center justify-center">
-                      <span className="text-white font-bold">
-                        {testimonials[currentTestimonialIndex]?.author_name[0]}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="text-theme-primary font-semibold">
-                        {testimonials[currentTestimonialIndex]?.author_name}
-                      </h4>
-                      <p className="text-theme-secondary text-sm">
-                        {testimonials[currentTestimonialIndex]?.author_location}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-theme-primary mb-4 italic">
-                    "{testimonials[currentTestimonialIndex]?.content}"
-                  </p>
-                  
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < (testimonials[currentTestimonialIndex]?.rating || 5)
-                            ? 'text-yellow-400 fill-current'
-                            : 'text-gray-600'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-              
-              <div className="flex justify-center gap-1 mt-4">
-                {testimonials.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentTestimonialIndex(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentTestimonialIndex 
-                        ? 'bg-brand-pink w-6' 
-                        : 'bg-theme-secondary/40'
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-4 h-4 ${
+                      i < Math.round(realTestimonialStats.average)
+                        ? 'text-yellow-400 fill-current'
+                        : theme === 'light' ? 'text-gray-300' : 'text-gray-600'
                     }`}
                   />
                 ))}
               </div>
+              <span className={`text-sm transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                {realTestimonialStats.count} avis
+              </span>
+              <span className={`text-sm transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-400' : 'text-gray-600'
+              }`}>•</span>
+              <div className={`flex items-center gap-1 text-sm transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                <ShoppingBag className="w-4 h-4" />
+                <span>
+                  {realProductStats.loading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    `${realProductStats.sold?.toLocaleString() || '0'} vendus`
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Trust indicators avec stock dynamique */}
+            <div className={`flex items-center gap-2 text-xs transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-500' : 'text-gray-400'
+            }`}>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span>{realProductStats.currentViewers || 1} en ligne</span>
+              </div>
+              <span>•</span>
+              <StockIndicator 
+                stockQuantity={product.stock_quantity} 
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          {/* 🎯 PRIX OPTIMISÉ - UNE SEULE LIGNE */}
+          <div className="flex items-center gap-3 mb-6">
+            {formattedPrice && (
+              <span className={`text-2xl font-bold transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-900' : 'text-white'
+              }`}>
+                {formattedPrice}
+              </span>
+            )}
+            {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <>
+                <span className={`text-lg line-through transition-colors duration-300 ${
+                  theme === 'light' ? 'text-gray-500' : 'text-gray-400'
+                }`}>
+                  {convertPrice(product.compareAtPrice)?.formatted}
+                </span>
+                <span className="bg-red-600 text-white px-2 py-1 rounded-full text-sm font-medium">
+                  -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
+                </span>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* 🎯 SECTION 3: CTA CONVERSATIONNEL OPTIMISÉ */}
+        <section className={`px-6 pb-6 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-white' : 'bg-black'
+        }`}>
+          
+          {/* CTA Principal optimisé */}
+          <motion.button
+            onClick={handleInterestClick}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full bg-gradient-to-r from-brand-pink to-red-500 text-white py-4 px-6 rounded-full flex items-center justify-center gap-3 shadow-lg font-bold text-lg relative overflow-hidden"
+          >
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              initial={{ x: '-100%' }}
+              whileHover={{ x: '100%' }}
+              transition={{ duration: 0.6 }}
+            />
+            
+            <Sparkles className="w-6 h-6 relative z-10" />
+            <span className="relative z-10">
+              {(() => {
+                const stockInfo = getStockInfo(product.stock_quantity);
+                
+                if (stockInfo.status === 'out_of_stock') {
+                  return "Produit épuisé";
+                }
+                
+                if (orderData?.items && orderData.items.length > 0) {
+                  return "Ajouter à ma commande";
+                }
+                
+                if (stockInfo.status === 'low') {
+                  return `Plus que ${stockInfo.quantity} - Je le veux !`;
+                }
+                
+                return "Ce jeu m'intéresse";
+              })()}
+            </span>
+          </motion.button>
+
+          {/* Message d'encouragement optimisé */}
+          <div className="text-center mt-3">
+            <p className={`text-sm transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+            }`}>
+              Cliquez pour commander ou en savoir plus 
+            </p>
+          </div>
+        </section>
+
+        {/* 🎯 SECTION 4: STATS VISUELLES AVEC 150 CARTES */}
+        <section className={`px-6 py-6 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
+        }`}>
+          <div className="grid grid-cols-3 gap-4">
+            
+            {/* 150 cartes au lieu de satisfaction */}
+            <motion.div 
+              className={`rounded-xl p-4 text-center border shadow-sm hover:shadow-md transition-all ${
+                theme === 'light' 
+                  ? 'bg-white border-gray-100' 
+                  : 'bg-gray-800 border-gray-700'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex items-center justify-center gap-1 text-blue-500 mb-1">
+                <Eye className="w-4 h-4" />
+                <span className="font-bold text-lg">150</span>
+              </div>
+              <span className={`text-xs transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                Cartes
+              </span>
+            </motion.div>
+            
+            <motion.div 
+              className={`rounded-xl p-4 text-center border shadow-sm hover:shadow-md transition-all ${
+                theme === 'light' 
+                  ? 'bg-white border-gray-100' 
+                  : 'bg-gray-800 border-gray-700'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex items-center justify-center gap-1 text-green-500 mb-1">
+                <Award className="w-4 h-4" />
+                {realProductStats.loading ? (
+                  <div className="w-12 h-4 bg-green-500/30 rounded animate-pulse" />
+                ) : (
+                  <span className="font-bold text-lg">{realProductStats.sold?.toLocaleString() || '0'}</span>
+                )}
+              </div>
+              <span className={`text-xs transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                Ventes
+              </span>
+            </motion.div>
+            
+            <motion.div 
+              className={`rounded-xl p-4 text-center border shadow-sm hover:shadow-md transition-all ${
+                theme === 'light' 
+                  ? 'bg-white border-gray-100' 
+                  : 'bg-gray-800 border-gray-700'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex items-center justify-center gap-1 text-brand-pink mb-1">
+                <Users className="w-4 h-4" />
+                <span className="font-bold text-lg">{realTestimonialStats.count || 0}</span>
+              </div>
+              <span className={`text-xs transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                Avis
+              </span>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* 🎯 SECTION 5: DESCRIPTION AVEC THÈME */}
+        <section className={`px-6 py-6 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-white' : 'bg-black'
+        }`}>
+          <div className="space-y-4">
+            <h3 className={`text-xl font-bold transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-900' : 'text-white'
+            }`}>
+              À Propos de ce Jeu
+            </h3>
+            <p className={`leading-relaxed transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+            }`}>
+              {product.description 
+                ? product.description.length > 300 
+                  ? `${product.description.substring(0, 300).trim()}...`
+                  : product.description
+                : `Découvrez ${product.name}, un jeu conçu pour créer des moments authentiques et renforcer vos relations avec vos proches. Chaque carte a été soigneusement élaborée pour encourager des conversations profondes et significatives.`
+              }
+            </p>
+          </div>
+        </section>
+
+        {/* 🎯 SECTION 6: TÉMOIGNAGES AVEC THÈME */}
+        <section className={`px-6 py-6 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
+        }`}>
+          <h3 className={`text-xl font-bold mb-4 transition-colors duration-300 ${
+            theme === 'light' ? 'text-gray-900' : 'text-white'
+          }`}>
+            Ce que disent nos clients
+          </h3>
+          
+          <div className="relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTestimonialIndex}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.4 }}
+                className={`rounded-xl p-6 border shadow-sm transition-colors duration-300 ${
+                  theme === 'light' 
+                    ? 'bg-white border-gray-100' 
+                    : 'bg-gray-800 border-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-brand-pink rounded-full w-12 h-12 flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">
+                      {testimonials[currentTestimonialIndex]?.author_name[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className={`font-semibold transition-colors duration-300 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-white'
+                    }`}>
+                      {testimonials[currentTestimonialIndex]?.author_name}
+                    </h4>
+                    <p className={`text-sm transition-colors duration-300 ${
+                      theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                    }`}>
+                      {testimonials[currentTestimonialIndex]?.author_location}
+                    </p>
+                  </div>
+                </div>
+                
+                <p className={`mb-4 italic leading-relaxed transition-colors duration-300 ${
+                  theme === 'light' ? 'text-gray-800' : 'text-gray-200'
+                }`}>
+                  "{testimonials[currentTestimonialIndex]?.content}"
+                </p>
+                
+                <div className="flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < (testimonials[currentTestimonialIndex]?.rating || 5)
+                          ? 'text-yellow-400 fill-current'
+                          : theme === 'light' ? 'text-gray-300' : 'text-gray-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+            
+            <div className="flex justify-center gap-2 mt-4">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentTestimonialIndex(index)}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    index === currentTestimonialIndex 
+                      ? 'bg-brand-pink w-6' 
+                      : theme === 'light' ? 'bg-gray-300' : 'bg-gray-600'
+                  }`}
+                />
+              ))}
             </div>
           </div>
         </section>
 
-        {/* Related Products Mobile */}
-        <section className="py-8 bg-theme-secondary/5">
+        {/* 🎯 SECTION 7: CTA APP MOBILE NOUVEAU */}
+        <section className={`px-6 py-8 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-white' : 'bg-black'
+        }`}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className={`rounded-2xl p-6 border relative overflow-hidden transition-colors duration-300 ${
+              theme === 'light' 
+                ? 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-100' 
+                : 'bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-blue-800'
+            }`}
+          >
+            {/* Icône décorative */}
+            <div className="absolute top-4 right-4 opacity-20">
+              <Smartphone className="w-16 h-16 text-brand-pink" />
+            </div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-brand-pink rounded-full p-2">
+                  <Download className="w-5 h-5 text-white" />
+                </div>
+                <h3 className={`text-lg font-bold transition-colors duration-300 ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  Téléchargez notre App Mobile (pour iPhone)
+                </h3>
+              </div>
+              
+              <p className={`text-sm mb-4 leading-relaxed transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-700' : 'text-gray-300'
+              }`}>
+                Tous nos jeux dans votre poche ! Testez gratuitement 10 cartes de chaque jeu et jouez hors ligne.
+              </p>
+              
+              <div className="flex items-center gap-2 mb-4">
+                <Gift className={`w-4 h-4 ${theme === 'light' ? 'text-green-600' : 'text-green-400'}`} />
+                <span className={`text-sm font-medium transition-colors duration-300 ${
+                  theme === 'light' ? 'text-green-600' : 'text-green-400'
+                }`}>
+                  10 cartes gratuites par jeu
+                </span>
+              </div>
+              
+              <motion.button
+                onClick={handleAppDownload}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-xl flex items-center justify-center gap-3 shadow-lg font-semibold"
+              >
+                <Smartphone className="w-5 h-5" />
+                <span>Télécharger sur iPhone</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* 🎯 SECTION 8: PRODUITS SIMILAIRES AVEC THÈME */}
+        <section className={`py-8 transition-colors duration-300 ${
+          theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
+        }`}>
           <div className="px-6">
             <MobileRelatedProducts
               currentProductId={product.id}
@@ -655,6 +797,44 @@ export default function MobileProductPageContent({ productId, product }: MobileP
             />
           </div>
         </section>
+
+        {/* 🎯 CTA STICKY EN BAS AVEC THÈME */}
+        <motion.div
+          ref={scrollRef}
+          className={`fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ${
+            isSticky ? 'translate-y-0' : 'translate-y-full'
+          }`}
+        >
+          <div className={`border-t px-6 py-4 safe-area-bottom transition-colors duration-300 ${
+            theme === 'light' 
+              ? 'bg-white border-gray-200' 
+              : 'bg-black border-gray-800'
+          }`}>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className={`text-sm transition-colors duration-300 ${
+                  theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                }`}>
+                  {product.name}
+                </div>
+                <div className={`text-lg font-bold transition-colors duration-300 ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  {formattedPrice}
+                </div>
+              </div>
+              <motion.button
+                onClick={handleInterestClick}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-brand-pink text-white px-6 py-3 rounded-full flex items-center gap-2 font-bold shadow-lg"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Ce jeu m'intéresse</span>
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
       {/* Chat Fullscreen */}

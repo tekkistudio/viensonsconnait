@@ -55,6 +55,7 @@ export class ProductService {
       description: dbProduct.description,
       price: dbProduct.price,
       compareAtPrice: dbProduct.compare_at_price,
+      stock_quantity: dbProduct.stock_quantity, 
       images,
       media,
       category: metadata.category || '',
@@ -115,7 +116,19 @@ export class ProductService {
     try {
       const { data: products, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('status', 'active');
       
       if (error) throw error;
@@ -135,7 +148,19 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('status', 'active');
       
       if (error) throw error;
@@ -156,7 +181,19 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('id', id)
         .single();
       
@@ -179,7 +216,19 @@ export class ProductService {
     try {
       const { data: allProducts, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('status', 'active')
         .neq('id', currentId);
 
@@ -216,6 +265,144 @@ export class ProductService {
 
     } catch (error) {
       console.error('Unexpected error in getRelatedProducts:', error);
+      return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour mettre à jour le stock d'un produit
+  async updateProductStock(productId: string, newStockQuantity: number): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newStockQuantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Error updating product stock:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateProductStock:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour décrémenter le stock lors d'une vente
+  async decrementStock(productId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      // D'abord, récupérer le stock actuel
+      const { data: product, error: fetchError } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError || !product) {
+        console.error('Error fetching product for stock decrement:', fetchError);
+        return false;
+      }
+
+      const currentStock = product.stock_quantity || 0;
+      
+      // Vérifier si suffisant de stock
+      if (currentStock < quantity) {
+        console.warn(`Insufficient stock. Current: ${currentStock}, Requested: ${quantity}`);
+        return false;
+      }
+
+      // Décrémenter le stock
+      const newStock = Math.max(0, currentStock - quantity);
+      
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newStock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId);
+
+      if (updateError) {
+        console.error('Error decrementing stock:', updateError);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in decrementStock:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour obtenir les produits en rupture de stock
+  async getOutOfStockProducts(): Promise<Product[]> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
+        .eq('status', 'active')
+        .lte('stock_quantity', 0);
+      
+      if (error) throw error;
+      
+      const sortedProducts = this.sortProductsByDisplayOrder(data || []);
+      
+      return sortedProducts.map(product => 
+        this.mapDatabaseProductToProduct(product as DatabaseProduct)
+      );
+    } catch (error) {
+      console.error('Error fetching out of stock products:', error);
+      return [];
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour obtenir les produits avec stock faible
+  async getLowStockProducts(threshold: number = 5): Promise<Product[]> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
+        .eq('status', 'active')
+        .gt('stock_quantity', 0)
+        .lte('stock_quantity', threshold);
+      
+      if (error) throw error;
+      
+      const sortedProducts = this.sortProductsByDisplayOrder(data || []);
+      
+      return sortedProducts.map(product => 
+        this.mapDatabaseProductToProduct(product as DatabaseProduct)
+      );
+    } catch (error) {
+      console.error('Error fetching low stock products:', error);
       return [];
     }
   }
@@ -268,7 +455,19 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*');
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `);
       
       if (error) throw error;
       
@@ -289,7 +488,19 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('status', 'active');
       
       if (error) throw error;
@@ -314,7 +525,19 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          compare_at_price,
+          stock_quantity,
+          status,
+          metadata,
+          created_at,
+          updated_at,
+          display_order
+        `)
         .eq('status', 'active')
         .or(`name.ilike.%${query}%,description.ilike.%${query}%`);
       
@@ -331,17 +554,20 @@ export class ProductService {
     }
   }
 
-  // ✅ NOUVEAU : Méthode pour obtenir les statistiques des produits
+  // ✅ NOUVEAU : Méthode pour obtenir les statistiques des produits avec stock
   async getProductStats(): Promise<{
     totalProducts: number;
     activeProducts: number;
     inactiveProducts: number;
+    outOfStockProducts: number;
+    lowStockProducts: number;
     averagePrice: number;
+    totalStockValue: number;
   }> {
     try {
       const { data: allProducts, error: allError } = await supabase
         .from('products')
-        .select('price, status');
+        .select('price, status, stock_quantity');
 
       if (allError) throw allError;
 
@@ -349,15 +575,30 @@ export class ProductService {
       const activeProducts = allProducts?.filter(p => p.status === 'active').length || 0;
       const inactiveProducts = totalProducts - activeProducts;
       
+      const outOfStockProducts = allProducts?.filter(p => 
+        p.status === 'active' && (p.stock_quantity || 0) <= 0
+      ).length || 0;
+      
+      const lowStockProducts = allProducts?.filter(p => 
+        p.status === 'active' && (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) <= 5
+      ).length || 0;
+      
       const averagePrice = totalProducts > 0 
         ? allProducts.reduce((sum, p) => sum + (p.price || 0), 0) / totalProducts
         : 0;
+
+      const totalStockValue = allProducts?.reduce((sum, p) => 
+        sum + ((p.price || 0) * (p.stock_quantity || 0)), 0
+      ) || 0;
 
       return {
         totalProducts,
         activeProducts,
         inactiveProducts,
-        averagePrice: Math.round(averagePrice)
+        outOfStockProducts,
+        lowStockProducts,
+        averagePrice: Math.round(averagePrice),
+        totalStockValue: Math.round(totalStockValue)
       };
     } catch (error) {
       console.error('Error getting product stats:', error);
@@ -365,7 +606,10 @@ export class ProductService {
         totalProducts: 0,
         activeProducts: 0,
         inactiveProducts: 0,
-        averagePrice: 0
+        outOfStockProducts: 0,
+        lowStockProducts: 0,
+        averagePrice: 0,
+        totalStockValue: 0
       };
     }
   }

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { CountrySelector } from '@/features/shared/components/CountrySelector';
 import { useSafeTheme } from '@/core/context/ThemeContext';
+import { ThemeToggleMenu } from '@/components/ui/ThemeToggle';
 
 const navigation = [
   { name: 'Accueil', href: '/' },
@@ -151,7 +152,7 @@ export default function MobileHeader() {
                   </div>
 
                   {/* Navigation */}
-                  <nav className="space-y-2">
+                  <nav className="space-y-2 mb-6">
                     {navigation.map((item, index) => (
                       <motion.div
                         key={item.name}
@@ -170,21 +171,38 @@ export default function MobileHeader() {
                     ))}
                   </nav>
 
-                  {/* Country selector dans le menu */}
-                  <div className="mt-8 pt-6 border-t border-white/20">
-                    <button
-                      onClick={() => {
-                        setShowCountrySelector(true);
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  {/* ✅ NOUVEAU : Toggle thème dans le menu */}
+                  <div className="mb-6 border-t border-white/10 pt-6">
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: navigation.length * 0.1 }}
                     >
-                      <span className="text-xl">{currentCountry?.flag}</span>
-                      <div className="text-left">
-                        <div className="font-medium">{currentCountry?.name}</div>
-                        <div className="text-sm text-white/60">Devise: {currentCountry?.currency?.symbol}</div>
-                      </div>
-                    </button>
+                      <ThemeToggleMenu />
+                    </motion.div>
+                  </div>
+
+                  {/* Country selector dans le menu */}
+                  <div className="border-t border-white/20 pt-6">
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: (navigation.length + 1) * 0.1 }}
+                    >
+                      <button
+                        onClick={() => {
+                          setShowCountrySelector(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        <span className="text-xl">{currentCountry?.flag}</span>
+                        <div className="text-left">
+                          <div className="font-medium">{currentCountry?.name}</div>
+                          <div className="text-sm text-white/60">Devise: {currentCountry?.currency?.symbol}</div>
+                        </div>
+                      </button>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>

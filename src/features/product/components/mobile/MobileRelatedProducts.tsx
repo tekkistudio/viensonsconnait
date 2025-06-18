@@ -2,11 +2,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Star, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Product } from '@/types/product';
 import useCountryStore from '@/core/hooks/useCountryStore';
 import { productService } from '@/lib/services/product.service';
+import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { getProductImages, generateImageProps } from '@/utils/image';
 
@@ -15,9 +16,10 @@ interface MobileRelatedProductsProps {
   productCategory: string;
 }
 
-interface ProductWithReviews extends Product {
+interface ProductWithSalesAndReviews extends Product {
   reviewsCount?: number;
   averageRating?: number;
+  salesCount?: number; // ✅ AJOUT DES VRAIES DONNÉES DE VENTES
 }
 
 export default function MobileRelatedProducts({
@@ -25,7 +27,7 @@ export default function MobileRelatedProducts({
   productCategory
 }: MobileRelatedProductsProps) {
   const { convertPrice } = useCountryStore();
-  const [relatedProducts, setRelatedProducts] = useState<ProductWithReviews[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<ProductWithSalesAndReviews[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -40,32 +42,35 @@ export default function MobileRelatedProducts({
           productCategory
         );
 
-        // Charger les témoignages pour chaque produit
-        const productsWithReviews = await Promise.all(
+        // ✅ NOUVEAU : Charger les stats de ventes ET les témoignages pour chaque produit
+        const productsWithSalesAndReviews = await Promise.all(
           products.map(async (product) => {
             try {
-              const [reviewsCount, averageRating] = await Promise.all([
+              const [reviewsCount, averageRating, productStats] = await Promise.all([
                 testimonialsService.getTestimonialsCountByProduct(product.id),
-                testimonialsService.getAverageRating(product.id)
+                testimonialsService.getAverageRating(product.id),
+                productStatsService.getProductStats(product.id) // ✅ CHARGEMENT DES STATS DE VENTES
               ]);
 
               return {
                 ...product,
                 reviewsCount: reviewsCount || 0,
-                averageRating: averageRating || 5
+                averageRating: averageRating || 5,
+                salesCount: productStats.sold || product.stats?.sold || 0 // ✅ VRAIES DONNÉES DE VENTES
               };
             } catch (error) {
-              console.error(`Error loading reviews for product ${product.id}:`, error);
+              console.error(`Error loading data for product ${product.id}:`, error);
               return {
                 ...product,
                 reviewsCount: product.stats?.reviews || 0,
-                averageRating: product.stats?.satisfaction || 5
+                averageRating: product.stats?.satisfaction || 5,
+                salesCount: product.stats?.sold || 0 // ✅ FALLBACK VERS LES STATS STATIQUES
               };
             }
           })
         );
 
-        setRelatedProducts(productsWithReviews);
+        setRelatedProducts(productsWithSalesAndReviews);
       } catch (error) {
         console.error('Failed to load related products:', error);
         setRelatedProducts([]);
@@ -199,9 +204,10 @@ export default function MobileRelatedProducts({
                 </span>
               </div>
 
-              {/* Stats complémentaires */}
-              <div className="text-theme-secondary text-xs">
-                {product.stats?.sold ? `${product.stats.sold}+ vendus` : 'Populaire'}
+              {/* ✅ STATS DE VENTES AVEC VRAIES DONNÉES */}
+              <div className="flex items-center gap-1 text-theme-secondary text-xs">
+                <ShoppingBag className="w-3 h-3" />
+                <span>{product.salesCount?.toLocaleString() || '0'} vendus</span>
               </div>
             </motion.div>
           );

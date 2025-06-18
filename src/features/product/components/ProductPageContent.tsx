@@ -11,6 +11,8 @@ import { testimonialsService } from '@/lib/services/testimonials.service';
 import type { Product } from '@/types/product';
 import dynamic from 'next/dynamic';
 import ProductTestimonials from './ProductTestimonials';
+import type { ChatOrderData, ConversationStep } from '@/types/chat';
+import { toChatOrderData, ensureConversationStep } from '@/utils/typeConversions';
 
 // Composant de fallback pour les images
 const ProductPlaceholder = () => (

@@ -129,7 +129,7 @@ export function ThemeToggle({ className = '', size = 'md' }: ThemeToggleProps) {
   );
 }
 
-// Version avec label pour les footers
+// Version avec label pour les footers - CORRIGÉE POUR ÊTRE PLUS DISCRÈTE
 export function ThemeToggleWithLabel({ className = '' }: { className?: string }) {
   const { theme, toggleTheme, mounted } = useSafeTheme();
 
@@ -151,8 +151,8 @@ export function ThemeToggleWithLabel({ className = '' }: { className?: string })
       onClick={toggleTheme}
       className={`
         flex items-center gap-3 p-3 rounded-lg
-        bg-theme-card border-theme border
-        hover:bg-brand-pink/10 transition-all duration-300
+        bg-white/5 border border-white/10
+        hover:bg-white/10 transition-all duration-300
         group w-full text-left
         ${className}
       `}
@@ -161,17 +161,17 @@ export function ThemeToggleWithLabel({ className = '' }: { className?: string })
     >
       <div className="flex-shrink-0">
         {theme === 'light' ? (
-          <Sun className="w-5 h-5 text-brand-blue group-hover:text-brand-pink transition-colors" />
+          <Sun className="w-5 h-5 text-white/70 group-hover:text-brand-pink transition-colors" />
         ) : (
           <Moon className="w-5 h-5 text-brand-pink group-hover:text-white transition-colors" />
         )}
       </div>
       
       <div className="flex-1">
-        <div className="text-theme-primary font-medium text-sm">
+        <div className="text-white font-medium text-sm">
           {theme === 'light' ? 'Mode sombre' : 'Mode clair'}
         </div>
-        <div className="text-theme-secondary text-xs">
+        <div className="text-white/60 text-xs">
           {theme === 'light' ? 'Basculer vers le thème sombre' : 'Basculer vers le thème clair'}
         </div>
       </div>
@@ -180,8 +180,77 @@ export function ThemeToggleWithLabel({ className = '' }: { className?: string })
         className="flex-shrink-0 w-8 h-4 rounded-full border-2 relative"
         initial={false}
         animate={{
-          backgroundColor: theme === 'dark' ? '#FF7E93' : '#e5e7eb',
-          borderColor: theme === 'dark' ? '#FF7E93' : '#d1d5db'
+          backgroundColor: theme === 'dark' ? '#FF7E93' : 'rgba(255,255,255,0.2)',
+          borderColor: theme === 'dark' ? '#FF7E93' : 'rgba(255,255,255,0.3)'
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        <motion.div
+          className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white"
+          initial={false}
+          animate={{
+            x: theme === 'dark' ? 14 : 2
+          }}
+          transition={{ duration: 0.3 }}
+        />
+      </motion.div>
+    </motion.button>
+  );
+}
+
+// ✅ NOUVELLE VERSION POUR LE MENU MOBILE
+export function ThemeToggleMenu({ className = '' }: { className?: string }) {
+  const { theme, toggleTheme, mounted } = useSafeTheme();
+
+  if (!mounted) {
+    return (
+      <div className={`flex items-center gap-3 p-3 rounded-lg bg-white/5 animate-pulse ${className}`}>
+        <div className="w-5 h-5 bg-white/20 rounded" />
+        <div className="flex-1">
+          <div className="h-4 bg-white/20 rounded mb-1" />
+          <div className="h-3 bg-white/20 rounded w-2/3" />
+        </div>
+        <div className="w-8 h-4 bg-white/20 rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.button
+      onClick={toggleTheme}
+      className={`
+        flex items-center gap-3 w-full px-4 py-3 
+        text-white/90 hover:text-white 
+        hover:bg-white/10 rounded-lg 
+        transition-colors group
+        ${className}
+      `}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="flex-shrink-0">
+        {theme === 'light' ? (
+          <Moon className="w-5 h-5 text-white/70 group-hover:text-brand-pink transition-colors" />
+        ) : (
+          <Sun className="w-5 h-5 text-brand-pink group-hover:text-white transition-colors" />
+        )}
+      </div>
+      
+      <div className="flex-1 text-left">
+        <div className="font-medium">
+          {theme === 'light' ? 'Mode sombre' : 'Mode clair'}
+        </div>
+        <div className="text-white/60 text-sm">
+          {theme === 'light' ? 'Activer le thème sombre' : 'Activer le thème clair'}
+        </div>
+      </div>
+
+      <motion.div
+        className="flex-shrink-0 w-8 h-4 rounded-full border-2 relative"
+        initial={false}
+        animate={{
+          backgroundColor: theme === 'dark' ? '#FF7E93' : 'rgba(255,255,255,0.2)',
+          borderColor: theme === 'dark' ? '#FF7E93' : 'rgba(255,255,255,0.3)'
         }}
         transition={{ duration: 0.3 }}
       >

@@ -1,4 +1,4 @@
-// src/types/chat.ts - TYPES CORRIGÉS POUR ÉVITER LES ERREURS
+// src/types/chat.ts - TYPES CORRIGÉS COMPLETS
 import { ReactNode } from 'react';
 
 // ==========================================
@@ -23,10 +23,11 @@ export type MessageType =
   | 'order-summary';
 
 export type PaymentProvider = 
-  | 'WAVE' 
-  | 'ORANGE_MONEY' 
-  | 'STRIPE' 
-  | 'CASH';
+  | 'wave' 
+  | 'orange_money' 
+  | 'card' 
+  | 'cash_on_delivery'
+  | 'other';
 
 export type PaymentStatus = 
   | 'pending' 
@@ -36,6 +37,15 @@ export type PaymentStatus =
   | 'cancelled' 
   | 'success';
 
+export type OrderStatus = 
+  | 'draft'
+  | 'pending' 
+  | 'confirmed' 
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled';
+
 // ==========================================
 // CONVERSATION STEPS - VERSION COMPLÈTE
 // ==========================================
@@ -44,16 +54,19 @@ export type ConversationStep =
   // ✅ ÉTAPES PRINCIPALES DU SYSTÈME
   | 'initial'
   | 'initial_engagement'
+  | 'initial_contact'
   | 'mode_selection'
   | 'generic_response'
   | 'error_recovery'
   | 'fallback_response'
-  | 'whatsapp_redirect' // ✅ AJOUTÉ
-  | 'intelligent_fallback' // ✅ AJOUTÉ
-  | 'basic_fallback' // ✅ AJOUTÉ
-  | 'enhanced_fallback' // ✅ AJOUTÉ
-  | 'standard_engagement' // ✅ AJOUTÉ
-  | 'critical_error' // ✅ AJOUTÉ
+  | 'whatsapp_redirect'
+  | 'intelligent_fallback'
+  | 'basic_fallback'
+  | 'enhanced_fallback'
+  | 'standard_engagement'
+  | 'critical_error'
+  | 'contextual_response'
+  | 'generic'
   
   // ✅ ÉTAPES DE DÉCOUVERTE ET INFORMATION
   | 'description'
@@ -63,14 +76,25 @@ export type ConversationStep =
   | 'product_usage'
   | 'product_benefits'
   | 'product_question'
+  | 'product_engagement'
+  | 'product_selection'
+  | 'product_details'
   | 'target_audience'
   | 'game_rules'
   | 'game_rules_shown'
   | 'usage_explained'
   | 'benefits_presented'
+  | 'benefits_engagement'
   | 'question_mode'
   | 'question_answered'
   | 'information_gathering'
+  | 'detailed_inquiry'
+  | 'post_inquiry'
+  | 'post_rules_engagement'
+  | 'knowledge_response'
+  | 'brand_discovery'
+  | 'delivery_inquiry'
+  | 'clarification'
   
   // ✅ ÉTAPES DE TÉMOIGNAGES ET SOCIAL PROOF
   | 'testimonials'
@@ -94,6 +118,7 @@ export type ConversationStep =
   | 'delivery_info'
   | 'delivery_info_shown'
   | 'delivery_question'
+  | 'delivery_unavailable'
   
   // ✅ ÉTAPES DE PERSUASION ET CONVERSION
   | 'warm_welcome'
@@ -104,6 +129,8 @@ export type ConversationStep =
   | 'persuasion_attempt'
   | 'trust_building'
   | 'purchase_intent'
+  | 'purchase_flow_choice'
+  | 'pre_purchase_questions'
   
   // ✅ ÉTAPES FLOW EXPRESS
   | 'express_contact'
@@ -120,6 +147,7 @@ export type ConversationStep =
   | 'express_error'
   | 'quantity_confirmed'
   | 'quantity_selected'
+  | 'custom_quantity'
   
   // ✅ ÉTAPES DE COLLECTE D'INFORMATIONS STANDARD
   | 'collect_quantity'
@@ -154,7 +182,6 @@ export type ConversationStep =
   | 'add_product'
   | 'add_product_to_order'
   | 'product_added'
-  | 'product_selection'
   | 'product_unavailable'
   | 'choose_flow'
   
@@ -171,14 +198,29 @@ export type ConversationStep =
   
   // ✅ ÉTAPES DE PAIEMENT
   | 'payment_method'
+  | 'payment_selection'
   | 'payment_processing'
   | 'payment_complete'
   | 'payment_error'
+  | 'payment_confirmation'
   | 'wave_payment_process'
+  | 'card_payment'
+  | 'custom_payment'
+  | 'modification_blocked'
+  | 'modify_quantity'
+  | 'modify_address'
+  | 'select_modification'
+  | 'modification_error'
   
   // ✅ ÉTAPES POST-ACHAT
   | 'order_complete'
   | 'order_details_shown'
+  | 'order_confirmed'
+  | 'order_created'
+  | 'order_error'
+  | 'order_management'
+  | 'customer_orders'
+  | 'order_search'
   | 'post_purchase'
   | 'post_purchase_options'
   | 'order_tracking'
@@ -187,9 +229,14 @@ export type ConversationStep =
   | 'customer_service'
   | 'customer_support'
   | 'general_support'
+  | 'general_inquiry'
   | 'support_request'
+  | 'support_routing'
   | 'contact_options'
   | 'address_change_request'
+  | 'no_products'
+  | 'mobile_app_interest'
+  | 'main_menu'
   
   // ✅ ÉTAPES DE CRÉATION DE COMPTE
   | 'create_account'
@@ -206,16 +253,9 @@ export type ConversationStep =
   | 'conversational_contact'
   | 'conversational_mode'
   | 'conversational_flow'
-  | 'mode_selection'
   | 'session_recovered'
-  | 'add_product_to_order'
-  | 'finalize_order'
   | 'browse_products'
-  | 'free_text_mode'
-  
-  // ✅ ÉTAPES GÉNÉRIQUES ET UTILITAIRES
-  | 'generic';
-
+  | 'free_text_mode';
 
 // ==========================================
 // INTERFACES PRINCIPALES
@@ -235,6 +275,121 @@ export interface ChatOrderItem {
   totalPrice: number;
   image?: string | null;
 }
+
+// ==========================================
+// ✅ AJOUT: TYPES MANQUANTS POUR LES DONNÉES
+// ==========================================
+
+export interface ProductData {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  images?: string[];
+  category?: string;
+  target_audience?: string[];
+  game_rules?: string;
+  benefits?: string[];
+  rating?: number;
+  reviews_count?: number;
+  status: string;
+  chatbot_variables?: any;
+  metadata?: any;
+}
+
+export interface CustomerData {
+  id?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DeliveryZoneData {
+  id: string;
+  name: string;
+  cities: string[];
+  base_price: number;
+  free_delivery_threshold?: number;
+  cash_on_delivery?: boolean;
+}
+
+export interface OrderData {
+  id?: string;
+  session_id?: string;
+  
+  // Informations produit
+  product_id?: string;
+  product_name?: string;
+  quantity?: number;
+  unit_price?: number;
+  subtotal?: number;
+  
+  // Informations client
+  customer_id?: string;
+  customer_phone?: string;
+  customer_name?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  email?: string;
+  
+  // Informations livraison
+  delivery_address?: string;
+  delivery_city?: string;
+  delivery_fee?: number;
+  delivery_cost?: number; // Alias pour delivery_fee
+  
+  // Montants
+  total_amount?: number;
+  
+  // Statuts
+  status?: OrderStatus;
+  payment_status?: PaymentStatus;
+  payment_method?: PaymentProvider;
+  
+  // ✅ AJOUT: Propriétés pour compatibilité avec l'ancien système
+  formStep?: ConversationStep;
+  items?: ChatOrderItem[];
+  totalAmount?: number; // Alias pour total_amount
+  subtotal_amount?: number; // Alias pour subtotal
+  paymentStatus?: PaymentStatus; // Alias pour payment_status
+  paymentMethod?: PaymentProvider; // Alias pour payment_method
+  deliveryCost?: number; // Alias pour delivery_cost
+  contactInfo?: string;
+  name?: string; // Nom complet
+  city?: string; // Alias pour delivery_city
+  address?: string; // Alias pour delivery_address
+  
+  // Métadonnées
+  metadata?: any;
+  order_details?: string;
+  created_at?: string;
+  updated_at?: string;
+  
+  // ✅ AJOUT: Propriétés étendues pour l'ancien système
+  currentItem?: ChatOrderItem;
+  buyingIntent?: number;
+  preferences?: UserPreferences;
+  mentionedTopics?: string[];
+  concerns?: string[];
+  interests?: string[];
+  recommendations?: any[];
+  summary?: any;
+  notes?: string;
+  chatMetadata?: {
+    lastMessageId?: string;
+    lastInteraction?: string;
+  };
+}
+
+// Alias pour compatibilité
+export type ChatOrderData = OrderData;
 
 // ==========================================
 // FLAGS ET MÉTADONNÉES
@@ -266,7 +421,7 @@ export interface MessageFlags {
   
   // ✅ AJOUT: Nouveaux flags pour l'IA professionnelle
   professionalAIUsed?: boolean;
-  aiConfidence?: number; // ✅ CORRIGÉ: number au lieu de string
+  aiConfidence?: number;
   fallbackUsed?: boolean;
   dataEnhanced?: boolean;
   basicFallback?: boolean;
@@ -316,8 +471,11 @@ export interface MessageFlags {
   supportMode?: boolean;
   freeTextEnabled?: boolean;
   standardResponse?: boolean;
+  welcomeMessage?: boolean;
+  personalizedResponse?: boolean;
+  showSocialProof?: boolean;
   
-  [key: string]: boolean | string | number | undefined; // ✅ CORRIGÉ: Ajouté number
+  [key: string]: boolean | string | number | undefined;
 }
 
 // ==========================================
@@ -326,83 +484,17 @@ export interface MessageFlags {
 
 export interface OrderMetadata {
   source: string;
-  storeId: string;
-  productId: string;
-  conversationId: string;
+  storeId?: string;
+  productId?: string;
+  conversationId?: string;
   createdAt: string;
-  updatedAt: string;
-  conversationHistory: any[];
+  updatedAt?: string;
+  conversationHistory?: any[];
   flags?: MessageFlags;
+  flow?: string;
+  sessionId?: string;
   [key: string]: any;
 }
-
-// ==========================================
-// DONNÉES DE COMMANDE UNIFIÉES
-// ==========================================
-
-export interface ChatOrderData {
-  // ✅ IDENTIFIANTS
-  session_id: string;
-  id?: string; // Identifiant de commande
-  order_id?: string; // Autre format d'identifiant
-  
-  // ✅ PRODUIT
-  product_id?: string;
-  
-  // ✅ INFORMATIONS CLIENT
-  first_name: string;
-  last_name: string;
-  name?: string; // Nom complet (prénom + nom)
-  phone: string;
-  city: string;
-  address: string;
-  email?: string;
-  
-  // ✅ PAIEMENT
-  payment_method?: PaymentProvider;
-  
-  // ✅ MONTANTS
-  subtotal?: number;
-  subtotal_amount?: number; // Compatibilité ancien système
-  delivery_cost?: number;
-  total_amount?: number;
-  totalAmount?: number; // Compatibilité ancien système
-  
-  // ✅ STATUTS
-  status: 'pending' | 'confirmed' | 'cancelled';
-  payment_status?: PaymentStatus;
-  paymentStatus?: PaymentStatus; // Compatibilité ancien système
-  
-  // ✅ ARTICLES
-  items: ChatOrderItem[];
-  
-  // ✅ MÉTADONNÉES
-  metadata?: OrderMetadata;
-  
-  // ✅ Propriétés de l'ancien système (compatibilité)
-  formStep?: ConversationStep;
-  currentItem?: ChatOrderItem;
-  contactInfo?: string;
-  paymentMethod?: PaymentProvider;
-  deliveryCost?: number;
-  buyingIntent?: number;
-  quantity?: number;
-  preferences?: UserPreferences;
-  mentionedTopics?: string[];
-  concerns?: string[];
-  interests?: string[];
-  recommendations?: any[];
-  summary?: any;
-  notes?: string;
-  order_details?: string;
-  chatMetadata?: {
-    lastMessageId?: string;
-    lastInteraction?: string;
-  };
-}
-
-// Alias pour compatibilité
-export type OrderData = ChatOrderData;
 
 // ==========================================
 // MÉTADONNÉES DES MESSAGES
@@ -411,7 +503,7 @@ export type OrderData = ChatOrderData;
 export interface ChatMessageMetadata {
   // Propriétés du nouveau système
   nextStep?: ConversationStep;
-  orderData?: Partial<ChatOrderData>;
+  orderData?: Partial<OrderData>;
   paymentUrl?: string;
   orderId?: string;
   productId?: string;
@@ -430,11 +522,17 @@ export interface ChatMessageMetadata {
   buyingIntent?: number;
   aiConfidence?: number;
   fallbackUsed?: boolean;
+  sessionId?: string;
+  flow?: string;
+  expectingPhone?: boolean;
+  expectingName?: boolean;
+  expectingAddress?: boolean;
+  expectingNumber?: boolean;
+  error?: string;
   
   // Propriétés de l'ancien système
   recommendations?: string[] | any[];
   intent?: number;
-  error?: string;
   productContext?: string;
   isButtonAction?: boolean;
   actionType?: string;
@@ -451,7 +549,6 @@ export interface ChatMessageMetadata {
     currency: string;
   };
   amount?: number;
-  orderSummary?: any;
   orderIndex?: number;
   summary?: any;
   cartId?: string;
@@ -464,7 +561,13 @@ export interface ChatMessageMetadata {
     url: string;
     description?: string;
   };
-  redirectType?: string; // ✅ AJOUTÉ
+  externalLinks?: {
+    whatsappUrl?: string;
+    appStore?: string;
+    playStore?: string;
+  };
+  whatsappUrl?: string;
+  redirectType?: string;
   lastCheck?: string;
   hasEmail?: 'yes' | 'no';
   emailCollected?: boolean;
@@ -477,23 +580,31 @@ export interface ChatMessageMetadata {
   handleQuantityChange?: (qty: number) => Promise<ChatMessage | void>;
   handleQuantitySubmit?: (qty: number) => Promise<void>;
   userPreferences?: UserPreferences;
+  availableProducts?: ProductData[];
+  currentOrder?: OrderData;
+  existingCustomer?: boolean;
+  newCustomer?: boolean;
+  orderSummary?: any; // ✅ GARDER CETTE VERSION (plus flexible)
+  availableMethods?: any[];
+  freeDeliveryThreshold?: number;
   
   // ✅ AJOUT: Propriétés manquantes
   originalMessage?: string;
-  [key: string]: any; // Pour permettre d'autres propriétés dynamiques
+  actions?: string[];
+  [key: string]: any;
 }
 
 // Alias pour compatibilité
 export type MessageMetadata = ChatMessageMetadata;
 
 // ==========================================
-// MESSAGE PRINCIPAL - ✅ CORRECTION DU TYPE CONTENT
+// MESSAGE PRINCIPAL
 // ==========================================
 
 export interface ChatMessage {
   id?: string;
   type: MessageType;
-  content: string; // ✅ CHANGÉ: Seulement string au lieu de ReactNode
+  content: string;
   choices?: string[];
   assistant?: ChatAssistant;
   metadata?: ChatMessageMetadata;
@@ -521,7 +632,7 @@ export interface PaymentModalState {
 
 export interface ChatState {
   messages: ChatMessage[];
-  orderData: ChatOrderData;
+  orderData: OrderData;
   sessionId: string;
   formStep: ConversationStep;
   isTyping: boolean;
@@ -558,7 +669,7 @@ export interface FormattedPhone {
 }
 
 // ==========================================
-// RÉPONSES IA - ✅ CORRIGÉE AVEC metadata
+// RÉPONSES IA
 // ==========================================
 
 export interface AIResponse {
@@ -569,13 +680,14 @@ export interface AIResponse {
   recommendations?: any[];
   buyingIntent?: number;
   error?: string;
-  metadata?: ChatMessageMetadata; // ✅ AJOUTÉ: Support pour metadata
+  metadata?: ChatMessageMetadata;
   
   // ✅ AJOUT: Types pour le dashboard
   insights?: string[];
   actions?: string[];
   suggestions?: string[];
   shouldPersonalize?: boolean;
+  message?: string; // Pour compatibilité
 }
 
 // ==========================================
@@ -592,13 +704,33 @@ export interface UserPreferences {
 }
 
 // ==========================================
+// CONTEXTES D'IA
+// ==========================================
+
+export interface AIContext {
+  productId?: string;
+  sessionId: string;
+  conversationHistory: ChatMessage[];
+  customerData?: Partial<CustomerData>;
+  currentStep?: ConversationStep;
+  metadata?: Record<string, any>;
+}
+
+export interface CompetitiveAnalysis {
+  averagePrice: number;
+  ourPosition: 'cheaper' | 'comparable' | 'premium';
+  uniqueSellingPoints: string[];
+  marketAdvantages: string[];
+}
+
+// ==========================================
 // ACTIONS DU CHAT
 // ==========================================
 
 export type ChatAction =
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
   | { type: 'SET_TYPING'; payload: boolean }
-  | { type: 'UPDATE_ORDER_DATA'; payload: Partial<ChatOrderData> }
+  | { type: 'UPDATE_ORDER_DATA'; payload: Partial<OrderData> }
   | { type: 'ADD_PRODUCT_TO_ORDER'; payload: ChatOrderItem }
   | { type: 'REMOVE_PRODUCT_FROM_ORDER'; payload: string }
   | { type: 'UPDATE_PRODUCT_QUANTITY'; payload: { productId: string; quantity: number } }
@@ -716,49 +848,6 @@ export interface ConversationContext {
   sessionStartTime: string;
 }
 
-// ==========================================
-// FONCTION UTILITAIRE
-// ==========================================
-
-export function createDefaultOrderMetadata(
-  sessionId: string,
-  productId: string,
-  storeId: string,
-  additionalData: Partial<any> = {}
-): OrderMetadata {
-  const timestamp = new Date().toISOString();
-  
-  return {
-    source: 'chatbot',
-    storeId: storeId || '',
-    productId: productId || '',
-    conversationId: sessionId,
-    createdAt: additionalData.createdAt || timestamp,
-    updatedAt: timestamp,
-    conversationHistory: additionalData.conversationHistory || [],
-    flags: additionalData.flags || {},
-    ...additionalData
-  };
-}
-
-// ==========================================
-// FONCTIONS UTILITAIRES POUR VALIDATION DE TYPE
-// ==========================================
-
-export function isStringContent(content: any): content is string {
-  return typeof content === 'string';
-}
-
-export function ensureStringContent(content: any): string {
-  if (typeof content === 'string') {
-    return content;
-  }
-  if (content === null || content === undefined) {
-    return '';
-  }
-  return String(content);
-}
-
 // Types de produit et identifiants
 export type ProductId = string;
 
@@ -784,7 +873,6 @@ export interface RecommendationContext {
   };
 }
 
-// ✅ AJOUT: Types manquants pour les services
 export interface ProductRecommendation {
   id: string;
   name: string;
@@ -814,4 +902,43 @@ export interface PageContext {
     id: string;
     role: string;
   };
+}
+
+// ==========================================
+// FONCTIONS UTILITAIRES
+// ==========================================
+
+export function createDefaultOrderMetadata(
+  sessionId: string,
+  productId: string,
+  storeId: string,
+  additionalData: Partial<any> = {}
+): OrderMetadata {
+  const timestamp = new Date().toISOString();
+  
+  return {
+    source: 'chatbot',
+    storeId: storeId || '',
+    productId: productId || '',
+    conversationId: sessionId,
+    createdAt: additionalData.createdAt || timestamp,
+    updatedAt: timestamp,
+    conversationHistory: additionalData.conversationHistory || [],
+    flags: additionalData.flags || {},
+    ...additionalData
+  };
+}
+
+export function isStringContent(content: any): content is string {
+  return typeof content === 'string';
+}
+
+export function ensureStringContent(content: any): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content === null || content === undefined) {
+    return '';
+  }
+  return String(content);
 }

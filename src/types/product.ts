@@ -52,6 +52,7 @@ export interface Product {
   images: string[];
   media: ProductMedia[];
   category: string;
+  stock_quantity?: number;
   metadata: ProductMetadata;
   benefits: string[];
   topics: string[];
@@ -122,6 +123,7 @@ export interface DatabaseProduct {
   price: number;
   compare_at_price?: number;
   status: 'active' | 'draft' | 'archived';
+  stock_quantity?: number;
   display_order?: number;
   // ✅ NOUVEAU: Tags dans la base de données
   tags?: string[];
