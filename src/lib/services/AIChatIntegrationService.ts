@@ -793,18 +793,32 @@ Comment puis-je vous aider ?`,
 
   private async saveSession(session: ChatSession): Promise<void> {
     try {
-      // Sauvegarder la conversation
+      console.log('💾 Sauvegarde session:', session.sessionId);
+
+      // 1. Sauvegarder/Mettre à jour la conversation principale
+      const conversationData = {
+        session_id: session.sessionId,
+        product_id: session.productId || null,
+        customer_id: session.customerId || null,
+        current_step: session.currentStep,
+        metadata: session.metadata || {},
+        last_activity: session.lastActivity,
+        created_at: session.createdAt,
+        updated_at: new Date().toISOString(),
+        // Ajouter les champs requis par votre schéma existant
+        store_id: process.env.NEXT_PUBLIC_VOSC_STORE_ID || null,
+        status: 'active',
+        messages: session.conversationHistory || [], // Stocker les messages dans le champ messages existant
+        session_data: {
+          currentStep: session.currentStep,
+          productId: session.productId,
+          lastActivity: session.lastActivity
+        }
+      };
+
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
-        .upsert({
-          session_id: session.sessionId,
-          product_id: session.productId,
-          customer_id: session.customerId,
-          current_step: session.currentStep,
-          metadata: session.metadata,
-          last_activity: session.lastActivity,
-          created_at: session.createdAt
-        }, {
+        .upsert(conversationData, {
           onConflict: 'session_id'
         })
         .select()
@@ -812,38 +826,87 @@ Comment puis-je vous aider ?`,
 
       if (conversationError) {
         console.error('❌ Erreur sauvegarde conversation:', conversationError);
+        
+        // Essayer une insertion simple si l'upsert échoue
+        const { data: insertedConv, error: insertError } = await supabase
+          .from('conversations')
+          .insert({
+            session_id: session.sessionId,
+            product_id: session.productId || null,
+            store_id: process.env.NEXT_PUBLIC_VOSC_STORE_ID || null,
+            metadata: session.metadata || {},
+            status: 'active',
+            messages: session.conversationHistory || [],
+            session_data: {
+              currentStep: session.currentStep,
+              productId: session.productId
+            },
+            created_at: session.createdAt,
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Erreur insertion conversation:', insertError);
+          return; // Sortir si on ne peut pas sauvegarder
+        }
+        
+        console.log('✅ Conversation insérée avec succès');
         return;
       }
 
-      // Sauvegarder les nouveaux messages
-      const existingMessageCount = await this.getExistingMessageCount(conversation.id);
-      const newMessages = session.conversationHistory.slice(existingMessageCount);
+      console.log('✅ Conversation sauvegardée:', conversation.id);
 
-      if (newMessages.length > 0) {
-        const messagesToInsert = newMessages.map(msg => ({
-          conversation_id: conversation.id,
-          type: msg.type,
-          content: msg.content,
-          choices: msg.choices,
-          assistant_info: msg.assistant,
-          metadata: msg.metadata,
-          created_at: msg.timestamp
-        }));
+      // 2. Sauvegarder dans chat_messages SEULEMENT si la table existe
+      try {
+        // Vérifier si la table chat_messages existe
+        const { data: tables } = await supabase
+          .from('information_schema.tables')
+          .select('table_name')
+          .eq('table_name', 'chat_messages')
+          .single();
 
-        const { error: messagesError } = await supabase
-          .from('chat_messages')
-          .insert(messagesToInsert);
+        if (tables) {
+          // La table existe, on peut sauvegarder les messages séparément
+          const existingMessageCount = await this.getExistingMessageCount(conversation.id);
+          const newMessages = session.conversationHistory.slice(existingMessageCount);
 
-        if (messagesError) {
-          console.error('❌ Erreur sauvegarde messages:', messagesError);
+          if (newMessages.length > 0) {
+            const messagesToInsert = newMessages.map(msg => ({
+              conversation_id: conversation.id,
+              type: msg.type,
+              content: msg.content,
+              choices: msg.choices || null,
+              assistant_info: msg.assistant || null,
+              metadata: msg.metadata || null,
+              created_at: msg.timestamp
+            }));
+
+            const { error: messagesError } = await supabase
+              .from('chat_messages')
+              .insert(messagesToInsert);
+
+            if (messagesError) {
+              console.error('⚠️ Erreur sauvegarde messages (non-bloquant):', messagesError);
+            } else {
+              console.log('✅ Messages sauvegardés dans chat_messages');
+            }
+          }
         }
+      } catch (chatMessagesError) {
+        console.log('ℹ️ Table chat_messages non disponible, messages stockés dans conversations.messages');
       }
 
-      // Mettre à jour le cache
+      // 3. Mettre à jour le cache
       this.activeSessions.set(session.sessionId, session);
+      console.log('✅ Session mise en cache');
 
     } catch (error) {
-      console.error('❌ Erreur sauvegarde session:', error);
+      console.error('❌ Erreur générale sauvegarde session:', error);
+      
+      // En cas d'erreur, au moins mettre en cache
+      this.activeSessions.set(session.sessionId, session);
     }
   }
 
