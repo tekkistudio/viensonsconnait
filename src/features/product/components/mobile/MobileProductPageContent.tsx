@@ -36,7 +36,7 @@ import { getProductImages, generateImageProps } from '@/utils/image';
 import { useSafeTheme } from '@/core/context/ThemeContext';
 import type { Product } from '@/types/product';
 import dynamic from 'next/dynamic';
-import ProductPageWithAI from '@/components/product/ProductPageWithAI';
+import { ensureProductData } from '@/lib/utils/productUtils';
 import MobileRelatedProducts from './MobileRelatedProducts';
 import StockIndicator from '@/components/ui/StockIndicator';
 import { getStockInfo } from '@/utils/stock';
@@ -841,7 +841,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
       {isChatFullscreen && (
         <div className="fixed inset-0 bg-white z-[100]">
           <MobileChatContainer
-            product={product}
+            product={ensureProductData(product)}
             storeId={VOSC_STORE_ID}
             onBackClick={() => setIsChatFullscreen(false)}
           />

@@ -339,7 +339,13 @@ export class AIManager {
         content: errorResponse.userMessage,
         type: 'assistant',
         insights: [],
-        actions: [],
+        actions: {
+          showCart: false,
+          showProduct: false,
+          triggerUpsell: false,
+          showTestimonials: false,
+          redirectWhatsApp: false
+        },
         suggestions: errorResponse.choices || []
       };
     }

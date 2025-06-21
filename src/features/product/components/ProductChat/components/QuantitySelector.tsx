@@ -1,84 +1,82 @@
-// src/features/product/components/ProductChat/components/QuantitySelector.tsx
-import React, { useState, useEffect } from 'react';
+// src/features/product/components/ProductChat/components/QuantitySelector.tsx - CORRIGÉ
+import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 
+// ✅ INTERFACE CORRIGÉE pour supporter les deux usages
 interface QuantitySelectorProps {
-  quantity: number;
-  onQuantityChange: (quantity: number) => void;
-  onConfirm: (quantity: number) => Promise<void>;
+  // Nouveau style (pour le nouveau chat)
+  onQuantitySelect?: (quantity: number) => void;
   maxQuantity?: number;
+  className?: string;
+  
+  // Ancien style (pour compatibilité)
+  quantity?: number;
+  onQuantityChange?: (qty: number) => void;
+  onConfirm?: (qty: number) => Promise<void>;
 }
 
-export default function QuantitySelector({
-  quantity: initialQuantity,
+const QuantitySelector: React.FC<QuantitySelectorProps> = ({
+  onQuantitySelect,
+  maxQuantity = 10,
+  className = '',
+  // Props de l'ancien système
+  quantity: initialQuantity = 1,
   onQuantityChange,
-  onConfirm,
-  maxQuantity = 10
-}: QuantitySelectorProps) {
-  // État local pour suivre la quantité
-  const [quantity, setQuantity] = useState(initialQuantity || 1);
-  // État pour suivre si une confirmation est en cours (éviter les doubles clics)
+  onConfirm
+}) => {
+  const [quantity, setQuantity] = useState(initialQuantity);
   const [isConfirming, setIsConfirming] = useState(false);
-  // État pour suivre si le composant est monté (éviter les mises à jour après démontage)
-  const [isMounted, setIsMounted] = useState(true);
-
-  // Effet pour mettre à jour l'état local si la prop change
-  useEffect(() => {
-    if (initialQuantity !== quantity) {
-      setQuantity(initialQuantity || 1);
-    }
-  }, [initialQuantity]);
-
-  // Effet de nettoyage
-  useEffect(() => {
-    return () => {
-      setIsMounted(false);
-    };
-  }, []);
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
-      onQuantityChange(newQuantity);
-    }
-  };
-
-  // Fonction pour gérer la confirmation
-  const handleConfirm = async () => {
-    if (isConfirming) return; // Éviter les doubles clics
-    
-    try {
-      setIsConfirming(true);
-      await onConfirm(quantity);
-    } catch (error) {
-      console.error('Error confirming quantity:', error);
-    } finally {
-      // Seulement mettre à jour l'état si le composant est toujours monté
-      if (isMounted) {
-        setIsConfirming(false);
+      // Appeler l'ancien callback si fourni
+      if (onQuantityChange) {
+        onQuantityChange(newQuantity);
       }
     }
   };
 
+  const handleConfirm = async () => {
+    if (isConfirming) return;
+    
+    try {
+      setIsConfirming(true);
+      
+      // Nouveau style (priorité)
+      if (onQuantitySelect) {
+        onQuantitySelect(quantity);
+      }
+      // Ancien style (compatibilité)
+      else if (onConfirm) {
+        await onConfirm(quantity);
+      }
+    } catch (error) {
+      console.error('Error confirming quantity:', error);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   return (
-    <div className="space-y-4 w-full">
-      <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-        <span className="text-sm text-gray-600">Quantité :</span>
+    <div className={`space-y-4 w-full ${className}`}>
+      <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+        <span className="text-sm text-gray-600">Quantité souhaitée :</span>
         <div className="flex items-center gap-3">
           <button
             onClick={() => handleQuantityChange(quantity - 1)}
-            className="p-1 rounded-full border border-brand-pink text-brand-pink hover:bg-brand-pink hover:text-white
+            className="p-2 rounded-full border border-[#FF7E93] text-[#FF7E93] hover:bg-[#FF7E93] hover:text-white
               disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             disabled={quantity <= 1 || isConfirming}
           >
             <Minus className="w-4 h-4" />
           </button>
           
-          <span className="w-8 text-center font-medium">{quantity}</span>
+          <span className="w-8 text-center font-medium text-lg">{quantity}</span>
           
           <button
             onClick={() => handleQuantityChange(quantity + 1)}
-            className="p-1 rounded-full border border-brand-pink text-brand-pink hover:bg-brand-pink hover:text-white
+            className="p-2 rounded-full border border-[#FF7E93] text-[#FF7E93] hover:bg-[#FF7E93] hover:text-white
               disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             disabled={quantity >= maxQuantity || isConfirming}
           >
@@ -90,11 +88,13 @@ export default function QuantitySelector({
       <button
         onClick={handleConfirm}
         disabled={isConfirming}
-        className="w-full px-4 py-2 bg-brand-pink text-white rounded-lg hover:bg-brand-pink/90 
-          transition-colors font-medium disabled:opacity-70"
+        className="w-full px-4 py-3 bg-[#FF7E93] text-white rounded-lg hover:bg-[#132D5D] 
+          transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed"
       >
-        {isConfirming ? 'Confirmation en cours...' : 'Confirmer la quantité'}
+        {isConfirming ? 'Ajout en cours...' : `Ajouter ${quantity} jeu${quantity > 1 ? 'x' : ''} au panier`}
       </button>
     </div>
   );
-}
+};
+
+export default QuantitySelector;

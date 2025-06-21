@@ -11,8 +11,9 @@ import { testimonialsService } from '@/lib/services/testimonials.service';
 import type { Product } from '@/types/product';
 import dynamic from 'next/dynamic';
 import ProductTestimonials from './ProductTestimonials';
-import type { ChatOrderData, ConversationStep } from '@/types/chat';
+import type { ChatOrderData, ConversationStep, } from '@/types/chat';
 import { toChatOrderData, ensureConversationStep } from '@/utils/typeConversions';
+import { ensureProductData } from '@/lib/utils/productUtils';
 
 // Composant de fallback pour les images
 const ProductPlaceholder = () => (
@@ -275,7 +276,7 @@ export default function ProductPageContent({ productId, product }: ProductPageCo
         {isChatFullscreen && (
           <div className="fixed inset-0 bg-white z-[100]">
             <MobileChatContainer
-              product={product}
+              product={ensureProductData(product)}
               storeId={VOSC_STORE_ID}
               onBackClick={() => setIsChatFullscreen(false)}
             />

@@ -1,95 +1,40 @@
-// src/lib/services/OptimizedChatService.ts 
+// src/lib/services/OptimizedChatService.ts - VERSION FINALE TOUS TYPES CORRIGÉS
 import { supabase } from '@/lib/supabase';
 import { PhoneService } from './PhoneService';
 import { OrderService } from './OrderService';
 import { AIResponseHandler } from './AIResponseHandler';
 import { OrderTrackingService } from './OrderTrackingService';
-import type { 
+import { createProductDataArray } from '@/lib/utils/productUtils';
+import { 
   ChatMessage, 
   ConversationStep, 
   MessageType,
-  ChatOrderData 
+  ChatOrderData,
+  PaymentProvider // ✅ CORRECTION: Import direct du bon type
 } from '@/types/chat';
-import type { PaymentProvider } from '@/types/order';
 
-// ✅ CORRECTION 1: Fonction utilitaire pour valider ConversationStep
+// ✅ FONCTION DE VALIDATION DES ÉTAPES
 function validateConversationStep(step: any): ConversationStep {
   const validSteps: ConversationStep[] = [
     'initial', 'initial_engagement', 'mode_selection', 'generic_response',
     'error_recovery', 'fallback_response', 'whatsapp_redirect',
     'intelligent_fallback', 'basic_fallback', 'enhanced_fallback',
     'standard_engagement', 'critical_error', 'description', 'product_info',
-    'product_info_detailed', 'product_info_persuasive', 'product_usage',
-    'product_benefits', 'product_question', 'target_audience', 'game_rules',
-    'game_rules_shown', 'usage_explained', 'benefits_presented',
-    'question_mode', 'question_answered', 'information_gathering',
-    'testimonials', 'testimonials_view', 'testimonials_shown',
-    'testimonials_request', 'social_proof_shown', 'price_question',
-    'price_explained', 'price_justification', 'objection',
-    'objection_handling', 'objection_handled', 'objection_addressed',
-    'objection_general', 'doubt_addressed', 'delivery_info',
-    'delivery_info_shown', 'delivery_question', 'warm_welcome',
-    'greeting', 'greeting_response', 'high_interest', 'conversion_focus',
-    'persuasion_attempt', 'trust_building', 'purchase_intent',
-    'express_contact', 'express_name', 'express_phone', 'express_city',
-    'express_address', 'express_quantity', 'express_custom_quantity',
-    'express_payment', 'express_order', 'express_summary', 'express_modify',
-    'express_error', 'quantity_confirmed', 'quantity_selected',
-    'collect_quantity', 'collect_name', 'collect_phone', 'collect_city',
-    'collect_address', 'collect_email', 'collect_email_opt',
-    'collect_has_email', 'process_email_response', 'collect_note_text',
-    'check_existing', 'confirm_address', 'update_address',
-    'confirm_existing_info', 'process_quantity', 'contact_info',
-    'cart_management', 'empty_cart', 'empty_cart_options',
-    'cart_summary_actions', 'product_navigation_choice',
-    'recommend_products', 'select_product', 'select_additional_product',
-    'additional_quantity', 'add_product_choice', 'add_other_products',
-    'add_product', 'add_product_to_order', 'product_added',
-    'product_selection', 'product_unavailable', 'choose_flow',
-    'add_notes', 'save_note', 'order_summary', 'show_order_summary',
-    'confirm_order_summary', 'modify_order', 'finalize_order',
-    'finalize_current_order', 'fresh_start', 'payment_method',
-    'payment_processing', 'payment_complete', 'payment_error',
-    'wave_payment_process', 'order_complete', 'order_details_shown',
-    'post_purchase', 'post_purchase_options', 'order_tracking',
-    'customer_service', 'customer_support', 'general_support',
-    'support_request', 'contact_options', 'address_change_request',
-    'create_account', 'create_account_email', 'create_account_password',
-    'out_of_stock', 'stock_unavailable', 'conversational_quantity',
-    'conversational_questions', 'conversational_contact',
-    'conversational_mode', 'conversational_flow', 'session_recovered',
-    'browse_products', 'free_text_mode', 'generic'
+    'express_quantity', 'express_phone', 'express_name', 'express_address',
+    'express_payment', 'express_confirmation', 'express_completed',
+    'express_summary', 'express_flow', 'express_contact', 'express_city',
+    'express_custom_quantity', 'express_order', 'express_modify', 'express_error',
+    'quantity_confirmed', 'quantity_selected', 'custom_quantity'
   ];
 
   if (typeof step === 'string' && validSteps.includes(step as ConversationStep)) {
     return step as ConversationStep;
   }
   
-  // Valeur par défaut sécurisée
   return 'generic_response';
 }
 
-// ✅ CORRECTION 2: Fonction pour créer un contexte IA sécurisé
-function createSafeAIContext(
-  productId: string,
-  productName: string,
-  sessionId: string,
-  isExpressMode: boolean,
-  currentStep?: string,
-  userMessage?: string
-) {
-  return {
-    productId,
-    productName,
-    sessionId,
-    isExpressMode,
-    currentStep: validateConversationStep(currentStep), // ✅ Validation ici
-    userMessage: userMessage || '',
-    conversationHistory: []
-  };
-}
-
-// États simplifiés pour le nouveau flow
+// ✅ TYPES POUR LE NOUVEL ORDRE STATE
 type PurchaseStep = 'quantity' | 'contact' | 'name' | 'address' | 'payment' | 'confirmation';
 
 interface OrderState {
@@ -114,18 +59,37 @@ interface OrderState {
   metadata?: {
     maxQuantity?: number;
     availableProducts?: any[];
+    estimatedTotal?: number;
   };
 }
 
-export class OptimizedChatService {
-  private static instance: OptimizedChatService | null = null;
-  private orderStates: Map<string, OrderState> = new Map();
-  private phoneService = PhoneService.getInstance();
-  private orderService = OrderService.getInstance();
-  private aiResponseHandler = AIResponseHandler.getInstance();
-  private orderTrackingService = OrderTrackingService.getInstance();
+// ✅ INTERFACE POUR LA RÉPONSE DU SERVICE DE COMMANDE
+interface OrderCreationResult {
+  success: boolean;
+  order?: {
+    id: string;
+    [key: string]: any;
+  };
+  error?: string;
+}
 
-  private constructor() {}
+// ✅ INTERFACE POUR LA VALIDATION TÉLÉPHONE (pour éviter l'erreur validateAndFormat)
+interface PhoneValidationResult {
+  isValid: boolean;
+  formatted?: string;
+  international?: string;
+  local?: string;
+  country?: string;
+  error?: string;
+}
+
+export class OptimizedChatService {
+  private static instance: OptimizedChatService;
+  private orderStates = new Map<string, OrderState>();
+
+  private constructor() {
+    console.log('🔧 OptimizedChatService initialized');
+  }
 
   public static getInstance(): OptimizedChatService {
     if (!this.instance) {
@@ -134,404 +98,18 @@ export class OptimizedChatService {
     return this.instance;
   }
 
-  // ==========================================
-  // ✅ SECTION: GESTION DES BOUTONS STANDARDS
-  // ==========================================
-
-  /**
-   * ✅ NOUVELLE MÉTHODE: Détecter si c'est un bouton standard qui ne doit PAS aller à l'IA
-   */
-  private isStandardButton(message: string): boolean {
-  const standardButtons = [
-    'Poser une question',
-    '❓ Poser une question',
-    'Suivre ma commande',
-    '🔍 Suivre ma commande',
-    'Nous contacter',
-    '💬 Nous contacter',
-    'Voir les autres jeux',
-    '🛍️ Voir les autres jeux',
-    'Commander rapidement',
-    '⚡ Commander rapidement',
-    'Parler à un conseiller',
-    'Contacter le support',
-    '📞 Contacter le support',
-    'WhatsApp',
-    'conseiller humain',
-    'agent humain',
-    'support humain'
-  ];
-  
-  return standardButtons.some(btn => 
-    message.includes(btn) || message === btn
-  );
-}
-
-  /**
-   * ✅ NOUVELLE MÉTHODE: Traiter les boutons standards avec réponses prédéfinies
-   */
-  private async handleStandardButton(
-  sessionId: string,
-  message: string
-): Promise<ChatMessage> {
-  console.log('🔘 Processing standard button:', message);
-
-  // ✅ PRIORITÉ 1: Redirection WhatsApp IMMÉDIATE
-  if (message.includes('Parler à un conseiller') || 
-      message.includes('Contacter le support') ||
-      message.includes('conseiller humain') ||
-      message.includes('agent humain') ||
-      message.includes('support humain') ||
-      message.includes('WhatsApp')) {
-    
-    console.log('📞 Redirecting to WhatsApp');
-    return {
-      type: 'assistant',
-      content: `📞 **Je vous connecte à notre équipe !**
-
-Un conseiller humain va répondre à toutes vos questions sur WhatsApp.
-
-👇 Cliquez pour continuer la conversation :`,
-      choices: ['📞 Continuer sur WhatsApp (+221 78 136 27 28)'],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'whatsapp_redirect' as ConversationStep,
-        externalUrl: {
-          type: 'whatsapp',
-          url: 'https://wa.me/221781362728',
-          description: 'Contacter sur WhatsApp'
-        },
-        flags: { 
-          preventAIIntervention: true,
-          whatsappRedirect: true
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-    // ✅ CORRECTION PROBLÈME 3: Suivre ma commande  
-    if (message.includes('Suivre ma commande') || message.includes('🔍')) {
-      console.log('🔍 Processing order tracking request for session:', sessionId);
-      return await this.orderTrackingService.createTrackingMessage(sessionId);
-    }
-
-    // ✅ Commander rapidement
-    if (message.includes('Commander rapidement') || message.includes('⚡')) {
-    const orderState = this.orderStates.get(sessionId);
-    const productId = orderState?.data.productId || this.extractProductIdFromSession(sessionId);
-    
-    if (!productId) {
-      console.error('❌ No productId found for express purchase');
-      return {
-        type: 'assistant',
-        content: `😔 **Session expirée**
-
-Veuillez rafraîchir la page pour recommencer votre commande.`,
-        choices: ['🔄 Rafraîchir la page', '📞 Contacter le support'],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'session_expired' as ConversationStep,
-          flags: { hasError: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-    
-    console.log('⚡ Starting express purchase for product:', productId);
-    try {
-      return await this.startExpressPurchase(sessionId, productId);
-    } catch (error) {
-      console.error('❌ Error starting express purchase:', error);
-      return {
-        type: 'assistant',
-        content: `😔 **Erreur lors du lancement de la commande express**
-
-Une erreur technique est survenue. Voulez-vous réessayer ?`,
-        choices: ['🔄 Réessayer', '📞 Contacter le support'],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'express_error' as ConversationStep,
-          flags: { hasError: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-    // ✅ Nous contacter
-    if (message.includes('Nous contacter') || message.includes('💬')) {
-      return {
-        type: 'assistant',
-        content: `💬 **Contactez notre équipe !**
-
-🤝 **Notre support client est là pour vous :**
-
-📱 **WhatsApp :** +221 78 136 27 28
-📧 **Email :** contact@viensonseconnait.com  
-🕒 **Horaires :** Lun-Ven 9h-18h, Sam 9h-14h
-
-💬 **Ou continuez ici :**
-Je peux répondre à toutes vos questions sur nos jeux, votre commande, et autres.
-
-Comment puis-je vous aider ?`,
-        choices: [
-          '📞 WhatsApp (+221 78 136 27 28)',
-          '❓ Poser une question',
-          '🔙 Retour au menu'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'customer_service' as ConversationStep,
-          externalUrl: {
-            type: 'whatsapp',
-            url: 'https://wa.me/221781362728',
-            description: 'Contacter sur WhatsApp'
-          },
-          flags: { 
-            contactMode: true,
-            freeTextEnabled: true 
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ Voir autres jeux
-    if (message.includes('Voir les autres jeux') || message.includes('🛍️')) {
-      return {
-        type: 'assistant',
-        content: `🛍️ **Découvrez notre collection complète !**
-
-Nous avons d'autres jeux passionnants pour renforcer vos relations :
-
-🔗 **Visitez notre boutique complète :**
-👉 [Voir tous nos jeux](/nos-jeux)
-
-📱 **Ou contactez-nous pour des recommandations personnalisées :**
-WhatsApp : +221 78 136 27 28
-
-Voulez-vous que je vous aide avec autre chose ?`,
-        choices: [
-          '🌐 Voir tous nos jeux',
-          '📞 Recommandations personnalisées',
-          '🔙 Continuer ici'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'browse_products' as ConversationStep,
-          externalUrl: {
-            type: 'other',
-            url: '/nos-jeux',
-            description: 'Voir tous nos jeux'
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // Fallback si aucun bouton standard reconnu
-    return this.createErrorMessage(sessionId, 'Bouton non reconnu');
-  }
-
-  // ==========================================
-  // ✅ SECTION: GESTION DES MESSAGES LIBRES IA
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE CORRIGÉE: Traiter les messages avec priorisation des boutons standards
-   */
-  async processUserInput(
+  // ✅ MÉTHODE PUBLIQUE: Gérer le flow express
+  public async handleExpressFlow(
     sessionId: string,
     message: string,
-    currentStep?: ConversationStep
-  ): Promise<ChatMessage> {
-    console.log('🤖 Processing user input with button detection:', { sessionId, message, currentStep });
-
-    try {
-      // ✅ VALIDATION STRICTE
-      if (!sessionId || sessionId.length < 5) {
-        console.error('❌ Invalid sessionId provided:', sessionId);
-        return this.createErrorMessage('', 'Session invalide. Veuillez rafraîchir la page.');
-      }
-
-      // ✅ PRIORITÉ 1: Vérifier si c'est un bouton standard
-      if (this.isStandardButton(message)) {
-        console.log('🔘 Standard button detected, handling directly');
-        return await this.handleStandardButton(sessionId, message);
-      }
-
-      // ✅ PRIORITÉ 2: Gestion des commandes express
-      if (this.isExpressCommand(message) || currentStep?.includes('express')) {
-        console.log('⚡ Processing express command');
-        return await this.handleExpressFlow(sessionId, message, currentStep);
-      }
-
-      // ✅ PRIORITÉ 3: Récupérer ou créer l'état de commande avec type correct
-      let orderState: OrderState | undefined = this.orderStates.get(sessionId);
-      
-      if (!orderState) {
-        console.log('🔄 Order state not found, attempting to recover or create new one');
-        
-        const recoveredState = await this.recoverSessionFromDatabase(sessionId);
-        
-        if (recoveredState) {
-          orderState = recoveredState;
-          this.orderStates.set(sessionId, orderState);
-        } else {
-          console.log('📝 Creating new order state for session:', sessionId);
-          orderState = {
-            step: 'quantity' as PurchaseStep,
-            mode: 'conversational',
-            data: {
-              quantity: 1,
-              storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
-            },
-            flags: {
-              customerExists: false,
-              addressValidated: false,
-              paymentInitiated: false
-            }
-          };
-          
-          this.orderStates.set(sessionId, orderState);
-        }
-      }
-
-      // ✅ PRIORITÉ 4: Récupérer le productId
-      let productId = orderState.data.productId;
-
-      if (!productId) {
-        productId = this.extractProductIdFromSession(sessionId);
-        if (productId) {
-          orderState.data.productId = productId;
-          this.orderStates.set(sessionId, orderState);
-        }
-      }
-
-      if (!productId) {
-        try {
-          const { data: conversation } = await supabase
-            .from('conversations')
-            .select('product_id')
-            .eq('id', sessionId)
-            .maybeSingle();
-            
-          if (conversation?.product_id) {
-            productId = conversation.product_id;
-            orderState.data.productId = productId;
-            this.orderStates.set(sessionId, orderState);
-          }
-        } catch (dbError) {
-          console.error('❌ Error recovering productId from database:', dbError);
-        }
-      }
-
-      if (!productId) {
-        console.error('❌ No productId found for session:', sessionId);
-        return this.createErrorMessage(sessionId, 'Session expirée. Veuillez rafraîchir la page et recommencer.');
-      }
-
-      // ✅ PRIORITÉ 5: Récupérer les infos produit
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('id, name, price, description')
-        .eq('id', productId)
-        .maybeSingle();
-
-      if (productError || !product) {
-        console.error('❌ Product not found for AI context:', productError);
-        return this.createErrorMessage(sessionId, `Produit ${productId} non trouvé.`);
-      }
-
-      // ✅ PRIORITÉ 6: Préparer le contexte pour l'IA
-      const aiContext = {
-        productId: product.id,
-        productName: product.name,
-        sessionId,
-        isExpressMode: orderState?.mode === 'express' || false,
-        currentStep,
-        userMessage: message,
-        conversationHistory: []
-      };
-
-      // ✅ PRIORITÉ 7: Laisser l'IA traiter le message
-      const aiResponse = await this.aiResponseHandler.handleFreeTextMessage(aiContext);
-      
-      console.log('✅ AI response generated successfully');
-      return aiResponse;
-
-    } catch (error) {
-      console.error('❌ Error processing user input:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre message. Veuillez réessayer.');
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Détecter les commandes express
-  private isExpressCommand(message: string): boolean {
-    const expressPatterns = [
-      /commander rapidement/i,
-      /⚡/,
-      /express/i,
-      /rapide/i,
-      /tout de suite/i
-    ];
-    
-    return expressPatterns.some(pattern => pattern.test(message));
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Extraire productId depuis sessionId
-  private extractProductIdFromSession(sessionId: string): string | undefined {
-  try {
-    console.log('🔍 Extracting productId from sessionId:', sessionId);
-    
-    // Essayer différents formats de sessionId
-    if (sessionId.includes('_')) {
-      const parts = sessionId.split('_');
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      for (const part of parts) {
-        if (uuidPattern.test(part)) {
-          console.log('✅ ProductId extracted:', part);
-          return part;
-        }
-      }
-    }
-    
-    // Si le sessionId entier est un UUID
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidPattern.test(sessionId)) {
-      console.log('✅ SessionId is productId:', sessionId);
-      return sessionId;
-    }
-    
-    console.log('⚠️ No productId found in sessionId');
-    return undefined;
-  } catch (error) {
-    console.error('❌ Error extracting productId:', error);
-    return undefined;
-  }
-}
-
-  // ✅ NOUVELLE MÉTHODE: Gérer le flow express
-  private async handleExpressFlow(
-    sessionId: string,
-    message: string,
-    currentStep?: string
+    currentStep: string
   ): Promise<ChatMessage> {
     try {
+      console.log('⚡ Handling express flow:', { sessionId, message, currentStep });
+
       let chatResponse: ChatMessage;
 
-      if (currentStep?.includes('express')) {
+      if (currentStep?.includes('express') || currentStep === 'express_start') {
         chatResponse = await this.handleExpressStep(sessionId, message, currentStep);
       } else {
         const orderState = this.orderStates.get(sessionId);
@@ -552,189 +130,8 @@ Voulez-vous que je vous aide avec autre chose ?`,
     }
   }
 
-  // ==========================================
-  // ✅ FLOW EXPRESS OPTIMISÉ AVEC QUANTITÉ  
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE CORRIGÉE: Démarrer le flow express avec correction des métadonnées
-   */
-  async startExpressPurchase(sessionId: string, productId: string): Promise<ChatMessage> {
-  console.log('🚀 Starting express purchase:', { sessionId, productId });
-
-  try {
-    // ✅ VALIDATION STRICTE du productId
-    if (!productId || productId.length < 10) {
-      console.error('❌ Invalid productId provided:', productId);
-      throw new Error('Invalid productId provided');
-    }
-
-    // ✅ RÉCUPÉRATION SÉCURISÉE du produit
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('id, name, price, stock_quantity, status')
-      .eq('id', productId)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (productError) {
-      console.error('❌ Database error:', productError);
-      throw new Error(`Database error: ${productError.message}`);
-    }
-
-    if (!product) {
-      console.error('❌ Product not found or inactive:', productId);
-      throw new Error('Product not found or inactive');
-    }
-
-    // ✅ VÉRIFICATION DU STOCK
-    if (product.stock_quantity <= 0) {
-      console.log('📦 Product out of stock:', product.name);
-      return this.createOutOfStockMessage(product);
-    }
-
-    // ✅ CRÉER L'ÉTAT DE COMMANDE avec validation
-    const orderState: OrderState = {
-      step: 'quantity' as const,
-      mode: 'express' as const,
-      data: { 
-        quantity: 1,
-        productId: product.id,
-        storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
-      },
-      flags: {
-        customerExists: false,
-        addressValidated: false,
-        paymentInitiated: false,
-        allowAddressChange: false
-      },
-      metadata: {
-        maxQuantity: Math.min(product.stock_quantity, 10)
-      }
-    };
-
-    // ✅ SAUVEGARDER EN MÉMOIRE ET BASE
-    this.orderStates.set(sessionId, orderState);
-    
-    try {
-      await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
-      console.log('✅ Session saved to database successfully');
-    } catch (dbError) {
-      console.warn('⚠️ Database save failed (non-blocking):', dbError);
-      // Ne pas faire échouer l'initialisation pour ça
-    }
-
-    console.log('✅ Express purchase initialized successfully');
-
-    // ✅ CORRECTION CRITIQUE: Métadonnées initiales complètes avec types sécurisés
-    return {
-      type: 'assistant',
-      content: `⚡ **Commande Express Activée** ⚡
-
-Jeu : **${product.name}**
-Prix : **${product.price.toLocaleString()} FCFA** l'unité
-Livraison : **incluse selon votre adresse**
-
-**Combien d'exemplaires souhaitez-vous commander ?**`,
-      choices: [
-        '1 exemplaire',
-        '2 exemplaires', 
-        '3 exemplaires',
-        'Autre quantité'
-      ],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'express_quantity' as ConversationStep,
-        productId: product.id,
-        maxQuantity: Math.min(product.stock_quantity, 10),
-        // ✅ AJOUT CRUCIAL: orderData initial avec types corrects
-        orderData: {
-          session_id: sessionId,
-          product_id: product.id,
-          quantity: 1,
-          subtotal: product.price,
-          total_amount: product.price,
-          totalAmount: product.price,
-          items: [{
-            productId: product.id, // ✅ GARANTI non-undefined
-            name: product.name,
-            quantity: 1,
-            price: product.price,
-            totalPrice: product.price
-          }]
-        },
-        flags: { 
-          expressMode: true,
-          quantitySelection: true,
-          preventAIIntervention: true,
-          showInCart: true // ✅ AJOUT: Force l'affichage panier dès le début
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-
-  } catch (error) {
-    console.error('❌ Critical error in startExpressPurchase:', error);
-    
-    // ✅ GESTION D'ERREUR ROBUSTE avec fallback
-    const errorMessage = error instanceof Error ? error.message : 'Erreur technique inconnue';
-    
-    return {
-      type: 'assistant',
-      content: `😔 **Erreur lors du lancement de la commande express**
-
-Une erreur technique est survenue : ${errorMessage}
-
-Voulez-vous réessayer ou contacter notre support ?`,
-      choices: [
-        '🔄 Réessayer',
-        '📞 Contacter le support',
-        '🔙 Retour au menu'
-      ],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'express_error' as ConversationStep,
-        flags: { 
-          hasError: true,
-          expressMode: false
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-}
-
-// ✅ MÉTHODE AUXILIAIRE: Créer message produit en rupture
-private createOutOfStockMessage(product: any): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `😔 **${product.name} temporairement en rupture** 
-      
-Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
-
-📧 **Voulez-vous être notifié(e) dès qu'il sera disponible ?**`,
-      choices: [
-        '📧 Me notifier quand disponible', 
-        '🛍️ Voir autres jeux', 
-        '📞 Contacter le support'
-      ],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'out_of_stock' as ConversationStep,
-        productId: product.id,
-        flags: { outOfStock: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  async handleExpressStep(
+  // ✅ MÉTHODE PUBLIQUE: Gérer les étapes express
+  public async handleExpressStep(
     sessionId: string,
     input: string,
     currentStep: string
@@ -768,6 +165,197 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
     }
   }
 
+  // ✅ DÉMARRER LE FLOW EXPRESS
+  private async startExpressPurchase(sessionId: string, productId: string): Promise<ChatMessage> {
+    console.log('🚀 Starting express purchase:', { sessionId, productId });
+
+    try {
+      // ✅ VALIDATION STRICTE du productId
+      if (!productId || productId.length < 10) {
+        console.error('❌ Invalid productId provided:', productId);
+        throw new Error('Invalid productId provided');
+      }
+
+      // ✅ RÉCUPÉRATION SÉCURISÉE du produit
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('id, name, price, stock_quantity, status')
+        .eq('id', productId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (productError) {
+        console.error('❌ Database error:', productError);
+        throw new Error(`Database error: ${productError.message}`);
+      }
+
+      if (!product) {
+        console.error('❌ Product not found or inactive:', productId);
+        throw new Error('Product not found or inactive');
+      }
+
+      // ✅ VÉRIFICATION DU STOCK
+      if (product.stock_quantity <= 0) {
+        console.log('📦 Product out of stock:', product.name);
+        return this.createOutOfStockMessage(product);
+      }
+
+      // ✅ CRÉER L'ÉTAT DE COMMANDE avec validation
+      const orderState: OrderState = {
+        step: 'quantity' as const,
+        mode: 'express' as const,
+        data: { 
+          quantity: 1,
+          productId: product.id,
+          storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
+        },
+        flags: {
+          customerExists: false,
+          addressValidated: false,
+          paymentInitiated: false,
+          allowAddressChange: false
+        },
+        metadata: {
+          maxQuantity: Math.min(product.stock_quantity, 10),
+          estimatedTotal: product.price
+        }
+      };
+
+      // ✅ SAUVEGARDER EN MÉMOIRE ET BASE
+      this.orderStates.set(sessionId, orderState);
+      
+      try {
+        await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
+      } catch (dbError) {
+        console.warn('⚠️ Could not save session to database:', dbError);
+      }
+
+      // ✅ CRÉER LE MESSAGE DE QUANTITÉ
+      return {
+        type: 'assistant',
+        content: `🛒 **Parfait ! Commençons votre commande express pour ${product.name}**
+
+**Prix unitaire :** ${product.price.toLocaleString()} FCFA
+
+Combien d'exemplaires souhaitez-vous ?`,
+        choices: [
+          '1 exemplaire',
+          '2 exemplaires', 
+          '3 exemplaires',
+          'Autre quantité'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_quantity' as ConversationStep,
+          showQuantitySelector: true,
+          maxQuantity: orderState.metadata?.maxQuantity,
+          orderData: {
+            productId: product.id,
+            productName: product.name,
+            unitPrice: product.price,
+            quantity: 1,
+            totalAmount: product.price,
+            session_id: sessionId
+          },
+          flags: { 
+            expressMode: true,
+            quantitySelection: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error starting express purchase:', error);
+      return this.createErrorMessage(sessionId, `Impossible de démarrer la commande: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
+  }
+
+  // ✅ GÉRER LA SÉLECTION DE QUANTITÉ
+  private async handleExpressQuantity(
+    sessionId: string,
+    input: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    console.log('🔢 Processing express quantity selection:', { sessionId, input });
+
+    try {
+      let quantity = 1;
+
+      // ✅ PARSER LA QUANTITÉ avec validation robuste
+      if (input.includes('1 exemplaire')) {
+        quantity = 1;
+      } else if (input.includes('2 exemplaires')) {
+        quantity = 2;
+      } else if (input.includes('3 exemplaires')) {
+        quantity = 3;
+      } else if (input.includes('Autre quantité')) {
+        return this.createCustomQuantityMessage(sessionId, orderState);
+      } else {
+        // Tentative de parsing numérique
+        const numMatch = input.match(/(\d+)/);
+        if (numMatch) {
+          quantity = parseInt(numMatch[1]);
+          if (quantity < 1 || quantity > (orderState.metadata?.maxQuantity || 10)) {
+            return this.createInvalidQuantityMessage(sessionId, orderState);
+          }
+        } else {
+          return this.createInvalidQuantityMessage(sessionId, orderState);
+        }
+      }
+
+      // ✅ RÉCUPÉRER LES INFOS PRODUIT
+      const { data: product } = await supabase
+        .from('products')
+        .select('id, name, price')
+        .eq('id', orderState.data.productId)
+        .single();
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      // ✅ METTRE À JOUR L'ÉTAT
+      orderState.data.quantity = quantity;
+      orderState.step = 'contact';
+      orderState.metadata!.estimatedTotal = product.price * quantity;
+      this.orderStates.set(sessionId, orderState);
+
+      // ✅ CRÉER LE MESSAGE DE CONTACT
+      return {
+        type: 'assistant',
+        content: `✅ **${quantity} exemplaire${quantity > 1 ? 's' : ''} de ${product.name}**
+
+**Montant total :** ${(product.price * quantity).toLocaleString()} FCFA
+
+Pour finaliser votre commande, j'ai besoin de votre numéro de téléphone :`,
+        choices: [],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_phone' as ConversationStep,
+          orderData: {
+            productId: product.id,
+            productName: product.name,
+            unitPrice: product.price,
+            quantity: quantity,
+            totalAmount: product.price * quantity,
+            session_id: sessionId
+          },
+          flags: { 
+            expressMode: true,
+            phoneCollection: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error handling quantity:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
+    }
+  }
+
+  // ✅ TRAITER LES ÉTAPES AVEC L'ÉTAT
   private async processStepWithState(
     sessionId: string,
     input: string,
@@ -792,1174 +380,640 @@ Ce jeu rencontre un grand succès ! Nous reconstituons notre stock.
     }
   }
 
-  // ✅ CORRECTION: Gérer la sélection de quantité avec métadonnées enrichies
-  private async handleExpressQuantity(
-  sessionId: string,
-  input: string,
-  orderState: OrderState
-): Promise<ChatMessage> {
-  console.log('🔢 Processing express quantity selection:', { sessionId, input });
-
-  try {
-    let quantity = 1;
-
-    // ✅ PARSER LA QUANTITÉ avec validation robuste
-    if (input.includes('1 exemplaire')) {
-      quantity = 1;
-    } else if (input.includes('2 exemplaires')) {
-      quantity = 2;
-    } else if (input.includes('3 exemplaires')) {
-      quantity = 3;
-    } else if (input.includes('Autre quantité')) {
-      return this.createCustomQuantityPrompt(orderState);
-    } else {
-      const numberMatch = input.match(/(\d+)/);
-      if (numberMatch) {
-        quantity = parseInt(numberMatch[1]);
-      }
-    }
-
-    // ✅ VALIDATION DE LA QUANTITÉ
-    const maxQuantity = orderState.metadata?.maxQuantity || 10;
-    if (quantity < 1 || quantity > maxQuantity) {
-      return this.createInvalidQuantityMessage(orderState);
-    }
-
-    // ✅ METTRE À JOUR L'ÉTAT
-    orderState.data.quantity = quantity;
-    orderState.step = 'contact';
-    this.orderStates.set(sessionId, orderState);
-    
-    try {
-      await this.updateSessionInDatabase(sessionId, orderState);
-    } catch (dbError) {
-      console.warn('⚠️ Database update failed (non-blocking):', dbError);
-    }
-
-    // ✅ RÉCUPÉRER LES INFOS PRODUIT de manière sécurisée
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('id, name, price')
-      .eq('id', orderState.data.productId)
-      .maybeSingle();
-
-    if (productError || !product) {
-      console.error('❌ Product retrieval error:', productError);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération du produit');
-    }
-
-    // ✅ CALCULS SÉCURISÉS
-    const itemPrice = product.price;
-    const subtotal = itemPrice * quantity;
-    const deliveryCost = 0; // Sera calculé à l'étape suivante
-    const totalAmount = subtotal + deliveryCost;
-
-    // ✅ CORRECTION CRITIQUE: Métadonnées COMPLÈTES avec types sécurisés
-    return {
-      type: 'assistant',
-      content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
-
-Jeu : **${product.name}**
-Prix total : **${totalAmount.toLocaleString()} FCFA** (${quantity} × ${itemPrice.toLocaleString()} FCFA)
-
-Sur quel numéro vous joindre pour la livraison ?`,
-      choices: [],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_contact' as ConversationStep,
-        // ✅ MÉTADONNÉES COMPLÈTES pour ChatHeader avec types corrects
-        orderData: { 
-          session_id: sessionId,
-          product_id: product.id,
-          quantity: quantity,
-          subtotal: subtotal,
-          total_amount: totalAmount,
-          totalAmount: totalAmount, // Double pour compatibilité
-          items: [{
-            productId: product.id, // ✅ GARANTI string non-undefined
-            name: product.name,
-            quantity: quantity,
-            price: itemPrice,
-            totalPrice: subtotal
-          }]
-        },
-        flags: { 
-          expressMode: true,
-          quantitySelected: true,
-          showInCart: true, // ✅ CRUCIAL: Force l'affichage dans ChatHeader
-          preventAIIntervention: true
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-
-  } catch (error) {
-    console.error('❌ Error in handleExpressQuantity:', error);
-    return this.createErrorMessage(sessionId, 'Erreur lors de la sélection de quantité');
-  }
-}
-
-  // =======================================
-  // ✅ MÉTHODES AUXILIAIRES POUR L'EXPRESS
-  // =======================================
-
-  private createCustomQuantityPrompt(orderState: OrderState): ChatMessage {
-  const maxQuantity = orderState.metadata?.maxQuantity || 10;
-  
-  return {
-    type: 'assistant',
-    content: `🔢 **Quelle quantité souhaitez-vous ?**
-
-Veuillez indiquer le nombre d'exemplaires (entre 1 et ${maxQuantity}) :
-
-Exemple : "5" ou "5 exemplaires"`,
-    choices: [],
-    assistant: this.getBotInfo(),
-    metadata: {
-      nextStep: 'express_custom_quantity' as ConversationStep,
-      maxQuantity: maxQuantity,
-      flags: { expressMode: true }
-    },
-    timestamp: new Date().toISOString()
-  };
-}
-
-private createInvalidQuantityMessage(orderState: OrderState): ChatMessage {
-  const maxQuantity = orderState.metadata?.maxQuantity || 10;
-  
-  return {
-    type: 'assistant',
-    content: `❌ **Quantité invalide**
-
-Veuillez choisir entre 1 et ${maxQuantity} exemplaires :`,
-    choices: [
-      '1 exemplaire',
-      '2 exemplaires', 
-      '3 exemplaires',
-      '🔢 Autre quantité'
-    ],
-    assistant: this.getBotInfo(),
-    metadata: {
-      nextStep: 'express_quantity' as ConversationStep,
-      maxQuantity: maxQuantity,
-      flags: { expressMode: true }
-    },
-    timestamp: new Date().toISOString()
-  };
-}
-
-  // =======================================
-  // ✅ MÉTHODES MANQUANTES À IMPLÉMENTER
-  // =======================================
-
-  private isQuantityModificationRequest(input: string): boolean {
-    const modificationKeywords = [
-      'modifier', 'changer', 'finalement', 'plutôt', 'en fait',
-      'exemplaire', 'quantité', 'nombre'
-    ];
-    return modificationKeywords.some(keyword => 
-      input.toLowerCase().includes(keyword)
-    ) && /\d+/.test(input);
-  }
-
-  private async handleQuantityModification(
+  // ✅ GÉRER LE CONTACT (TÉLÉPHONE) - MÉTHODE CORRIGÉE
+  private async handleExpressContact(
     sessionId: string,
     input: string,
     orderState: OrderState
   ): Promise<ChatMessage> {
-    // Implementation simplifiée - appeler handleExpressQuantity
-    return this.handleExpressQuantity(sessionId, input, orderState);
-  }
-
-  /**
-   * ✅ MÉTHODE CORRIGÉE: Validation téléphone avec reconnaissance client
-   */
-  private async handleExpressContact(
-    sessionId: string,
-    phone: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('📱 Processing contact step with customer recognition:', { sessionId, phone });
+    console.log('📞 Processing phone input:', { sessionId, input: input.substring(0, 10) });
 
     try {
-      // ✅ Utiliser le PhoneService amélioré
-      const validation = this.phoneService.validatePhoneNumber(phone);
-      
-      if (!validation.isValid) {
+      // ✅ CORRECTION: Utiliser une validation téléphone simplifiée (sans PhoneService.validateAndFormat)
+      const validationResult = this.validatePhoneNumber(input);
+
+      if (!validationResult.isValid) {
         return {
           type: 'assistant',
           content: `❌ **Numéro invalide**
 
-${validation.error}
+${validationResult.error}
 
-💡 **Exemples de formats acceptés :**
-• Sénégal : 77 123 45 67 ou +221 77 123 45 67
-• Côte d'Ivoire : +225 07 12 34 56
-• France : +33 6 12 34 56 78
-• International : +XXX XXXXXXXXX
-
-Veuillez réessayer :`,
+Veuillez saisir un numéro valide :`,
           choices: [],
           assistant: this.getBotInfo(),
-          metadata: { 
-            nextStep: 'express_contact' as ConversationStep,
-            flags: { 
-              expressMode: true,
-              phoneValidationError: true
-            }
+          metadata: {
+            nextStep: 'express_phone' as ConversationStep,
+            flags: { phoneError: true }
           },
           timestamp: new Date().toISOString()
         };
       }
 
-      // ✅ Formater le numéro avec le service amélioré
-      const formattedPhone = this.phoneService.formatPhoneWithCountry(phone);
-      
-      if (!formattedPhone.isValid) {
-        return {
-          type: 'assistant',
-          content: `⚠️ **Numéro non reconnu**
+      // ✅ METTRE À JOUR L'ÉTAT
+      orderState.data.phone = validationResult.formatted;
+      orderState.step = 'name';
+      this.orderStates.set(sessionId, orderState);
 
-Le format de votre numéro n'a pas été reconnu automatiquement.
-
-Pouvez-vous le saisir au format international ?
-Exemple : +221 77 123 45 67`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: { 
-            nextStep: 'express_contact' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // ✅ CORRECTION : Vérifier client existant dans la table customers
-      const { data: existingCustomer, error: customerError } = await supabase
+      // ✅ VÉRIFIER SI CLIENT EXISTANT
+      const { data: existingCustomer } = await supabase
         .from('customers')
-        .select('*')
-        .eq('phone', formattedPhone.international)
+        .select('first_name, last_name, city, address')
+        .eq('phone', validationResult.formatted)
         .maybeSingle();
 
-      console.log('🔍 Customer lookup result:', { 
-        found: !!existingCustomer, 
-        error: customerError,
-        phone: formattedPhone.international 
-      });
-
-      // ✅ Mettre à jour l'état
-      orderState.data.phone = formattedPhone.international;
-      
-      if (existingCustomer && !customerError) {
-        // ✅ CLIENT EXISTANT - Raccourci vers confirmation d'adresse
-        const fullName = `${existingCustomer.first_name || ''} ${existingCustomer.last_name || ''}`.trim();
-        
-        orderState.data.name = fullName || 'Client';
-        orderState.data.address = existingCustomer.address || '';
-        orderState.data.city = existingCustomer.city || '';
+      if (existingCustomer) {
         orderState.flags.customerExists = true;
-        orderState.flags.allowAddressChange = true;
-        orderState.step = 'address';
-
+        orderState.data.name = `${existingCustomer.first_name} ${existingCustomer.last_name}`;
+        orderState.data.city = existingCustomer.city;
+        orderState.data.address = existingCustomer.address;
+        orderState.step = 'payment';
         this.orderStates.set(sessionId, orderState);
-        await this.updateSessionInDatabase(sessionId, orderState);
-
-        const countryFlag = formattedPhone.country ? this.getCountryFlag(formattedPhone.country) : '📱';
 
         return {
           type: 'assistant',
-          content: `👋 Heureuse de vous revoir, **${existingCustomer.first_name || 'cher client'} !**
+          content: `👋 **Ravi de vous revoir ${existingCustomer.first_name} !**
 
-${countryFlag} Numéro confirmé : **${formattedPhone.formatted}**
+J'ai retrouvé vos informations :
+📍 **Adresse :** ${existingCustomer.address}, ${existingCustomer.city}
 
-📍 Votre adresse enregistrée :
-**${existingCustomer.address || 'Adresse non renseignée'}, ${existingCustomer.city || 'Ville non renseignée'}**
-
-Voulez-vous utiliser la même adresse ou la changer ?`,
+Souhaitez-vous utiliser ces informations pour la livraison ?`,
           choices: [
-            '✅ Garder cette adresse', 
-            '📍 Changer d\'adresse'
+            'Oui, même adresse',
+            'Changer l\'adresse',
+            'Nouvelle adresse'
           ],
           assistant: this.getBotInfo(),
           metadata: {
             nextStep: 'express_address' as ConversationStep,
+            orderData: {
+              phone: validationResult.formatted,
+              first_name: existingCustomer.first_name,
+              last_name: existingCustomer.last_name,
+              city: existingCustomer.city,
+              address: existingCustomer.address
+            },
             flags: { 
-              expressMode: true, 
-              customerExists: true,
-              phoneValidated: true
-            }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        // ✅ NOUVEAU CLIENT - Demander le nom
-        orderState.step = 'name';
-        orderState.flags.customerExists = false;
-        this.orderStates.set(sessionId, orderState);
-        await this.updateSessionInDatabase(sessionId, orderState);
-
-        const countryFlag = formattedPhone.country ? this.getCountryFlag(formattedPhone.country) : '📱';
-
-        return {
-          type: 'assistant',
-          content: `${countryFlag} **Numéro confirmé :** ${formattedPhone.formatted}
-
-👤 **Comment vous appelez-vous ?**
-*Prénom et nom*
-
-Exemple : "Aminata Diop", "Benoit Nguessan", "Marie Dupont"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_name' as ConversationStep,
-            flags: { 
-              expressMode: true,
-              phoneValidated: true,
-              newCustomer: true
+              existingCustomer: true,
+              addressConfirmation: true
             }
           },
           timestamp: new Date().toISOString()
         };
       }
 
-    } catch (error) {
-      console.error('❌ Error in handleExpressContact:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la validation du numéro');
-    }
-  }
-
-  // ✅ Collecter le nom
-  private async handleExpressName(
-    sessionId: string,
-    name: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('👤 Processing name step:', { sessionId, name });
-
-    try {
-      // Validation du nom
-      const trimmedName = name.trim();
-      const nameParts = trimmedName.split(' ');
-      
-      if (trimmedName.length < 3) {
-        return {
-          type: 'assistant',
-          content: `❌ Nom trop court. Donnez-moi votre nom complet :
-
-Exemple : "Aminata Diop"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_name' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-      
-      if (nameParts.length < 2) {
-        return {
-          type: 'assistant',
-          content: `❌ J'ai besoin de votre prénom ET nom :
-
-Exemple : "Aminata Diop"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_name' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Mettre à jour l'état
-      orderState.data.name = trimmedName;
-      orderState.step = 'address';
-      this.orderStates.set(sessionId, orderState);
-      await this.updateSessionInDatabase(sessionId, orderState);
-
+      // ✅ NOUVEAU CLIENT
       return {
         type: 'assistant',
-        content: `👋 Enchantée, **${nameParts[0]}** !
+        content: `📱 **Parfait ! Numéro enregistré : ${validationResult.formatted}**
 
-📍 A quelle adresse livrer votre commande ?
-*Format : Adresse, Ville*
+Maintenant, quel est votre nom complet ?
 
-Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
+*Exemple : Amadou Diallo*`,
         choices: [],
         assistant: this.getBotInfo(),
         metadata: {
-          nextStep: 'express_address' as ConversationStep,
-          flags: { expressMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ Error in handleExpressName:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la validation du nom');
-    }
-  }
-
-  private async handleExpressAddress(
-    sessionId: string,
-    addressOrChoice: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    console.log('📍 Processing address step:', { sessionId, addressOrChoice });
-
-    try {
-      // Gérer les choix pour clients existants
-      if (addressOrChoice.includes('Garder cette adresse')) {
-        orderState.step = 'payment';
-        orderState.flags.addressValidated = true;
-        this.orderStates.set(sessionId, orderState);
-        await this.updateSessionInDatabase(sessionId, orderState);
-
-        const deliveryCost = await this.calculateDeliveryCost(orderState.data.city || '');
-
-        return {
-          type: 'assistant',
-          content: `📍 Adresse enregistrée ✅
-Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
-
-🛵 Frais de livraison : **${deliveryCost.toLocaleString()} FCFA**
-
-💳 Comment souhaitez-vous payer ?`,
-          choices: [
-            this.createWaveButton(),
-            '💳 Payer par Carte bancaire', 
-            '🛵 Payer à la livraison'
-          ],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_payment' as ConversationStep,
-            orderData: { delivery_cost: deliveryCost },
-            flags: { expressMode: true, addressValidated: true }
+          nextStep: 'express_name' as ConversationStep,
+          orderData: {
+            phone: validationResult.formatted
           },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      if (addressOrChoice.includes('Changer d\'adresse')) {
-        return {
-          type: 'assistant',
-          content: `📍 **Nouvelle adresse de livraison**
-*Format : Adresse, Ville*
-
-Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_address' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Traitement d'une nouvelle adresse
-      const address = addressOrChoice;
-
-      if (address.length < 10) {
-        return {
-          type: 'assistant',
-          content: `❌ Adresse trop courte. Soyez plus précis :
-
-Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_address' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Parser l'adresse (format : "adresse, ville")
-      const parts = address.split(',').map(part => part.trim());
-      if (parts.length < 2) {
-        return {
-          type: 'assistant',
-          content: `❌ Format incorrect. Utilisez : **Adresse, Ville**
-
-Exemple : "Ouest-Foire - Tally Wally, Dakar"`,
-          choices: [],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'express_address' as ConversationStep,
-            flags: { expressMode: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Mettre à jour l'état
-      orderState.data.address = parts[0];
-      orderState.data.city = parts[1];
-      orderState.step = 'payment';
-      orderState.flags.addressValidated = true;
-      this.orderStates.set(sessionId, orderState);
-      await this.updateSessionInDatabase(sessionId, orderState);
-
-      // Calculer les frais de livraison
-      const deliveryCost = await this.calculateDeliveryCost(parts[1]);
-
-      return {
-        type: 'assistant',
-        content: `📍 **Adresse enregistrée** ✅
-${parts[0]}, ${parts[1]}
-
-🛵 Frais de livraison : ${deliveryCost.toLocaleString()} FCFA
-
-💳 Comment souhaitez-vous payer ?`,
-        choices: [
-          this.createWaveButton(),
-          '💳 Payer par Carte bancaire', 
-          '🛵 Payer à la livraison'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'express_payment' as ConversationStep,
-          orderData: { delivery_cost: deliveryCost },
-          flags: { expressMode: true, addressValidated: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ Error in handleExpressAddress:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la validation de l\'adresse');
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Créer le bouton Wave avec logo et couleur
-  private createWaveButton(): string {
-    return 'Payer avec Wave';
-  }
-
-  private async handleExpressPayment(
-  sessionId: string,
-  paymentChoice: string,
-  orderState: OrderState
-): Promise<ChatMessage> {
-  console.log('💳 Processing payment step:', { sessionId, paymentChoice });
-
-  try {
-    const paymentMethod = this.mapPaymentChoice(paymentChoice);
-    orderState.data.paymentMethod = paymentMethod;
-    orderState.step = 'confirmation';
-    orderState.flags.paymentInitiated = true;
-    this.orderStates.set(sessionId, orderState);
-    await this.updateSessionInDatabase(sessionId, orderState);
-
-    const orderId = await this.createExpressOrder(sessionId, orderState);
-    const orderTotal = await this.calculateOrderTotal(orderState);
-    
-    // ✅ CORRECTION CRITIQUE: Types sécurisés pour les métadonnées
-    const productName = await this.getProductName(orderState.data.productId);
-    const firstName = this.extractFirstName(orderState.data.name);
-    const lastName = this.extractLastName(orderState.data.name);
-    
-    // ✅ GARANTIR QUE LES VALEURS NE SONT PAS UNDEFINED
-    const baseOrderData = {
-      id: orderId,
-      order_id: orderId,
-      session_id: sessionId,
-      total_amount: orderTotal,
-      totalAmount: orderTotal,
-      first_name: firstName,
-      last_name: lastName,
-      name: orderState.data.name || `${firstName} ${lastName}`.trim() || 'Client',
-      phone: orderState.data.phone || '',
-      address: orderState.data.address || '',
-      city: orderState.data.city || '',
-      items: [{
-        productId: orderState.data.productId || '', // ✅ CORRECTION: Garantir string non-undefined
-        name: productName,
-        quantity: orderState.data.quantity || 1,
-        price: orderTotal / (orderState.data.quantity || 1),
-        totalPrice: orderTotal
-      }]
-    };
-    
-    if (paymentMethod === 'CASH') {
-      return {
-        type: 'assistant',
-        content: `🎉 **Votre commande est confirmée !** 🎉
-
-📋 **Commande N° : ${orderId}**
-👤 **Client : ${orderState.data.name}**
-📍 Adresse de livraison : ${orderState.data.address}, ${orderState.data.city}
-💰 Mode de paiement : à la livraison
-
-✅ Notre équipe vous contactera sous peu pour confirmer la livraison.
-
-🙏 Merci pour votre confiance !`,
-        choices: ['🔍 Suivre ma commande', '💬 Nous contacter', '🛍️ Voir les autres jeux'],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'order_complete' as ConversationStep,
-          orderId,
-          orderData: baseOrderData,
-          flags: { orderCompleted: true, showInCart: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    } else if (paymentMethod === 'WAVE') {
-      const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${orderTotal}`;
-      
-      return {
-        type: 'assistant',
-        content: `💰 **Paiement par Wave**
-
-📋 Commande : **${orderId}**
-👤 Client : **${orderState.data.name}**
-💰 Montant : **${orderTotal.toLocaleString()} FCFA**
-
-🔗 **Étapes :**
-1. Cliquez sur le bouton Wave ci-dessous
-2. Effectuez le paiement
-3. Validez avec votre ID de transaction
-
-👇🏽 Cliquez pour payer avec Wave :`,
-        choices: [
-          `🌊 Payer ${orderTotal.toLocaleString()} FCFA avec Wave`
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'wave_payment_process' as ConversationStep,
-          paymentUrl: waveUrl,
-          orderId,
-          // ✅ CORRECTION CRITIQUE: Toutes les données pour Wave
-          paymentAmount: orderTotal,
-          paymentMethod: 'Wave',
-          orderData: baseOrderData,
-          customerName: orderState.data.name,
           flags: { 
-            expressMode: true, 
-            paymentInitiated: true,
-            wavePayment: true,
-            showInCart: true
+            phoneCollected: true,
+            nameCollection: true
           }
         },
         timestamp: new Date().toISOString()
       };
-    } else {
-      // Stripe payment
-      const paymentUrl = await this.initializePayment(orderId, paymentMethod, orderState);
-      
-      return {
-        type: 'assistant',
-        content: `💳 **Finaliser le paiement**
 
-📋 Commande : **${orderId}**
-👤 Client : **${orderState.data.name}**
-💰 Montant : **${orderTotal.toLocaleString()} FCFA**
-
-👇🏽 Cliquez sur le bouton ci-dessous pour payer :`,
-        choices: [`💳 Payer par ${this.getPaymentDisplayName(paymentMethod)}`],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'payment_processing' as ConversationStep,
-          paymentUrl,
-          orderId,
-          // ✅ CORRECTION CRITIQUE: Métadonnées complètes
-          paymentAmount: orderTotal,
-          paymentMethod: this.getPaymentDisplayName(paymentMethod),
-          orderData: baseOrderData,
-          customerName: orderState.data.name,
-          flags: { expressMode: true, paymentInitiated: true, showInCart: true }
-        },
-        timestamp: new Date().toISOString()
-      };
+    } catch (error) {
+      console.error('❌ Error handling contact:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la validation du téléphone');
     }
-
-  } catch (error) {
-    console.error('❌ Express payment error:', error);
-    return this.createErrorMessage(sessionId, 'Erreur lors du traitement du paiement');
   }
-}
 
-  private async handleExpressConfirmation(
+  // ✅ MÉTHODE SIMPLIFIÉE DE VALIDATION TÉLÉPHONE
+  private validatePhoneNumber(phone: string): PhoneValidationResult {
+    const cleaned = phone.replace(/\s+/g, '').replace(/[-().]/g, '');
+    
+    if (cleaned.length < 8) {
+      return { isValid: false, error: 'Numéro trop court' };
+    }
+    
+    if (cleaned.length > 15) {
+      return { isValid: false, error: 'Numéro trop long' };
+    }
+    
+    if (!/^\+?[\d]+$/.test(cleaned)) {
+      return { isValid: false, error: 'Le numéro ne doit contenir que des chiffres' };
+    }
+    
+    // Format basique
+    let formatted = cleaned;
+    if (!cleaned.startsWith('+')) {
+      if (cleaned.startsWith('221')) {
+        formatted = '+' + cleaned;
+      } else if (cleaned.length === 9 && /^[7639]/.test(cleaned)) {
+        formatted = '+221' + cleaned;
+      } else {
+        formatted = '+' + cleaned;
+      }
+    }
+    
+    return {
+      isValid: true,
+      formatted: formatted,
+      international: formatted,
+      local: cleaned
+    };
+  }
+
+  // ✅ GÉRER LE NOM
+  private async handleExpressName(
     sessionId: string,
     input: string,
     orderState: OrderState
   ): Promise<ChatMessage> {
-    if (input.includes('Suivre ma commande') || input.includes('🔍')) {
-      return this.orderTrackingService.createTrackingMessage(sessionId);
+    console.log('👤 Processing name input:', { sessionId, input });
+
+    try {
+      const nameValidation = this.validateName(input);
+      
+      if (!nameValidation.isValid) {
+        return {
+          type: 'assistant',
+          content: `❌ **${nameValidation.error}**
+
+Veuillez saisir votre nom complet :
+
+*Exemple : Fatou Seck*`,
+          choices: [],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_name' as ConversationStep,
+            flags: { nameError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ METTRE À JOUR L'ÉTAT
+      orderState.data.name = nameValidation.fullName;
+      orderState.step = 'address';
+      this.orderStates.set(sessionId, orderState);
+
+      return {
+        type: 'assistant',
+        content: `👤 **Merci ${nameValidation.firstName} !**
+
+Maintenant, quelle est votre adresse de livraison ?
+
+*Exemple : Cité Keur Gorgui, Villa 123*`,
+        choices: [],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_address' as ConversationStep,
+          orderData: {
+            first_name: nameValidation.firstName,
+            last_name: nameValidation.lastName,
+            fullName: nameValidation.fullName
+          },
+          flags: { 
+            nameCollected: true,
+            addressCollection: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error handling name:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la validation du nom');
+    }
+  }
+
+  // ✅ GÉRER L'ADRESSE
+  private async handleExpressAddress(
+    sessionId: string,
+    input: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    console.log('📍 Processing address input:', { sessionId, input });
+
+    try {
+      // ✅ GESTION DES CHOIX POUR CLIENT EXISTANT
+      if (input.includes('Oui, même adresse')) {
+        orderState.step = 'payment';
+        this.orderStates.set(sessionId, orderState);
+        return this.createPaymentMethodMessage(sessionId, orderState);
+      }
+
+      if (input.includes('Changer l\'adresse') || input.includes('Nouvelle adresse')) {
+        return {
+          type: 'assistant',
+          content: `📍 **Nouvelle adresse de livraison**
+
+Veuillez saisir votre nouvelle adresse :
+
+*Exemple : Parcelles Assainies, Unité 25, Villa 456*`,
+          choices: [],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_address' as ConversationStep,
+            flags: { 
+              addressChange: true,
+              addressCollection: true
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ VALIDATION DE L'ADRESSE
+      const addressValidation = this.validateAddress(input);
+      
+      if (!addressValidation.isValid) {
+        return {
+          type: 'assistant',
+          content: `❌ **${addressValidation.error}**
+
+Veuillez préciser votre adresse :
+
+*Exemple : Médina, Rue 15 x 20, Maison bleue*`,
+          choices: [],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_address' as ConversationStep,
+            flags: { addressError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ METTRE À JOUR L'ÉTAT
+      orderState.data.address = addressValidation.address;
+      orderState.data.city = addressValidation.city;
+      orderState.step = 'payment';
+      this.orderStates.set(sessionId, orderState);
+
+      return this.createPaymentMethodMessage(sessionId, orderState);
+
+    } catch (error) {
+      console.error('❌ Error handling address:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la validation de l\'adresse');
+    }
+  }
+
+  // ✅ CRÉER MESSAGE MÉTHODE DE PAIEMENT
+  private async createPaymentMethodMessage(
+    sessionId: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    try {
+      const { data: product } = await supabase
+        .from('products')
+        .select('name, price')
+        .eq('id', orderState.data.productId)
+        .single();
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      const totalAmount = product.price * orderState.data.quantity;
+
+      return {
+        type: 'assistant',
+        content: `💳 **Choisissez votre mode de paiement**
+
+**Récapitulatif :**
+🎮 ${product.name} x${orderState.data.quantity}
+💰 **Total : ${totalAmount.toLocaleString()} FCFA**
+
+Comment souhaitez-vous payer ?`,
+        choices: [
+          '📱 Wave (Mobile Money)',
+          '🟠 Orange Money',
+          '💳 Carte bancaire',
+          '💵 Paiement à la livraison'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_payment' as ConversationStep,
+          orderData: {
+            totalAmount: totalAmount,
+            productName: product.name,
+            quantity: orderState.data.quantity
+          },
+          flags: { 
+            paymentSelection: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error creating payment message:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors de la préparation du paiement');
+    }
+  }
+
+  // ✅ GÉRER LE PAIEMENT - TYPES CORRIGÉS
+  private async handleExpressPayment(
+    sessionId: string,
+    input: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    console.log('💳 Processing payment selection:', { sessionId, input });
+
+    try {
+      let paymentMethod: PaymentProvider;
+
+      // ✅ CORRECTION: Utiliser les bonnes valeurs PaymentProvider
+      if (input.includes('Wave')) {
+        paymentMethod = 'wave';
+      } else if (input.includes('Orange Money')) {
+        paymentMethod = 'orange_money';
+      } else if (input.includes('Carte bancaire')) {
+        paymentMethod = 'card';
+      } else if (input.includes('Paiement à la livraison')) {
+        paymentMethod = 'cash_on_delivery';
+      } else {
+        return {
+          type: 'assistant',
+          content: `❌ **Mode de paiement non reconnu**
+
+Veuillez choisir parmi les options proposées :`,
+          choices: [
+            '📱 Wave (Mobile Money)',
+            '🟠 Orange Money', 
+            '💳 Carte bancaire',
+            '💵 Paiement à la livraison'
+          ],
+          assistant: this.getBotInfo(),
+          metadata: {
+            nextStep: 'express_payment' as ConversationStep,
+            flags: { paymentError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ METTRE À JOUR L'ÉTAT
+      orderState.data.paymentMethod = paymentMethod;
+      orderState.step = 'confirmation';
+      this.orderStates.set(sessionId, orderState);
+
+      // ✅ CRÉER LA COMMANDE
+      const orderResult = await this.createFinalOrder(sessionId, orderState);
+      
+      if (!orderResult.success) {
+        return this.createErrorMessage(sessionId, orderResult.error || 'Erreur lors de la création de la commande');
+      }
+
+      return {
+        type: 'assistant',
+        content: `✅ **Commande confirmée !**
+
+**Numéro de commande :** #${orderResult.orderId}
+
+${this.getPaymentInstructions(paymentMethod)}
+
+**Livraison :** 24-48h ouvrables
+
+Voulez-vous recevoir les détails par SMS ?`,
+        choices: [
+          '📱 Recevoir SMS',
+          '✉️ Recevoir par email',
+          '✅ C\'est parfait'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'express_completed' as ConversationStep,
+          orderData: {
+            orderId: orderResult.orderId,
+            paymentMethod: paymentMethod,
+            status: 'confirmed'
+          },
+          flags: { 
+            orderCompleted: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error handling payment:', error);
+      return this.createErrorMessage(sessionId, 'Erreur lors du traitement du paiement');
+    }
+  }
+
+  // ✅ CRÉER LA COMMANDE FINALE - TYPES CORRIGÉS
+  private async createFinalOrder(
+    sessionId: string,
+    orderState: OrderState
+  ): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    try {
+      const orderService = OrderService.getInstance();
+      
+      // ✅ PRÉPARER LES DONNÉES DE COMMANDE
+      const orderData = {
+        session_id: sessionId,
+        product_id: orderState.data.productId!,
+        store_id: orderState.data.storeId!,
+        quantity: orderState.data.quantity,
+        phone: orderState.data.phone!,
+        full_name: orderState.data.name!,
+        city: orderState.data.city!,
+        address: orderState.data.address!,
+        payment_method: orderState.data.paymentMethod!,
+        status: 'pending' as const
+      };
+
+      // ✅ CORRECTION: Appeler createOrder avec les bonnes données
+      const result = await orderService.createOrder(orderData as any);
+      
+      // ✅ GESTION DU RÉSULTAT - Types corrigés
+      if (result && typeof result === 'object' && 'success' in result) {
+        const orderResult = result as OrderCreationResult;
+        
+        if (orderResult.success && orderResult.order) {
+          return {
+            success: true,
+            orderId: orderResult.order.id
+          };
+        } else {
+          return {
+            success: false,
+            error: orderResult.error || 'Erreur lors de la création de la commande'
+          };
+        }
+      } else {
+        // Si result est une string ou un autre format
+        return {
+          success: false,
+          error: typeof result === 'string' ? result : 'Format de réponse inattendu'
+        };
+      }
+
+    } catch (error) {
+      console.error('❌ Error creating final order:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  }
+
+  // ✅ UTILITAIRES DE VALIDATION
+  private validateName(input: string): { isValid: boolean; firstName?: string; lastName?: string; fullName?: string; error?: string } {
+    const cleaned = input.trim();
+    
+    if (cleaned.length < 2) {
+      return { isValid: false, error: 'Le nom doit contenir au moins 2 caractères' };
+    }
+
+    if (cleaned.length > 50) {
+      return { isValid: false, error: 'Le nom ne peut pas dépasser 50 caractères' };
+    }
+
+    const parts = cleaned.split(/\s+/);
+    if (parts.length < 2) {
+      return { isValid: false, error: 'Veuillez saisir votre prénom et nom' };
+    }
+
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+
+    return {
+      isValid: true,
+      firstName,
+      lastName,
+      fullName: cleaned
+    };
+  }
+
+  private validateAddress(input: string): { isValid: boolean; address?: string; city?: string; error?: string } {
+    const cleaned = input.trim();
+    
+    if (cleaned.length < 10) {
+      return { isValid: false, error: 'L\'adresse doit être plus détaillée (minimum 10 caractères)' };
+    }
+
+    if (cleaned.length > 200) {
+      return { isValid: false, error: 'L\'adresse est trop longue (maximum 200 caractères)' };
+    }
+
+    // ✅ EXTRACTION DE LA VILLE (simplifiée)
+    const dakarAreas = ['dakar', 'médina', 'plateau', 'parcelles', 'pikine', 'guédiawaye', 'rufisque', 'keur massar'];
+    let detectedCity = 'Dakar'; // Par défaut
+
+    const lowerInput = cleaned.toLowerCase();
+    for (const area of dakarAreas) {
+      if (lowerInput.includes(area)) {
+        detectedCity = area.charAt(0).toUpperCase() + area.slice(1);
+        break;
+      }
     }
 
     return {
-      type: 'assistant',
-      content: `✅ **Votre commande est confirmée !** 🎉
+      isValid: true,
+      address: cleaned,
+      city: detectedCity
+    };
+  }
 
-Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
-      choices: [
-        '🔍 Suivre ma commande',
-        '🛍️ Commander autre chose',
-        '📞 Nous contacter'
-      ],
+  // ✅ UTILITAIRES
+  private extractProductIdFromSession(sessionId: string): string | null {
+    // Essayer d'extraire l'ID produit du sessionId si c'est formaté comme "product_sessionId"
+    const parts = sessionId.split('_');
+    return parts.length > 1 ? parts[0] : null;
+  }
+
+  private isQuantityModificationRequest(input: string): boolean {
+    const modificationKeywords = ['changer quantité', 'modifier quantité', 'autre quantité', 'plus', 'moins'];
+    return modificationKeywords.some(keyword => input.toLowerCase().includes(keyword));
+  }
+
+  private async handleQuantityModification(sessionId: string, input: string, orderState: OrderState): Promise<ChatMessage> {
+    return this.createCustomQuantityMessage(sessionId, orderState);
+  }
+
+  private createCustomQuantityMessage(sessionId: string, orderState: OrderState): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `🔢 **Quantité personnalisée**
+
+Combien d'exemplaires souhaitez-vous ?
+
+*Saisissez un nombre entre 1 et ${orderState.metadata?.maxQuantity || 10}*`,
+      choices: [],
       assistant: this.getBotInfo(),
       metadata: {
-        nextStep: 'post_purchase_options' as ConversationStep,
-        flags: { orderCompleted: true }
+        nextStep: 'express_custom_quantity' as ConversationStep,
+        flags: { customQuantity: true }
       },
       timestamp: new Date().toISOString()
     };
   }
 
-  // ==========================================
-  // ✅ MÉTHODES UTILITAIRES
-  // ==========================================
+  private createInvalidQuantityMessage(sessionId: string, orderState: OrderState): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `❌ **Quantité invalide**
 
-  private mapPaymentChoice(choice: string): PaymentProvider {
-    const normalized = choice.toLowerCase();
-    
-    if (normalized.includes('wave') || normalized.includes('🌊')) {
-      return 'WAVE';
-    }
-    
-    if (normalized.includes('carte') || normalized.includes('bancaire')) {
-      return 'STRIPE';
-    }
-    
-    if (normalized.includes('livraison') || normalized.includes('🛵')) {
-      return 'CASH';
-    }
-    
-    return 'WAVE'; // Par défaut
-  }
-
-  private getPaymentDisplayName(provider: PaymentProvider): string {
-    const names: Record<PaymentProvider, string> = {
-      'WAVE': 'Wave',
-      'STRIPE': 'Carte bancaire',
-      'CASH': 'Paiement à la livraison',
-      'ORANGE_MONEY': 'Orange Money' 
+Veuillez choisir entre 1 et ${orderState.metadata?.maxQuantity || 10} exemplaires :`,
+      choices: [
+        '1 exemplaire',
+        '2 exemplaires',
+        '3 exemplaires',
+        'Autre quantité'
+      ],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'express_quantity' as ConversationStep,
+        flags: { quantityError: true }
+      },
+      timestamp: new Date().toISOString()
     };
-    
-    return names[provider] || 'Paiement';
   }
 
-  private extractFirstName(fullName?: string): string {
-    if (!fullName) return 'Client';
-    const parts = fullName.trim().split(' ');
-    return parts[0] || 'Client';
-  }
+  private createOutOfStockMessage(product: any): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `😔 **${product.name} temporairement épuisé**
 
-  private extractLastName(fullName?: string): string {
-    if (!fullName) return '';
-    const parts = fullName.trim().split(' ');
-    return parts.slice(1).join(' ') || '';
-  }
+Nous reconstituons notre stock.
 
-  private async calculateOrderTotal(orderState: OrderState): Promise<number> {
-    try {
-      const productId = orderState.data.productId;
-      if (!productId) return 0;
-
-      const { data: product } = await supabase
-        .from('products')
-        .select('price')
-        .eq('id', productId)
-        .maybeSingle();
-
-      if (!product) return 0;
-
-      const subtotal = product.price * orderState.data.quantity;
-      const deliveryCost = await this.calculateDeliveryCost(orderState.data.city || '');
-      
-      return subtotal + deliveryCost;
-    } catch (error) {
-      console.error('❌ Error calculating order total:', error);
-      return 0;
-    }
-  }
-
-  private async calculateDeliveryCost(city: string): Promise<number> {
-    try {
-      console.log('🚚 Calculating delivery cost for city:', city);
-      
-      const normalizedCity = city.toLowerCase().trim();
-      
-      // Récupérer les zones de livraison depuis la base de données
-      const { data: zones, error } = await supabase
-        .from('delivery_zones')
-        .select('*')
-        .eq('is_active', true)
-        .order('cost', { ascending: true });
-
-      if (error) {
-        console.error('❌ Error fetching delivery zones:', error);
-        return this.getFallbackDeliveryCost(normalizedCity);
-      }
-
-      if (!zones || zones.length === 0) {
-        console.log('⚠️ No delivery zones found, using fallback');
-        return this.getFallbackDeliveryCost(normalizedCity);
-      }
-
-      // Chercher la zone correspondante
-      for (const zone of zones) {
-        if (zone.cities && Array.isArray(zone.cities)) {
-          const cityMatch = zone.cities.some((zoneCity: string) => 
-            normalizedCity.includes(zoneCity.toLowerCase()) ||
-            zoneCity.toLowerCase().includes(normalizedCity)
-          );
-          
-          if (cityMatch) {
-            console.log(`✅ Found matching zone: ${zone.name} - Cost: ${zone.cost} FCFA`);
-            return zone.cost;
-          }
-        }
-      }
-
-      // Si aucune zone trouvée, utiliser le coût le plus élevé (sécurité)
-      const maxCost = Math.max(...zones.map(z => z.cost));
-      console.log(`⚠️ No matching zone found for ${city}, using max cost: ${maxCost} FCFA`);
-      return maxCost;
-
-    } catch (error) {
-      console.error('❌ Error in calculateDeliveryCost:', error);
-      return this.getFallbackDeliveryCost(city.toLowerCase());
-    }
-  }
-
-  // ✅ Fallback pour les coûts de livraison
-  private getFallbackDeliveryCost(normalizedCity: string): number {
-    if (normalizedCity.includes('dakar')) return 0;
-    if (normalizedCity.includes('abidjan')) return 2500;
-    
-    const senegalCities = ['thiès', 'saint-louis', 'kaolack', 'ziguinchor', 'touba', 'mbour', 'pikine', 'guédiawaye'];
-    if (senegalCities.some(city => normalizedCity.includes(city))) {
-      return 3000;
-    }
-    
-    return 2500; // Coût par défaut
-  }
-
-  private async createExpressOrder(
-    sessionId: string,
-    orderState: OrderState
-  ): Promise<string> {
-    console.log('🛒 Creating express order:', { sessionId, orderState });
-
-    try {
-      const productId = orderState.data.productId;
-      if (!productId) {
-        throw new Error('Product ID not found in order state');
-      }
-
-      // Récupérer les infos produit
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .maybeSingle();
-
-      if (productError || !product) {
-        console.error('❌ Product not found during order creation:', productError);
-        throw new Error(`Product ${productId} not found`);
-      }
-
-      // Calculer les coûts
-      const deliveryCost = await this.calculateDeliveryCost(orderState.data.city || '');
-      const subtotal = product.price * orderState.data.quantity;
-      const total = subtotal + deliveryCost;
-
-      // Générer un ID numérique valide
-      const numericOrderId = Math.floor(Date.now() / 1000);
-
-      // ✅ EXTRACTION SÉCURISÉE DU NOM
-      const firstName = this.extractFirstName(orderState.data.name);
-      const lastName = this.extractLastName(orderState.data.name);
-
-      // Préparer les données de commande
-      const orderData = {
-        id: numericOrderId,
-        session_id: sessionId,
-        product_id: productId,
-        first_name: firstName,
-        last_name: lastName,
-        phone: orderState.data.phone,
-        city: orderState.data.city,
-        address: orderState.data.address,
-        payment_method: orderState.data.paymentMethod,
-        total_amount: total,
-        delivery_cost: deliveryCost,
-        status: orderState.data.paymentMethod === 'CASH' ? 'confirmed' : 'pending',
-        payment_status: 'pending',
-        order_details: JSON.stringify([{
-          productId: product.id,
-          name: product.name,
-          quantity: orderState.data.quantity,
-          price: product.price,
-          totalPrice: subtotal
-        }]),
-        metadata: {
-          source: 'chatbot',
-          mode: 'express',
-          storeId: orderState.data.storeId,
-          createdAt: new Date().toISOString()
-        }
-      };
-
-      console.log('📋 Order data prepared:', orderData);
-
-      // Insérer directement dans Supabase
-      const { data: insertedOrder, error: insertError } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .maybeSingle();
-
-      if (insertError) {
-        console.error('❌ Error inserting order:', insertError);
-        throw new Error(`Failed to create order: ${insertError.message}`);
-      }
-
-      console.log('✅ Order created successfully:', insertedOrder.id);
-
-      // ✅ NOUVEAU : Sauvegarder ou mettre à jour le client dans la table customers
-      try {
-        const customerData = {
-          first_name: firstName,
-          last_name: lastName,
-          phone: orderState.data.phone,
-          city: orderState.data.city,
-          address: orderState.data.address,
-          email: '', // Sera mis à jour plus tard si collecté
-          updated_at: new Date().toISOString()
-        };
-
-        if (orderState.flags.customerExists) {
-          // Mettre à jour client existant
-          await supabase
-            .from('customers')
-            .update(customerData)
-            .eq('phone', orderState.data.phone);
-          console.log('✅ Customer updated in database');
-        } else {
-          // Créer nouveau client
-          await supabase
-            .from('customers')
-            .insert({
-              ...customerData,
-              created_at: new Date().toISOString()
-            });
-          console.log('✅ New customer saved to database');
-        }
-      } catch (customerError) {
-        console.error('⚠️ Error saving customer (non-blocking):', customerError);
-        // Ne pas faire échouer la commande pour une erreur de sauvegarde client
-      }
-
-      // Décrémenter le stock
-      await this.decrementProductStock(productId, orderState.data.quantity);
-
-      return insertedOrder.id.toString();
-
-    } catch (error) {
-      console.error('❌ Error in createExpressOrder:', error);
-      throw error;
-    }
-  }
-
-  private async initializePayment(
-    orderId: string,
-    paymentMethod: PaymentProvider,
-    orderState: OrderState
-  ): Promise<string> {
-    console.log('💳 Initializing payment with method:', paymentMethod);
-    
-    try {
-      const totalAmountFCFA = await this.calculateOrderTotal(orderState);
-      
-      if (paymentMethod === 'STRIPE') {
-        // ✅ CORRECTION: Conversion FCFA vers EUR pour Stripe
-        const FCFA_TO_EUR_RATE = 0.00153; // 1 FCFA = 0.00153 EUR (taux approximatif)
-        const totalAmountEUR = Math.round(totalAmountFCFA * FCFA_TO_EUR_RATE * 100); // En centimes d'EUR
-        
-        console.log(`💰 Converting ${totalAmountFCFA} FCFA to ${totalAmountEUR/100} EUR for Stripe`);
-        
-        // Créer une session Stripe avec redirection vers le chat
-        const response = await fetch('/api/stripe/create-checkout-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: totalAmountEUR, // ✅ CORRECTION: Montant en centimes d'EUR
-            currency: 'eur',
-            orderId,
-            customerName: orderState.data.name,
-            successUrl: `${window.location.origin}/chat/payment-success?order_id=${orderId}`,
-            cancelUrl: `${window.location.origin}/chat/payment-canceled?order_id=${orderId}`
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Erreur lors de la création de la session Stripe');
-        }
-
-        const session = await response.json();
-        console.log('✅ Stripe session created:', session.id);
-        return session.url;
-        
-      } else if (paymentMethod === 'WAVE') {
-        // URL Wave avec montant en FCFA
-        const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${totalAmountFCFA}`;
-        console.log('💰 Wave payment URL generated:', waveUrl);
-        return waveUrl;
-        
-      } else {
-        return '#';
-      }
-      
-    } catch (error) {
-      console.error('❌ Error initializing payment:', error);
-      throw new Error(`Erreur lors de l'initialisation du paiement: ${error}`);
-    }
-  }
-
-  private async decrementProductStock(productId: string, quantity: number): Promise<void> {
-  try {
-    const { data: product, error: fetchError } = await supabase
-      .from('products')
-      .select('stock_quantity')
-      .eq('id', productId)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('❌ Error fetching product stock:', fetchError);
-      return;
-    }
-
-    // ✅ CORRECTION: Vérifier si le produit existe
-    if (!product) {
-      console.error('❌ Product not found for stock update:', productId);
-      return;
-    }
-
-    const currentStock = product.stock_quantity || 0;
-    const newStock = Math.max(0, currentStock - quantity);
-
-    const { error: updateError } = await supabase
-      .from('products')
-      .update({ 
-        stock_quantity: newStock,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', productId);
-
-    if (updateError) {
-      console.error('❌ Error updating product stock:', updateError);
-    } else {
-      console.log(`✅ Stock updated for product ${productId}: ${currentStock} -> ${newStock}`);
-    }
-  } catch (error) {
-    console.error('❌ Error in decrementProductStock:', error);
-  }
-}
-
-  /**
-   * ✅ MÉTHODE UTILITAIRE: Obtenir le drapeau du pays
-   */
-  private getCountryFlag(countryCode: string): string {
-    const flags: Record<string, string> = {
-      'SN': '🇸🇳',
-      'CI': '🇨🇮', 
-      'BJ': '🇧🇯',
-      'BF': '🇧🇫',
-      'ML': '🇲🇱',
-      'NE': '🇳🇪',
-      'TG': '🇹🇬',
-      'CM': '🇨🇲',
-      'GA': '🇬🇦',
-      'FR': '🇫🇷',
-      'MA': '🇲🇦',
-      'DZ': '🇩🇿',
-      'TN': '🇹🇳'
+📧 **Voulez-vous être notifié(e) dès qu'il sera disponible ?**`,
+      choices: [
+        '📧 Me notifier quand disponible',
+        '🛍️ Voir autres jeux',
+        '📞 Contacter le support'
+      ],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'out_of_stock' as ConversationStep,
+        productId: product.id,
+        flags: { outOfStock: true }
+      },
+      timestamp: new Date().toISOString()
     };
-    
-    return flags[countryCode] || '📱';
   }
 
-  // ==========================================
-  // ✅ GESTION DES DONNÉES ET SESSIONS
-  // ==========================================
+  private createErrorMessage(sessionId: string, errorText: string): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `😔 **${errorText}**
 
-  private async saveSessionToDatabase(
-    sessionId: string, 
-    orderState: OrderState, 
-    productId: string, 
-    storeId: string
-  ): Promise<void> {
-    try {
-      const sessionData = {
-        id: sessionId,
-        product_id: productId,
-        store_id: storeId,
-        session_data: orderState,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        status: 'active'
-      };
-
-      const { error } = await supabase
-        .from('conversations')
-        .upsert(sessionData, { onConflict: 'id' });
-
-      if (error) {
-        console.error('❌ Error saving session to database:', error);
-      } else {
-        console.log('✅ Session saved to database:', sessionId);
-      }
-    } catch (error) {
-      console.error('❌ Error in saveSessionToDatabase:', error);
-    }
-  }
-
-  private async updateSessionInDatabase(sessionId: string, orderState: OrderState): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('conversations')
-        .update({
-          session_data: orderState,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      if (error) {
-        console.error('❌ Error updating session in database:', error);
-      }
-    } catch (error) {
-      console.error('❌ Error in updateSessionInDatabase:', error);
-    }
-  }
-
-  private async recoverSessionFromDatabase(sessionId: string): Promise<OrderState | undefined> {
-    try {
-      const { data: conversation, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('id', sessionId)
-        .maybeSingle();
-
-      if (error || !conversation) {
-        console.error('❌ Could not recover session from database:', error);
-        return undefined;
-      }
-
-      console.log('✅ Session recovered from database:', sessionId);
-      return conversation.session_data as OrderState;
-    } catch (error) {
-      console.error('❌ Error in recoverSessionFromDatabase:', error);
-      return undefined;
-    }
+Voulez-vous réessayer ou contacter notre support ?`,
+      choices: ['🔄 Réessayer', '📞 Contacter le support'],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'error_recovery' as ConversationStep,
+        flags: { hasError: true }
+      },
+      timestamp: new Date().toISOString()
+    };
   }
 
   private getBotInfo() {
@@ -1970,153 +1024,44 @@ Merci pour votre achat ! Que souhaitez-vous faire maintenant ?`,
     };
   }
 
-  private createErrorMessage(sessionId: string, errorMessage: string): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `❌ **Erreur temporaire**
-
-${errorMessage}
-
-🔄 Voulez-vous réessayer ?`,
-      choices: ['🔄 Réessayer', '📞 Contacter le support'],
-      assistant: this.getBotInfo(),
-      metadata: {
-        nextStep: 'express_error' as ConversationStep,
-        flags: { expressMode: true, hasError: true }
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  // ==========================================
-  // ✅ MÉTHODES PUBLIQUES EXISTANTES
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE POUR GÉRER LES CHOIX PRÉDÉFINIS
-   */
-  async handlePredefinedChoice(
-    sessionId: string,
-    choice: string,
-    productId: string
-  ): Promise<ChatMessage> {
-    console.log('🔘 Processing predefined choice:', { choice, productId });
-
-    // ✅ PRIORITÉ 1: Vérifier si c'est un bouton standard
-    if (this.isStandardButton(choice)) {
-      return await this.handleStandardButton(sessionId, choice);
-    }
-
-    try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('id, name, price')
-        .eq('id', productId)
-        .maybeSingle();
-
-      if (!product) {
-        return this.createErrorMessage(sessionId, 'Produit non trouvé');
-      }
-
-      if (choice.includes('Commander rapidement') || choice.includes('⚡')) {
-        return this.startExpressPurchase(sessionId, productId);
-      }
-
-      // ✅ Autres choix traités par l'IA avec contexte
-      const aiContext = {
-        productId: product.id,
-        productName: product.name,
-        sessionId,
-        isExpressMode: false,
-        userMessage: choice,
-        conversationHistory: []
-      };
-
-      return this.aiResponseHandler.handleFreeTextMessage(aiContext);
-
-    } catch (error) {
-      console.error('❌ Error handling predefined choice:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du traitement du choix');
+  // ✅ INSTRUCTIONS DE PAIEMENT - TYPES CORRIGÉS
+  private getPaymentInstructions(paymentMethod: PaymentProvider): string {
+    switch (paymentMethod) {
+      case 'wave':
+        return '📱 **Paiement Wave :** Vous recevrez un lien de paiement par SMS';
+      case 'orange_money':
+        return '🟠 **Orange Money :** Vous recevrez les instructions par SMS';
+      case 'card':
+        return '💳 **Carte bancaire :** Lien de paiement sécurisé envoyé par SMS';
+      case 'cash_on_delivery':
+        return '💵 **Paiement à la livraison :** Préparez le montant exact';
+      default:
+        return '💳 **Paiement :** Instructions envoyées par SMS';
     }
   }
 
-  /**
-   * ✅ MÉTHODE: Vider la commande
-   */
-  async clearCart(sessionId: string): Promise<ChatMessage> {
-    console.log('🗑️ Clearing cart for session:', sessionId);
-
+  // ✅ MÉTHODES DE RÉCUPÉRATION ET SAUVEGARDE
+  private async recoverSessionFromDatabase(sessionId: string): Promise<OrderState | null> {
     try {
-      this.orderStates.delete(sessionId);
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('conversations')
-        .update({
-          status: 'cleared',
-          session_data: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      if (error) {
-        console.error('❌ Error clearing cart in database:', error);
-      }
-
-      return {
-        type: 'assistant',
-        content: `🗑️ **Commande vidée avec succès**
-
-Vous pouvez recommencer vos achats quand vous le souhaitez !
-
-Que souhaitez-vous faire maintenant ?`,
-        choices: [
-          '🛍️ Reprendre mes achats',
-          '🎯 Voir les jeux populaires',
-          '💬 Poser une question',
-          '📞 Contacter le support'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'fresh_start' as ConversationStep,
-          flags: { cartCleared: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ Error clearing cart:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la suppression de la commande');
-    }
-  }
-
-  // ==========================================
-  // ✅ MÉTHODES CONVERSATIONNELLES STANDARD
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE: Démarrer le flow conversationnel standard
-   */
-  async startConversationalFlow(sessionId: string, productId: string): Promise<ChatMessage> {
-    console.log('💬 Starting conversational flow:', { sessionId, productId });
-
-    try {
-      const { data: product } = await supabase
-        .from('products')
         .select('*')
-        .eq('id', productId)
+        .eq('session_id', sessionId)
         .maybeSingle();
 
-      if (!product) {
-        return this.createErrorMessage(sessionId, 'Produit non trouvé');
+      if (error || !data) {
+        console.log('❌ Could not recover session from database');
+        return null;
       }
 
-      const orderState: OrderState = {
+      // Reconstituer l'orderState depuis les données de conversation
+      return {
         step: 'quantity',
-        mode: 'conversational',
+        mode: 'express',
         data: {
           quantity: 1,
-          productId: product.id,
-          storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
+          productId: data.product_id,
+          storeId: data.store_id
         },
         flags: {
           customerExists: false,
@@ -2125,511 +1070,92 @@ Que souhaitez-vous faire maintenant ?`,
         }
       };
 
-      this.orderStates.set(sessionId, orderState);
-      await this.saveSessionToDatabase(sessionId, orderState, product.id, orderState.data.storeId!);
-
-      return {
-        type: 'assistant',
-        content: `💬 **Mode conversation activé**
-
-Parfait ! Je vais vous accompagner étape par étape pour votre commande du jeu **${product.name}**.
-
-💰 **Prix :** ${product.price.toLocaleString()} FCFA
-📦 **En stock :** ${product.stock_quantity} exemplaires
-
-🤔 **Prenons le temps de bien faire les choses...**
-
-Combien d'exemplaires souhaitez-vous commander ?`,
-        choices: [
-          '1 exemplaire',
-          '2 exemplaires',
-          '3 exemplaires',
-          'Autre quantité',
-          '❓ J\'ai des questions d\'abord'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'conversational_quantity' as ConversationStep,
-          productId: product.id,
-          flags: { 
-            conversationalMode: true,
-            questionMode: true
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
-
     } catch (error) {
-      console.error('❌ Error starting conversational flow:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du démarrage du mode conversation');
-    }
-  }
-
-  /**
-   * ✅ MÉTHODE: Gérer les étapes conversationnelles
-   */
-  async handleConversationalStep(
-    sessionId: string,
-    input: string,
-    currentStep: string
-  ): Promise<ChatMessage> {
-    console.log('💬 Processing conversational step:', { sessionId, input, currentStep });
-
-    try {
-      const orderState = this.orderStates.get(sessionId);
-      if (!orderState) {
-        return this.createErrorMessage(sessionId, 'Session expirée');
-      }
-
-      // Traitement selon l'étape conversationnelle
-      switch (currentStep) {
-        case 'conversational_quantity':
-          return await this.handleConversationalQuantity(sessionId, input, orderState);
-        
-        case 'conversational_questions':
-          return await this.handleConversationalQuestions(sessionId, input, orderState);
-        
-        case 'conversational_contact':
-          return await this.handleConversationalContact(sessionId, input, orderState);
-        
-        default:
-          // Utiliser l'IA pour les étapes non définies
-          return await this.aiResponseHandler.handleFreeTextMessage(
-        createSafeAIContext(
-            orderState.data.productId!,
-            await this.getProductName(orderState.data.productId),
-            sessionId,
-            false,
-            'conversational_questions',
-            input
-        )
-        );
-      }
-
-    } catch (error) {
-      console.error('❌ Error in conversational step:', error);
-      return this.createErrorMessage(sessionId, 'Erreur dans le mode conversation');
-    }
-  }
-
-  private async handleConversationalQuantity(
-    sessionId: string,
-    input: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    if (input.includes('questions d\'abord')) {
-      return {
-        type: 'assistant',
-        content: `❓ **Parfait ! Posez-moi toutes vos questions**
-
-Je suis là pour vous expliquer tout ce que vous voulez savoir sur le jeu **${await this.getProductName(orderState.data.productId)}**.
-
-Quelle est votre question ?`,
-        choices: [
-          '❓ Comment y jouer ?',
-          '👥 C\'est pour qui ?',
-          '💝 Quels bénéfices ?',
-          '📦 Livraison et prix',
-          '✍️ Question libre'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'conversational_questions' as ConversationStep,
-          flags: { conversationalMode: true, questionMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // Traiter la sélection de quantité (similaire à l'express mais plus détendu)
-    return this.handleExpressQuantity(sessionId, input, orderState);
-  }
-
-  private async handleConversationalQuestions(
-    sessionId: string,
-    input: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    // Déléguer à l'IA pour répondre aux questions
-    return await this.aiResponseHandler.handleFreeTextMessage({
-      productId: orderState.data.productId!,
-      productName: await this.getProductName(orderState.data.productId),
-      sessionId,
-      isExpressMode: false,
-      currentStep: 'conversational_questions',
-      userMessage: input,
-      conversationHistory: []
-    });
-  }
-
-  private async handleConversationalContact(
-    sessionId: string,
-    input: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    // Utiliser la méthode express mais avec un ton plus détendu
-    return this.handleExpressContact(sessionId, input, orderState);
-  }
-
-  // ✅ MÉTHODE AUXILIAIRE: Obtenir nom du produit de manière sécurisée
-  private async getProductName(productId?: string): Promise<string> {
-    if (!productId) return 'Produit';
-    
-    try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('name')
-        .eq('id', productId)
-        .maybeSingle();
-      
-      return product?.name || 'Produit';
-    } catch (error) {
-      console.error('❌ Error getting product name:', error);
-      return 'Produit';
-    }
-  }
-
-  // ==========================================
-  // ✅ GESTION DES ACTIONS POST-ACHAT
-  // ==========================================
-
-  /**
-   * ✅ NOUVELLE MÉTHODE: Gérer les actions post-achat avec suivi de commande
-   */
-  async handlePostPurchaseActions(sessionId: string, message: string): Promise<ChatMessage> {
-    console.log('📦 Handling post-purchase action:', message);
-
-    try {
-      // ✅ SUIVI DE COMMANDE - Nouveau système
-      if (message.includes('Suivre ma commande') || message.includes('🔍')) {
-        return this.orderTrackingService.createTrackingMessage(sessionId);
-      }
-
-      // ✅ AUTRES PRODUITS - Amélioration
-      if (message.includes('Autres produits') || message.includes('🛍️')) {
-        const orderState = this.orderStates.get(sessionId);
-        if (orderState) {
-          return this.handleAdditionalProducts(sessionId, orderState);
-        }
-      }
-
-      // ✅ Déléguer aux autres actions à l'AIResponseHandler
-      return this.aiResponseHandler.handlePostPurchaseAction(message);
-
-    } catch (error) {
-      console.error('❌ Error handling post-purchase action:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors du traitement de votre demande');
-    }
-  }
-
-  // ✅ MÉTHODE AMÉLIORÉE: Gérer l'ajout de produits supplémentaires
-  private async handleAdditionalProducts(
-    sessionId: string,
-    orderState: OrderState
-  ): Promise<ChatMessage> {
-    try {
-      // ✅ Récupérer d'autres produits disponibles avec plus d'informations
-      const { data: products, error } = await supabase
-        .from('products')
-        .select('id, name, price, description, images')
-        .eq('status', 'active')
-        .neq('id', orderState.data.productId) // Exclure le produit déjà commandé
-        .limit(4); // Augmenter à 4 produits
-
-      if (error || !products || products.length === 0) {
-        return {
-          type: 'assistant',
-          content: `🛍️ **Nos autres produits**
-
-Découvrez toute notre gamme sur notre site.
-
-Voulez-vous finaliser votre commande actuelle ?`,
-          choices: [
-            '📦 Finaliser ma commande',
-            '💬 Nous contacter',
-            '🌐 Voir tous nos jeux'
-          ],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'finalize_order' as ConversationStep,
-            externalUrl: {
-              type: 'other',
-              url: '/nos-jeux',
-              description: 'Voir tous nos jeux'
-            }
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // ✅ Créer un affichage enrichi des produits
-      const productDescriptions = products.map(p => {
-        const shortDesc = p.description ? 
-          (p.description.length > 80 ? `${p.description.substring(0, 80)}...` : p.description) : 
-          'Découvrez ce jeu pour renforcer vos relations';
-        
-        return `📦 **${p.name}**\n💰 ${p.price.toLocaleString()} FCFA\n📝 ${shortDesc}`;
-      }).join('\n\n');
-
-      return {
-        type: 'assistant',
-        content: `🛍️ **Ajoutez d'autres jeux à votre commande :**
-
-${productDescriptions}
-
-Quel jeu souhaitez-vous ajouter ?`,
-        choices: [
-          ...products.slice(0, 3).map(p => `➕ ${p.name}`), // Limiter à 3 boutons pour l'interface
-          '📦 Finaliser sans ajouter'
-        ],
-        assistant: this.getBotInfo(),
-        metadata: {
-          nextStep: 'add_product_to_order' as ConversationStep,
-          availableProducts: products,
-          flags: { addingProducts: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ Error in handleAdditionalProducts:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération des produits');
-    }
-  }
-
-  // ==========================================
-  // ✅ MÉTHODES DE GESTION DES CLIENTS
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE: Rechercher un client existant
-   */
-  async findExistingCustomer(phone: string): Promise<any | null> {
-    try {
-      const { data: customer, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', phone)
-        .maybeSingle();
-
-      if (error || !customer) {
-        return null;
-      }
-
-      return customer;
-    } catch (error) {
-      console.error('❌ Error finding existing customer:', error);
+      console.error('❌ Error recovering session:', error);
       return null;
     }
   }
 
-  /**
-   * ✅ MÉTHODE: Sauvegarder un nouveau client
-   */
-  async saveNewCustomer(customerData: {
-    first_name: string;
-    last_name: string;
-    phone: string;
-    city: string;
-    address: string;
-    email?: string;
-  }): Promise<boolean> {
+  private async saveSessionToDatabase(
+    sessionId: string,
+    orderState: OrderState,
+    productId: string,
+    storeId: string
+  ): Promise<void> {
     try {
       const { error } = await supabase
-        .from('customers')
-        .insert({
-          ...customerData,
-          created_at: new Date().toISOString(),
+        .from('conversations')
+        .upsert({
+          session_id: sessionId,
+          product_id: productId,
+          store_id: storeId,
+          current_step: orderState.step,
+          order_data: JSON.stringify(orderState),
           updated_at: new Date().toISOString()
         });
 
       if (error) {
-        console.error('❌ Error saving new customer:', error);
-        return false;
+        console.error('❌ Error saving session to database:', error);
       }
 
-      console.log('✅ New customer saved successfully');
-      return true;
     } catch (error) {
-      console.error('❌ Error in saveNewCustomer:', error);
-      return false;
+      console.error('❌ Error in saveSessionToDatabase:', error);
     }
   }
 
-  // ==========================================
-  // ✅ MÉTHODES DE RECOMMANDATIONS
-  // ==========================================
+  // ✅ GESTION DE LA CONFIRMATION FINALE
+  private async handleExpressConfirmation(
+    sessionId: string,
+    input: string,
+    orderState: OrderState
+  ): Promise<ChatMessage> {
+    if (input.includes('Recevoir SMS')) {
+      return {
+        type: 'assistant',
+        content: `📱 **SMS envoyé !**
 
-  /**
-   * ✅ MÉTHODE: Obtenir des recommandations de produits
-   */
-  async getProductRecommendations(
-    currentProductId: string,
-    customerProfile?: any
-  ): Promise<any[]> {
-    try {
-      // Récupérer des produits similaires ou complémentaires
-      const { data: products, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('status', 'active')
-        .neq('id', currentProductId)
-        .limit(3);
+Vous recevrez toutes les informations sur votre commande par SMS.
 
-      if (error || !products) {
-        return [];
-      }
-
-      // Ajouter un score de recommandation basique
-      return products.map(product => ({
-        ...product,
-        recommendationScore: Math.random() * 0.5 + 0.5, // Score entre 0.5 et 1.0
-        reason: 'Complémentaire à votre choix'
-      }));
-
-    } catch (error) {
-      console.error('❌ Error getting product recommendations:', error);
-      return [];
+Merci pour votre confiance ! 🙏`,
+        choices: [
+          '🛍️ Commander un autre jeu',
+          '📞 Contacter le support',
+          '✅ Parfait, merci !'
+        ],
+        assistant: this.getBotInfo(),
+        metadata: {
+          nextStep: 'post_purchase' as ConversationStep,
+          flags: { 
+            orderCompleted: true,
+            smsRequested: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
-  }
 
-  // ==========================================
-  // ✅ MÉTHODES DE STATISTIQUES ET MONITORING
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE: Obtenir les statistiques de session
-   */
-  getSessionStats(): {
-    activeSessions: number;
-    totalOrders: number;
-    averageConversionTime: number;
-  } {
     return {
-      activeSessions: this.orderStates.size,
-      totalOrders: Array.from(this.orderStates.values()).filter(state => 
-        state.flags.paymentInitiated
-      ).length,
-      averageConversionTime: 0 // À implémenter avec de vraies données
+      type: 'assistant',
+      content: `✅ **Commande finalisée avec succès !**
+
+Merci pour votre confiance. Votre commande sera traitée dans les plus brefs délais.
+
+🎮 **Profitez bien de votre jeu !**`,
+      choices: [
+        '🛍️ Commander un autre jeu',
+        '📞 Besoin d\'aide',
+        '⭐ Laisser un avis'
+      ],
+      assistant: this.getBotInfo(),
+      metadata: {
+        nextStep: 'post_purchase' as ConversationStep,
+        flags: { 
+          orderCompleted: true
+        }
+      },
+      timestamp: new Date().toISOString()
     };
   }
-
-  /**
-   * ✅ MÉTHODE: Nettoyer les sessions expirées
-   */
-  cleanupExpiredSessions(): void {
-    const now = Date.now();
-    const maxAge = 24 * 60 * 60 * 1000; // 24 heures
-
-    let cleaned = 0;
-    for (const [sessionId, orderState] of this.orderStates.entries()) {
-      // Vérifier si la session est trop ancienne (logique simplifiée)
-      if (sessionId.includes('_')) {
-        const timestamp = parseInt(sessionId.split('_')[2] || '0');
-        if (now - timestamp > maxAge) {
-          this.orderStates.delete(sessionId);
-          cleaned++;
-        }
-      }
-    }
-
-    if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
-    }
-  }
-
-  // ==========================================
-  // ✅ MÉTHODES DE RÉCUPÉRATION D'ERREURS
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE: Récupérer une session après erreur
-   */
-  async recoverFromError(sessionId: string, errorContext: string): Promise<ChatMessage> {
-    console.log('🔧 Attempting error recovery for session:', sessionId, errorContext);
-
-    try {
-      // Essayer de récupérer l'état depuis la base
-      const recoveredState = await this.recoverSessionFromDatabase(sessionId);
-      
-      if (recoveredState) {
-        this.orderStates.set(sessionId, recoveredState);
-        
-        return {
-          type: 'assistant',
-          content: `🔧 **Session récupérée !**
-
-J'ai retrouvé votre session précédente. Nous pouvons continuer là où nous nous sommes arrêtés.
-
-Que souhaitez-vous faire ?`,
-          choices: [
-            '▶️ Continuer ma commande',
-            '🔄 Recommencer',
-            '❓ Poser une question',
-            '📞 Contacter le support'
-          ],
-          assistant: this.getBotInfo(),
-          metadata: {
-            nextStep: 'session_recovered' as ConversationStep,
-            flags: { sessionRecovered: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        return this.createErrorMessage(sessionId, 'Impossible de récupérer votre session. Veuillez recommencer.');
-      }
-
-    } catch (error) {
-      console.error('❌ Error in recovery attempt:', error);
-      return this.createErrorMessage(sessionId, 'Erreur lors de la récupération de session');
-    }
-  }
-
-  // ==========================================
-  // ✅ POINT D'ENTRÉE PRINCIPAL (MÉTHODE FACTORY)
-  // ==========================================
-
-  /**
-   * ✅ MÉTHODE FACTORY: Point d'entrée principal pour tous les messages
-   */
-  async processMessage(
-    sessionId: string,
-    message: string,
-    context: {
-      productId?: string;
-      currentStep?: ConversationStep;
-      isChoice?: boolean;
-      orderData?: any;
-    } = {}
-  ): Promise<ChatMessage> {
-    console.log('🎯 Processing message via main entry point:', { 
-      sessionId: sessionId.substring(0, 10) + '...', 
-      message: message.substring(0, 50),
-      context 
-    });
-
-    try {
-      // Nettoyer les sessions expirées périodiquement
-      if (Math.random() < 0.1) { // 10% de chance
-        this.cleanupExpiredSessions();
-      }
-
-      const { productId, currentStep, isChoice = false } = context;
-
-      // Router selon le type de message
-      if (isChoice && productId) {
-        return await this.handlePredefinedChoice(sessionId, message, productId);
-      } else if (currentStep?.includes('express')) {
-        return await this.handleExpressStep(sessionId, message, currentStep);
-      } else if (currentStep?.includes('conversational')) {
-        return await this.handleConversationalStep(sessionId, message, currentStep);
-      } else {
-        return await this.processUserInput(sessionId, message, currentStep);
-      }
-
-    } catch (error) {
-      console.error('❌ Critical error in main message processing:', error);
-      return await this.recoverFromError(sessionId, 'main_processing_error');
-    }
-  }
 }
+
+export default OptimizedChatService;

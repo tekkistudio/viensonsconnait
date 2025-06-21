@@ -1,9 +1,9 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/features/product/components/ProductChat/ChatContainer.tsx - CORRECTION old_price
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Send } from 'lucide-react';
+import { Mic, MicOff, Send } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal';
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
@@ -20,6 +20,7 @@ import type { PaymentProvider } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
 import { supabase } from '@/lib/supabase';
+import { SpeechRecognition } from '@/types/speech';
 
 interface ChatContainerProps {
   product: Product;
@@ -42,15 +43,20 @@ const ChatContainer = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
   
-  // ✅ CORRECTION: Initialisation des services dans le composant
+  // ✅ NOUVEAU: États pour la reconnaissance vocale
+  const [isListening, setIsListening] = useState(false);
+  const [isVoiceSupported, setIsVoiceSupported] = useState(false);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  
+  // ✅ Initialisation des services dans le composant
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
   
-  // ✅ CORRECTION: État global pour éviter les doublons
+  // ✅ État global pour éviter les doublons
   const [globalInitialized, setGlobalInitialized] = useState(false);
 
-  // ✅ CORRECTION: Utilisation sécurisée du store
+  // ✅ Utilisation sécurisée du store
   const store = useChatStore();
   const {
     messages = [],
@@ -85,7 +91,51 @@ const ChatContainer = ({
     }
   } = store;
 
-  // ✅ FONCTION: Service de contenu dynamique avec type 'target'
+  // ✅ NOUVEAU: Initialisation de la reconnaissance vocale
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        setIsVoiceSupported(true);
+        const recognitionInstance = new SpeechRecognition();
+        recognitionInstance.continuous = false;
+        recognitionInstance.interimResults = false;
+        recognitionInstance.lang = 'fr-FR';
+        
+        recognitionInstance.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          setInputMessage(transcript);
+          setIsListening(false);
+        };
+        
+        recognitionInstance.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognitionInstance.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+        
+        setRecognition(recognitionInstance);
+      }
+    }
+  }, []);
+
+  // ✅ NOUVEAU: Fonction pour gérer la reconnaissance vocale
+  const toggleVoiceInput = useCallback(() => {
+    if (!isVoiceSupported || !recognition || isProcessing) return;
+    
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      setIsListening(true);
+      recognition.start();
+    }
+  }, [isVoiceSupported, recognition, isListening, isProcessing]);
+
+  // ✅ Service de contenu dynamique avec type 'target'
   const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
     try {
       return await dynamicContentService.getProductInfo(product.id, infoType);
@@ -95,7 +145,7 @@ const ChatContainer = ({
     }
   }, [product.id, product.name, dynamicContentService]);
 
-  // ✅ FONCTION: Récupérer les infos de livraison
+  // ✅ Récupérer les infos de livraison
   const getDeliveryInfoFromDatabase = useCallback(async () => {
     try {
       return await dynamicContentService.getDeliveryInfo();
@@ -105,7 +155,7 @@ const ChatContainer = ({
     }
   }, [dynamicContentService]);
 
-  // ✅ CORRECTION MAJEURE: Initialisation corrigée avec gestion des doublons
+  // ✅ INITIALISATION CORRIGÉE avec gestion des doublons
   useEffect(() => {
     if (!product?.id || welcomeMessageAdded || globalInitialized) return;
 
@@ -152,20 +202,15 @@ const ChatContainer = ({
             if (finalState.messages?.length === 0 && !welcomeMessageAdded && !finalState.flags?.isInitialized) {
               const welcomeMessage: ChatMessageType = {
                 type: 'assistant',
-                content: `👋 Bonjour ! Je suis **Rose**, votre assistante d'achat.
+                content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
 
-Je vois que vous vous intéressez à notre jeu **${product.name}** !
+Je vois que vous vous intéressez à notre jeu **${product.name}**. C'est excellent ✨
 
-✨ Je peux :
-- Vous aider à **commander rapidement** (moins de 60 secondes)
-- **Répondre à vos questions**
-- **Vous expliquer** comment y jouer
-
-Que souhaitez-vous faire ?`,
+Comment puis-je vous aider ?`,
                 choices: [
-                  '⚡ Commander rapidement',
-                  '❓ Poser une question',
-                  '💬 En savoir plus le jeu'
+                  'Je veux l\'acheter maintenant',
+                  'J\'ai des questions à poser',
+                  'Je veux en savoir plus'
                 ],
                 assistant: {
                   name: 'Rose',
@@ -243,25 +288,25 @@ Que souhaitez-vous faire ?`,
     }
   }, [messages, showTyping]);
 
-  // ✅ FONCTION CORRIGÉE: Gérer les messages standards avec données dynamiques
+  // ✅ GESTION DES MESSAGES STANDARDS avec données dynamiques
   const handleStandardMessages = async (content: string): Promise<ChatMessageType> => {
-    if (content.includes('Poser une question') || content.includes('❓')) {
+    if (content.includes('J\'ai des questions à poser') || content.includes('questions')) {
       return {
         type: 'assistant',
-        content: `☺️ Parfait ! Posez-moi toutes vos questions sur le jeu **${product.name}**.
+        content: `Parfait ! Posez-moi toutes vos questions sur le jeu **${product.name}**.
 
 Je peux vous expliquer :
-- Comment y jouer
-- Pour qui c'est adapté
-- Les bénéfices pour vous
-- Ce que nos clients en disent
+* Comment y jouer
+* Pour qui ce jeu est adapté
+* Les bénéfices que vous pouvez en tirer
+* Ce qu'en disent nos clients
 
-Qu'est-ce qui vous intéresse le plus ?`,
+Que voulez-vous savoir ?`,
         choices: [
-          '❓ Comment y jouer ?',
-          '👥 C\'est pour qui ?',
-          '💝 Quels bénéfices ?',
-          '⭐ Avis clients'
+          'Comment y jouer ?',
+          'C\'est pour qui ?',
+          'Quels sont les bénéfices ?',
+          'Quels sont les avis clients ?'
         ],
         assistant: {
           name: 'Rose',
@@ -275,195 +320,131 @@ Qu'est-ce qui vous intéresse le plus ?`,
       };
     }
 
-    // ✅ CORRECTION DESKTOP: Gestion "Comment y jouer ?" avec vraies données DB
-    if (content.includes('Comment y jouer') || content.includes('Comment ça fonctionne')) {
-      console.log('🎮 Desktop: Récupération des règles du jeu depuis la base de données');
-      
-      let gameRules = '';
-      
-      try {
-        // ✅ CORRECTION: Récupération sécurisée depuis la table products
-        const { data: productData, error }: { data: any, error: any } = await supabase
-          .from('products')
-          .select('game_rules, name')
-          .eq('id', product.id)
-          .maybeSingle();
-
-        if (error || !productData) {
-          console.error('❌ Erreur récupération produit:', error);
-          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-Une erreur est survenue lors du chargement des règles. 
-
-📞 **Contactez-nous pour plus d'informations :**
-• WhatsApp : +221 78 136 27 28
-• Email : contact@viensonseconnait.com
-
-Nous vous enverrons les règles détaillées !`;
-        } else if (productData.game_rules && productData.game_rules.trim()) {
-          console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
-          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-${productData.game_rules}
-
-🎯 **Prêt(e) à vivre cette expérience ?**`;
-        } else {
-          console.log('⚠️ Pas de règles définies pour ce jeu');
-          gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
-
-En attendant, voici ce que vous devez savoir :
-• Ce jeu est conçu pour renforcer vos relations
-• Il se joue en groupe (2 personnes minimum)
-• La durée de jeu dépend essentiellement des joueurs
-• L'objectif est d'avoir des conversations significatives
-
-📞 **Pour les règles complètes, contactez-nous :**
-• WhatsApp : +221 78 136 27 28
-• Email : contact@viensonseconnait.com
-
-Nous vous enverrons un guide détaillé !`;
-        }
-      } catch (dbError) {
-        console.error('❌ Erreur base de données:', dbError);
-        gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-😔 **Problème technique temporaire**
-
-Nous ne pouvons pas charger les règles du jeu en ce moment.
-
-📞 **Solution immédiate :**
-• WhatsApp : +221 78 136 27 28
-• Nous vous enverrons les règles par message
-
-🔄 **Ou réessayez dans quelques minutes**`;
-      }
-
+    // ✅ Gestion "Comment y jouer ?"
+    if (content.includes('Comment y jouer') || content.includes('comment jouer')) {
+      const gameRules = await getProductInfoFromDatabase('usage');
       return {
         type: 'assistant',
-        content: gameRules,
+        content: `🎯 **Comment jouer à ${product.name} ?**
+
+${gameRules}
+
+Avez-vous d'autres questions ou souhaitez-vous passer commande ?`,
         choices: [
-          '⚡ Commander maintenant',
-          '💝 Quels bénéfices ?',
-          '⭐ Voir les avis',
-          '📞 Contacter le support'
+          'Je veux l\'acheter maintenant',
+          'C\'est pour qui ?',
+          'Quels sont les bénéfices ?'
         ],
         assistant: {
           name: 'Rose',
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'game_rules_shown' as ConversationStep,
-          flags: {
-            gameRulesShown: true
-          }
+          nextStep: 'post_rules_engagement' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
     }
 
-    if (content.includes('Quels bénéfices') || content.includes('bénéfices')) {
-      const benefitsInfo = await getProductInfoFromDatabase('benefits');
+    // ✅ Gestion "C'est pour qui ?"
+    if (content.includes('C\'est pour qui') || content.includes('pour qui')) {
+      const targetInfo = await getProductInfoFromDatabase('target');
       return {
         type: 'assistant',
-        content: benefitsInfo,
+        content: `👥 **Pour qui est fait ${product.name} ?**
+
+${targetInfo}
+
+Ce jeu vous intéresse-t-il pour votre situation ?`,
         choices: [
-          '⚡ Commander maintenant',
-          '❓ Comment y jouer ?',
-          '⭐ Voir les avis'
+          'Oui, parfait pour moi !',
+          'Je veux l\'acheter maintenant',
+          'Quels sont les bénéfices ?'
         ],
         assistant: {
           name: 'Rose',
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'product_benefits' as ConversationStep
+          nextStep: 'target_audience_shown' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
     }
 
-    if (content.includes('Avis clients') || content.includes('⭐')) {
-      const testimonialsInfo = await getProductInfoFromDatabase('testimonials');
+    // ✅ Gestion "Quels sont les bénéfices ?"
+    if (content.includes('bénéfices') || content.includes('avantages')) {
+      const benefits = await getProductInfoFromDatabase('benefits');
       return {
         type: 'assistant',
-        content: testimonialsInfo,
+        content: `💝 **Les bénéfices de ${product.name} :**
+
+${benefits}
+
+Ces bénéfices vous motivent-ils à essayer le jeu ?`,
         choices: [
-          '⚡ Commander maintenant',
-          '❓ Comment y jouer ?',
-          '💝 Quels bénéfices ?'
+          'Oui, je le veux !',
+          'Je veux l\'acheter maintenant',
+          'Quels sont les avis clients ?'
         ],
         assistant: {
           name: 'Rose',
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'testimonials_view' as ConversationStep
+          nextStep: 'benefits_shown' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
     }
 
-    // ✅ CORRECTION: Infos livraison dynamiques avec vraies données
-    if (content.includes('Infos livraison') || content.includes('📦')) {
-      const deliveryInfo = await getDeliveryInfoFromDatabase();
-      
-      let deliveryContent = `🚚 **Informations de livraison**\n\n`;
-      
-      if (deliveryInfo && deliveryInfo.zones.length > 0) {
-        deliveryContent += `📍 **Zones couvertes :**\n`;
-        deliveryInfo.zones.forEach(zone => {
-          if (zone.active) {
-            const cityName = zone.city || zone.name;
-            deliveryContent += `• ${cityName} : ${zone.cost.toLocaleString()} FCFA\n`;
-          }
-        });
-        
-        deliveryContent += `\n⏰ **Délais :**\n• ${deliveryInfo.timing}\n\n`;
-        deliveryContent += `💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
-      } else {
-        deliveryContent += `📍 **Zones principales :**\n• Dakar : Gratuit\n• Autres villes du Sénégal : 3 000 FCFA\n• Abidjan : 2 500 FCFA\n\n⏰ **Délais :**\n• Livraison sous 24-48h\n\n💰 **Paiement :**\n• Wave\n• Carte bancaire\n• Paiement à la livraison\n\n`;
-      }
-      
-      deliveryContent += `Voulez-vous commander maintenant ?`;
-
+    // ✅ Gestion "Avis clients"
+    if (content.includes('avis') || content.includes('témoignages')) {
+      const testimonials = await getProductInfoFromDatabase('testimonials');
       return {
         type: 'assistant',
-        content: deliveryContent,
+        content: `⭐ **Ce que disent nos clients sur ${product.name} :**
+
+${testimonials}
+
+Prêt(e) à rejoindre nos clients satisfaits ?`,
         choices: [
-          '⚡ Commander maintenant',
-          '📞 Autres questions',
-          '🏠 Ma zone de livraison'
+          'Je veux l\'acheter maintenant',
+          'J\'ai d\'autres questions',
+          'Je veux en savoir plus'
         ],
         assistant: {
           name: 'Rose',
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'delivery_info' as ConversationStep
+          nextStep: 'social_proof_shown' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
     }
 
-    // ✅ CORRECTION: En savoir plus dynamique avec vraies données
-    if (content.includes('En savoir plus') || content.includes('💬')) {
-      const descriptionInfo = await getProductInfoFromDatabase('description');
+    // ✅ Gestion "Je veux en savoir plus"
+    if (content.includes('en savoir plus') || content.includes('savoir plus')) {
+      const description = await getProductInfoFromDatabase('description');
       return {
         type: 'assistant',
-        content: descriptionInfo,
+        content: `💡 **Tout savoir sur ${product.name} :**
+
+${description}
+
+Que souhaitez-vous faire maintenant ?`,
         choices: [
-          '⚡ Commander maintenant',
-          '❓ Comment y jouer ?',
-          '⭐ Voir les avis'
+          'Je veux l\'acheter maintenant',
+          'Comment y jouer ?',
+          'J\'ai des questions'
         ],
         assistant: {
           name: 'Rose',
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'product_info' as ConversationStep
+          nextStep: 'product_info_shown' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
@@ -474,9 +455,9 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
       type: 'assistant',
       content: `Merci pour votre message ! Comment puis-je vous aider davantage avec le jeu **${product.name}** ?`,
       choices: [
-        '⚡ Commander rapidement',
-        '❓ Poser une question',
-        '📦 Infos livraison'
+        'Je veux l\'acheter maintenant',
+        'J\'ai des questions à poser',
+        'Je veux en savoir plus'
       ],
       assistant: {
         name: 'Rose',
@@ -489,27 +470,28 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
     };
   };
 
-  // ✅ FONCTION UTILITAIRE: Créer un message d'erreur
-  const createErrorResponse = (errorText: string): ChatMessageType => ({
-    type: 'assistant',
-    content: `😔 ${errorText}`,
-    choices: ['🔄 Réessayer', '📞 Contacter le support'],
-    assistant: {
-      name: 'Rose',
-      title: 'Assistante d\'achat'
-    },
-    metadata: {
-      nextStep: 'error_recovery' as ConversationStep,
-      flags: { hasError: true }
-    },
-    timestamp: new Date().toISOString()
-  });
+  // ✅ Gestion des choix avec protection
+  const handleChoiceSelect = useCallback(async (choice: string) => {
+    if (isProcessing) {
+      console.log('⏳ Processing in progress, ignoring choice');
+      return;
+    }
 
-  // ✅ FONCTION: Gestion de l'envoi de message
-  const handleSubmit = async (contentOrEvent: string | React.MouseEvent<HTMLButtonElement>) => {
-    const content = typeof contentOrEvent === 'string' 
-      ? contentOrEvent 
-      : inputMessage.trim();
+    console.log('🔘 Desktop choice selected:', choice);
+    await sendMessage(choice);
+  }, [isProcessing]);
+
+  // ✅ Gestion des événements clavier
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }, [inputMessage, isProcessing]);
+
+  // ✅ CORRECTION: Soumission de formulaire avec typage fixé
+  const handleSubmit = useCallback(() => {
+    const content = inputMessage.trim();
   
     if (!content || isProcessing) return;
     
@@ -519,17 +501,17 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
     setIsProcessing(true);
     updateTypingStatus(true);
     
-    try {
-      await sendMessage(content);
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
-    } finally {
-      updateTypingStatus(false);
-      setIsProcessing(false);
-    }
-  };
+    sendMessage(content)
+      .catch((error) => {
+        console.error('❌ Error sending message:', error);
+      })
+      .finally(() => {
+        updateTypingStatus(false);
+        setIsProcessing(false);
+      });
+  }, [inputMessage, isProcessing, updateTypingStatus]);
 
-  // ✅ FONCTION PRINCIPALE CORRIGÉE: sendMessage pour desktop
+  // ✅ FONCTION PRINCIPALE: sendMessage pour desktop
   const sendMessage = async (content: string) => {
     try {
       console.log('🖥️ Processing desktop message:', { content, sessionId, isExpressMode, currentStep });
@@ -554,7 +536,7 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
 
       let response: ChatMessageType;
       
-      // ✅ CORRECTION MAJEURE: UTILISER TOUJOURS L'API POUR L'IA
+      // ✅ UTILISER TOUJOURS L'API POUR L'IA
       console.log('🚀 Sending to enhanced chat API...');
       
       try {
@@ -582,344 +564,122 @@ Nous ne pouvons pas charger les règles du jeu en ce moment.
 
         response = {
           type: 'assistant',
-          content: aiResponse.content || "Je suis là pour vous aider !",
-          choices: aiResponse.choices || ["⚡ Commander maintenant", "❓ Poser une question"],
+          content: aiResponse.message || "Je suis là pour vous aider !",
+          choices: aiResponse.choices || [],
           assistant: {
             name: 'Rose',
             title: 'Assistante d\'achat'
           },
           metadata: {
-            nextStep: aiResponse.nextStep || currentStep,
+            nextStep: aiResponse.nextStep || 'generic_response',
             orderData: aiResponse.orderData,
-            flags: aiResponse.flags || {}
+            flags: {}
           },
           timestamp: new Date().toISOString()
         };
 
       } catch (apiError) {
-        console.error('❌ API call failed:', apiError);
+        console.error('❌ API call failed, using fallback:', apiError);
+        response = await handleStandardMessages(content);
+      }
+      
+      // Délai pour l'animation
+      setTimeout(() => {
+        console.log('✅ Desktop: Response generated');
+        addMessage(response);
         
-        // ✅ FALLBACK: Si l'API échoue, traiter localement
-        const isStandardButton = [
-          'Poser une question', 'Comment y jouer', 'C\'est pour qui',
-          'Quels bénéfices', 'Avis clients', 'Infos livraison', 'En savoir plus'
-        ].some(btn => content.includes(btn));
-        
-        if (isStandardButton) {
-          response = await handleStandardMessages(content);
-        } else {
-          response = createErrorResponse('Problème de connexion. Veuillez réessayer.');
+        if (response.metadata?.orderData) {
+          updateOrderData(response.metadata.orderData);
         }
-      }
-      
-      console.log('✅ Desktop response generated:', response);
-      addMessage(response);
-      
-      // Mettre à jour l'état si nécessaire
-      if (response.metadata?.orderData) {
-        updateOrderData(response.metadata.orderData);
-      }
-      
+      }, 800);
+
     } catch (err) {
-      console.error('❌ Error in desktop sendMessage:', err);
+      console.error('❌ Desktop: Error in sendMessage:', err);
       
-      const errorMessage = createErrorResponse('Une erreur est survenue. Veuillez réessayer.');
-      addMessage(errorMessage);
-    }
-  };
-
-  // ✅ FONCTION: Gestion des touches clavier
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const content = inputMessage.trim();
-      if (content && !isProcessing) {
-        handleSubmit(content);
-      }
-    }
-  };
-
-  // ✅ CORRECTION DESKTOP: handleChoiceSelect avec traitement spécial "Comment y jouer"
-  const handleChoiceSelect = async (choice: string) => {
-    if (isProcessing) {
-      console.log('⏳ Processing in progress, ignoring choice');
-      return;
-    }
-
-    console.log('🔘 Choice selected:', choice);
-    setIsProcessing(true);
-    updateTypingStatus(true);
-    
-    try {
-      // ✅ PRIORITÉ 1: Gestion des redirections WhatsApp
-      if (choice.includes('Continuer sur WhatsApp') || 
-          choice.includes('📞 Continuer sur WhatsApp') ||
-          choice.includes('Parler à un conseiller') ||
-          choice.includes('Contacter le support')) {
-        
-        console.log('📞 Opening WhatsApp redirect');
-        
-        // Ajouter le message utilisateur
-        const userMessage: ChatMessageType = {
-          type: 'user',
-          content: choice,
-          timestamp: new Date().toISOString()
-        };
-        addMessage(userMessage);
-        
-        // Ouvrir WhatsApp
-        const whatsappUrl = 'https://wa.me/221781362728';
-        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // Mobile: Essayer l'app WhatsApp puis fallback navigateur
-          try {
-            window.location.href = `whatsapp://send?phone=221781362728&text=Bonjour, je vous contacte depuis votre site pour le jeu ${product.name}`;
-          } catch (error) {
-            window.open(whatsappUrl, '_blank') || (window.location.href = whatsappUrl);
-          }
-        } else {
-          // Desktop: Ouvrir dans un nouvel onglet
-          const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-          if (!newWindow) {
-            window.location.href = whatsappUrl;
-          }
-        }
-        
-        // Message de confirmation
-        setTimeout(() => {
-          const confirmMessage: ChatMessageType = {
-            type: 'assistant',
-            content: `✅ **Redirection vers WhatsApp**
-
-Si WhatsApp ne s'est pas ouvert automatiquement, cliquez sur le lien :
-👉 https://wa.me/221781362728
-
-Notre équipe vous répondra rapidement !`,
-            choices: [],
-            assistant: {
-              name: 'Rose',
-              title: 'Assistante d\'achat'
-            },
-            metadata: {
-              nextStep: 'whatsapp_opened' as ConversationStep,
-              flags: { whatsappRedirect: true }
-            },
-            timestamp: new Date().toISOString()
-          };
-          addMessage(confirmMessage);
-        }, 1000);
-        
-        return; // ✅ IMPORTANT: Sortir ici
-      }
-      
-      // ✅ PRIORITÉ 2: Traitement spécial "Comment y jouer"
-      if (choice.includes('Comment y jouer') || choice === '❓ Comment y jouer ?') {
-        console.log('🎮 Traitement spécial "Comment y jouer"');
-        
-        // Ajouter d'abord le message utilisateur
-        const userMessage: ChatMessageType = {
-          type: 'user',
-          content: choice,
-          timestamp: new Date().toISOString()
-        };
-        addMessage(userMessage);
-        
-        // Attendre un peu pour l'animation
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        let gameRules = '';
-        
-        try {
-          // ✅ RÉCUPÉRATION DIRECTE DEPUIS SUPABASE
-          const { data: productData, error } = await supabase
-            .from('products')
-            .select('game_rules, name')
-            .eq('id', product.id)
-            .maybeSingle();
-
-          if (error || !productData) {
-            console.error('❌ Erreur récupération produit:', error);
-            gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-Une erreur est survenue lors du chargement des règles. 
-
-📞 **Contactez-nous pour plus d'informations :**
-• WhatsApp : +221 78 136 27 28
-• Email : contact@viensonseconnait.com
-
-Nous vous enverrons les règles détaillées !`;
-          } else if (productData.game_rules && productData.game_rules.trim()) {
-            console.log('✅ Règles du jeu trouvées:', productData.game_rules.substring(0, 100) + '...');
-            gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-${productData.game_rules}
-
-🎯 **Prêt(e) à vivre cette expérience ?**`;
-          } else {
-            console.log('⚠️ Pas de règles définies pour ce produit');
-            gameRules = `❓ **Comment jouer au jeu ${productData.name} :**
-
-📝 **Les règles détaillées de ce jeu seront ajoutées prochainement.**
-
-En attendant, voici ce que vous devez savoir :
-• Ce jeu est conçu pour renforcer les relations
-• Il se joue en groupe (2 personnes minimum)
-• La durée d'une partie dépend des joueurs
-• L'objectif est d'avoir des conversations significatives
-
-📞 **Pour les règles complètes, contactez-nous :**
-• WhatsApp : +221 78 136 27 28
-• Email : contact@viensonseconnait.com
-
-Nous vous enverrons un guide détaillé !`;
-          }
-        } catch (dbError) {
-          console.error('❌ Erreur base de données:', dbError);
-          gameRules = `❓ **Comment jouer au jeu ${product.name} :**
-
-😔 **Problème technique temporaire**
-
-Nous ne pouvons pas charger les règles du jeu en ce moment.
-
-📞 **Solution immédiate :**
-• WhatsApp : +221 78 136 27 28
-• Nous vous enverrons les règles par message
-
-🔄 **Ou réessayez dans quelques minutes**`;
-        }
-        
-        // Créer et ajouter la réponse assistant
-        const assistantMessage: ChatMessageType = {
+      setTimeout(() => {
+        const errorMessage: ChatMessageType = {
           type: 'assistant',
-          content: gameRules,
-          choices: [
-            '⚡ Commander maintenant',
-            '💝 Quels bénéfices ?',
-            '⭐ Voir les avis',
-            '📞 Contacter le support'
-          ],
+          content: `😔 **Une erreur est survenue**
+
+Voulez-vous réessayer ou contacter notre support ?`,
+          choices: ['🔄 Réessayer', '📞 Contacter le support'],
           assistant: {
             name: 'Rose',
             title: 'Assistante d\'achat'
           },
           metadata: {
-            nextStep: 'game_rules_shown' as ConversationStep,
-            flags: {
-              gameRulesShown: true
-            }
+            nextStep: 'error_recovery' as ConversationStep,
+            flags: { hasError: true }
           },
           timestamp: new Date().toISOString()
         };
-        
-        addMessage(assistantMessage);
-        return; // ✅ IMPORTANT: Sortir ici pour éviter le double traitement
-      }
-      
-      // ✅ POUR TOUS LES AUTRES CHOIX: Traitement normal via API
-      await sendMessage(choice);
-      
-    } catch (error) {
-      console.error('❌ Error sending choice:', error);
-      
-      // Message d'erreur en cas de problème
-      const errorMessage: ChatMessageType = {
-        type: 'assistant',
-        content: `😔 **Erreur temporaire**
-
-Un problème est survenu. Voulez-vous réessayer ?`,
-        choices: ['🔄 Réessayer', '📞 Contacter le support'],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'error_recovery' as ConversationStep,
-          flags: { hasError: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-      
-      addMessage(errorMessage);
-      
-    } finally {
-      updateTypingStatus(false);
-      setIsProcessing(false);
+        addMessage(errorMessage);
+      }, 500);
     }
   };
 
-  // ✅ FONCTION: Fermeture du modal de paiement
-  const handleClosePaymentModal = () => {
+  const handleClosePaymentModal = useCallback(() => {
     setPaymentModal({ 
       isOpen: false, 
       iframeUrl: '', 
       provider: undefined 
     });
-  };
+  }, [setPaymentModal]);
 
-  // Rendu conditionnel si pas initialisé
-  if (!isInitialized) {
-    return (
-      <div className={`flex flex-col ${isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[600px]'} bg-white rounded-xl overflow-hidden`}>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93] mx-auto mb-4" />
-            <p className="text-gray-600">Initialisation du chat...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // ✅ RENDU PRINCIPAL
   const chatContent = (
-    <div className={`flex flex-col ${
-      isFullscreen ? 'h-[calc(100vh-60px)]' : 'h-[600px]'
-    } bg-white rounded-xl overflow-hidden`}>
-      <ChatHeader
-        productId={product.id}
-        title={`Le Jeu ${product.name}`}
-        rating={product.stats?.satisfaction || 5}
-        price={`${product.price.toLocaleString()} FCFA`}
-        oldPrice={product.compareAtPrice ? `${product.compareAtPrice.toLocaleString()} FCFA` : undefined}
-      />
+    <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
+      {/* ✅ HEADER avec PROPS CORRIGÉES - CORRECTION FINALE pour old_price */}
+      <div className="flex-shrink-0 border-b-2 border-gray-100">
+        <ChatHeader 
+          productId={product.id}
+          title={product.name}
+          rating={product.stats?.satisfaction || 5}
+          price={product.price?.toString() || '0'}
+          oldPrice={
+            // ✅ CORRECTION: Gestion sécurisée de old_price qui n'existe pas dans Product
+            product.price && product.price > 0 
+              ? undefined // Pas d'ancien prix pour l'instant
+              : undefined
+          }
+        />
+      </div>
 
+      {/* ✅ ZONE MESSAGES */}
       <div 
         ref={chatRef}
-        className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+        style={{ maxHeight: isFullscreen ? 'calc(100vh - 120px)' : '500px' }}
       >
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => (
             <motion.div
-              key={`${message.type}-${index}-${message.timestamp}`}
-              initial={{ opacity: 0, y: 10 }}
+              key={`${message.timestamp}-${index}`}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
             >
-              <ChatMessage
-                message={message}
-                isTyping={false}
-                onChoiceSelect={handleChoiceSelect}
-              />
+              <ChatMessage message={message} />
               
-              {/* Gestion sécurisée du sélecteur de quantité */}
+              {message.choices && message.choices.length > 0 && (
+                <div className="mt-3">
+                  <ChatChoices
+                    choices={message.choices}
+                    onChoiceSelect={handleChoiceSelect}
+                    disabled={isProcessing}
+                  />
+                </div>
+              )}
+              
               {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-                <div className="mt-4">
+                <div className="mt-3">
                   <QuantitySelector
-                    quantity={1}
-                    onQuantityChange={(qty: number) => {
-                      if (message.metadata?.handleQuantityChange) {
-                        message.metadata.handleQuantityChange(qty);
+                    onQuantitySelect={async (qty) => {
+                      if (message.metadata) {
+                        message.metadata.quantityHandled = true;
                       }
-                    }}
-                    onConfirm={async (qty: number) => {
-                      if (message.metadata?.handleQuantitySubmit) {
-                        await message.metadata.handleQuantitySubmit(qty);
-                        if (message.metadata) {
-                          message.metadata.quantityHandled = true;
-                        }
-                      }
-                      handleSubmit(qty.toString());
+                      handleChoiceSelect(qty.toString());
                     }}
                     maxQuantity={message.metadata?.maxQuantity || 10}
                   />
@@ -927,8 +687,7 @@ Un problème est survenu. Voulez-vous réessayer ?`,
               )}
             </motion.div>
           ))}
-          
-          {/* Indicateur de frappe avec animation */}
+
           {(showTyping || isTyping) && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -942,8 +701,8 @@ Un problème est survenu. Voulez-vous réessayer ?`,
         </AnimatePresence>
       </div>
 
-      {/* Zone de saisie avec validation */}
-      <div className="bg-white border-t px-4 py-3">
+      {/* ✅ ZONE SAISIE avec bordures améliorées et micro activé */}
+      <div className="flex-shrink-0 border-t-2 border-gray-100 px-4 py-3">
         <div className="relative flex items-center">
           <input
             type="text"
@@ -951,26 +710,41 @@ Un problème est survenu. Voulez-vous réessayer ?`,
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Tapez votre message..."
-            className="w-full px-4 py-2 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 bg-[#F0F2F5] text-gray-800 rounded-full pr-24 focus:outline-none focus:ring-2 focus:ring-[#FF7E93] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
             disabled={isProcessing}
             maxLength={500}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            {/* ✅ BOUTON MICRO ACTIVÉ */}
             <button
               type="button"
-              className="p-2 text-gray-400 cursor-not-allowed"
-              disabled
-              title="Reconnaissance vocale (bientôt disponible)"
+              onClick={toggleVoiceInput}
+              disabled={isProcessing}
+              className={`p-2 rounded-full transition-colors ${
+                isListening 
+                  ? 'bg-red-500 text-white animate-pulse' 
+                  : isVoiceSupported && !isProcessing
+                    ? 'text-gray-500 hover:text-[#FF7E93] hover:bg-gray-50'
+                    : 'text-gray-400 cursor-not-allowed'
+              }`}
+              title={
+                !isVoiceSupported 
+                  ? 'Reconnaissance vocale non supportée' 
+                  : isListening 
+                    ? 'Arrêter l\'écoute'
+                    : 'Reconnaissance vocale'
+              }
             >
-              <Mic className="w-5 h-5" />
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
+            
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!inputMessage.trim() || isProcessing}
-              className={`p-2 transition-colors ${
+              className={`p-2 rounded-full transition-colors ${
                 inputMessage.trim() && !isProcessing
-                  ? 'text-[#FF7E93] hover:text-[#132D5D]' 
+                  ? 'text-[#FF7E93] hover:text-[#132D5D] hover:bg-gray-50' 
                   : 'text-gray-400 cursor-not-allowed'
               }`}
               title={isProcessing ? 'Traitement en cours...' : 'Envoyer le message'}

@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatHeader.tsx - VERSION CORRIGÉE
+// src/features/product/components/ProductChat/components/ChatHeader.tsx - BORDURES ET DESIGN CORRIGÉS
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ShoppingBag, Star } from 'lucide-react';
@@ -26,7 +26,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const { convertPrice } = useCountryStore();
   
-  // ✅ CORRECTION MAJEURE: Surveillance complète du store
+  // ✅ Surveillance complète du store
   const chatState = useChatStore();
   const { 
     orderData = {}, 
@@ -43,9 +43,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [rating, setRating] = useState(initialRating);
   const [productImage, setProductImage] = useState<string>('');
 
-  // ✅ CORRECTION CRITIQUE: Fonction de détection du panier réécrite
+  // ✅ Fonction de détection du panier
   const getCartInfo = () => {
-    console.log('🛒 [ChatHeader] NOUVELLE DÉTECTION PANIER:', { 
+    console.log('🛒 [ChatHeader] Détection panier:', { 
       orderData, 
       messagesLength: messages?.length,
       currentStep,
@@ -63,9 +63,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (orderData?.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
       const totalItems = orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
       const totalAmount = orderData.total_amount || orderData.totalAmount || 
-                         orderData.items.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
+        orderData.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
       
-      console.log('✅ [ChatHeader] Items trouvés dans orderData:', { totalItems, totalAmount });
+      console.log('✅ [ChatHeader] Panier trouvé dans orderData.items:', { totalItems, totalAmount });
       cartData = {
         hasItems: true,
         itemsCount: totalItems,
@@ -73,76 +73,38 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         totalAmount: totalAmount
       };
     }
-    
-    // ✅ PRIORITÉ 2: Chercher dans les métadonnées des 3 derniers messages
+    // ✅ PRIORITÉ 2: orderData direct
+    else if (orderData?.quantity && orderData?.quantity > 0) {
+      const quantity = orderData.quantity;
+      const unitPrice = orderData.unit_price || orderData.price || 0;
+      const totalAmount = orderData.total_amount || orderData.totalAmount || (quantity * unitPrice);
+      
+      console.log('✅ [ChatHeader] Commande trouvée dans orderData direct:', { quantity, totalAmount });
+      cartData = {
+        hasItems: true,
+        itemsCount: quantity,
+        items: [{ 
+          name: title, 
+          quantity: quantity, 
+          price: unitPrice,
+          totalPrice: totalAmount 
+        }],
+        totalAmount: totalAmount
+      };
+    }
+    // ✅ PRIORITÉ 3: Analyse des messages pour extraire les commandes
     else if (messages && messages.length > 0) {
-      const recentMessages = messages.slice(-3); // 3 derniers messages
-      
-      for (const message of recentMessages.reverse()) {
-        if (message.metadata?.orderData?.items && Array.isArray(message.metadata.orderData.items)) {
-          const items = message.metadata.orderData.items;
-          const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
-          const totalAmount = message.metadata.orderData.total_amount || 
-                             message.metadata.orderData.totalAmount ||
-                             items.reduce((sum: number, item: any) => sum + (item.totalPrice || item.price * item.quantity), 0);
-          
-          console.log('✅ [ChatHeader] Items trouvés dans message metadata:', { totalItems, totalAmount });
-          cartData = {
-            hasItems: true,
-            itemsCount: totalItems,
-            items: items,
-            totalAmount: totalAmount
-          };
-          break;
-        }
-      }
-    }
-    
-    // ✅ PRIORITÉ 3: Détecter commande express selon l'étape et les flags
-    if (!cartData.hasItems && (
-      currentStep?.includes('express') || 
-      (flags as any)?.expressMode ||
-      (flags as any)?.quantitySelected ||
-      (flags as any)?.showInCart
-    )) {
-      const amount = orderData?.total_amount || orderData?.totalAmount || 0;
-      
-      if (amount > 0) {
-        console.log('✅ [ChatHeader] Commande express détectée:', { amount, currentStep, flags });
-        cartData = {
-          hasItems: true,
-          itemsCount: orderData?.quantity || 1,
-          items: [{ 
-            name: 'Commande express en cours...', 
-            quantity: orderData?.quantity || 1, 
-            price: amount / (orderData?.quantity || 1),
-            totalPrice: amount 
-          }],
-          totalAmount: amount
-        };
-      }
-    }
-
-    // ✅ PRIORITÉ 4: Analyser le contenu des messages pour indices de commande
-    if (!cartData.hasItems && messages && messages.length > 0) {
-      const hasCommanderMessages = messages.some(msg => 
-        msg.content?.includes('C\'est noté ! Vous commandez') ||
-        msg.content?.includes('exemplaire') ||
-        msg.content?.includes('Prix total') ||
-        (msg.metadata?.flags?.expressMode && msg.metadata?.flags?.quantitySelected)
-      );
-
-      if (hasCommanderMessages) {
-        // Extraire quantité et prix du contenu des messages
-        let quantity = 1;
-        let unitPrice = 0;
-        
-        for (const msg of messages.reverse()) {
-          if (msg.content?.includes('exemplaire')) {
-            const qtyMatch = msg.content.match(/(\d+)\s*exemplaire/);
-            if (qtyMatch) quantity = parseInt(qtyMatch[1]);
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message.type === 'assistant' && typeof message.content === 'string') {
+          // Chercher des patterns comme "2 exemplaires" et "14000 FCFA"
+          const quantityMatch = message.content.match(/(\d+)\s*exemplaires?/);
+          if (quantityMatch) {
+            const quantity = parseInt(quantityMatch[1]);
+            let unitPrice = 0;
             
-            const priceMatch = msg.content.match(/(\d+(?:[\s,]\d{3})*)\s*FCFA/);
+            // Chercher le montant total dans le même message
+            const priceMatch = message.content.match(/(\d+(?:[\s,]\d{3})*)\s*FCFA/);
             if (priceMatch) {
               const totalAmount = parseInt(priceMatch[1].replace(/[\s,]/g, ''));
               unitPrice = totalAmount / quantity;
@@ -166,11 +128,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       }
     }
 
-    console.log('🛒 [ChatHeader] RÉSULTAT FINAL:', cartData);
+    console.log('🛒 [ChatHeader] Résultat final:', cartData);
     return cartData;
   };
 
-  // ✅ HOOK DE SURVEILLANCE: Déclencher re-render à chaque changement
+  // ✅ Hook de surveillance: Déclencher re-render à chaque changement
   const [cartInfo, setCartInfo] = useState(() => getCartInfo());
   
   useEffect(() => {
@@ -181,7 +143,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       console.log('🔄 [ChatHeader] Mise à jour du panier détectée');
       setCartInfo(newCartInfo);
     }
-  }, [orderData, messages, currentStep, flags, title]); // Dépendances complètes
+  }, [orderData, messages, currentStep, flags, title]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -243,109 +205,96 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const formattedOldPrice = oldPrice
     ? convertPrice(parseInt(oldPrice.replace(/[^0-9]/g, ''))).formatted
-    : undefined;
+    : null;
 
   return (
-    <div className="bg-white border-b">
-      {/* En-tête principal */}
-      <div className="py-4 px-6">
-        <div className="flex items-center gap-3 mb-2">
+    <div className="bg-white border-b-2 border-gray-100 shadow-sm">
+      <div className="p-4">
+        {/* ✅ Header principal avec bordures visibles */}
+        <div className="flex items-center gap-3 mb-3">
           {/* Image du produit */}
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
+          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
             {productImage ? (
               <Image
                 src={productImage}
                 alt={title}
-                width={40}
-                height={40}
+                width={48}
+                height={48}
                 className="w-full h-full object-cover"
-                unoptimized
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-[#FF7E93] to-[#FF6B9D] flex items-center justify-center">
-                <span className="text-white text-sm font-bold">
-                  {title.charAt(0)}
-                </span>
+              <div className="w-full h-full bg-gradient-to-br from-[#FF7E93] to-[#132D5D] flex items-center justify-center">
+                <ShoppingBag className="w-6 h-6 text-white" />
               </div>
             )}
           </div>
-          
-          {/* Titre du produit */}
+
+          {/* Informations produit */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-[#132D5D] truncate">{title}</h1>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex">
+            <h3 className="font-semibold text-gray-900 text-sm truncate">{title}</h3>
+            
+            {/* Note et avis */}
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-4 h-4 ${
-                      i < rating 
-                        ? 'text-[#FF7E93] fill-[#FF7E93]' 
-                        : 'text-gray-300 fill-gray-300'
+                    className={`w-3 h-3 ${
+                      i < Math.round(rating)
+                        ? 'fill-yellow-400 text-yellow-400' 
+                        : 'fill-gray-200 text-gray-200'
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-sm text-gray-600">
-                ({stats.reviewsCount} avis)
+              <span className="text-xs text-gray-500">
+                {stats.reviewsCount} avis
               </span>
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-[#132D5D]">{formattedPrice}</span>
+
+          {/* Prix */}
+          <div className="text-right">
+            <div className="font-bold text-lg text-gray-900">{formattedPrice}</div>
             {formattedOldPrice && (
-              <span className="text-sm text-gray-500 line-through">
-                {formattedOldPrice}
-              </span>
+              <div className="text-sm text-gray-500 line-through">{formattedOldPrice}</div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* ✅ BARRE DE COMMANDE RÉACTIVE */}
-      {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
-        <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-8 h-8 bg-[#FF7E93] rounded-full">
-                <ShoppingBag className="w-4 h-4 text-white" />
-                {/* Badge avec nombre d'articles */}
-                {cartInfo.itemsCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                    {cartInfo.itemsCount}
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-[#132D5D]">
-                  Ma commande ({cartInfo.itemsCount} article{cartInfo.itemsCount > 1 ? 's' : ''})
-                </p>
-                <p className="text-xs text-gray-600 truncate max-w-[200px]">
-                  {cartInfo.items.length > 0 ? (
-                    cartInfo.items.map((item: any) => 
-                      `${item.name || 'Produit'} x${item.quantity || 1}`
-                    ).join(', ')
-                  ) : (
-                    'Commande en cours...'
-                  )}
-                </p>
-              </div>
-            </div>
-            
-            <div className="text-right">
-              <p className="text-lg font-bold text-[#FF7E93]">
-                {cartInfo.totalAmount.toLocaleString()} FCFA
-              </p>
-              <p className="text-xs text-gray-500">Total</p>
-            </div>
+        {/* ✅ Statistiques avec bordures */}
+        <div className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="text-center border-r border-gray-300 pr-4 flex-1">
+            <div className="font-semibold text-sm text-gray-900">{stats.viewsCount}</div>
+            <div className="text-xs text-gray-600">vues</div>
+          </div>
+          <div className="text-center border-r border-gray-300 pr-4 pl-4 flex-1">
+            <div className="font-semibold text-sm text-gray-900">{stats.salesCount}</div>
+            <div className="text-xs text-gray-600">vendus</div>
+          </div>
+          <div className="text-center pl-4 flex-1">
+            <div className="font-semibold text-sm text-gray-900">{rating.toFixed(1)}</div>
+            <div className="text-xs text-gray-600">note</div>
           </div>
         </div>
-      )}
+
+        {/* ✅ Panier avec bordures améliorées */}
+        {cartInfo.hasItems && (
+          <div className="mt-3 p-3 bg-[#FF7E93]/10 border-2 border-[#FF7E93]/20 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-[#FF7E93]" />
+                <span className="text-sm font-medium text-gray-900">
+                  {cartInfo.itemsCount} article{cartInfo.itemsCount > 1 ? 's' : ''} dans votre panier
+                </span>
+              </div>
+              <div className="font-bold text-[#FF7E93]">
+                {cartInfo.totalAmount.toLocaleString()} FCFA
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

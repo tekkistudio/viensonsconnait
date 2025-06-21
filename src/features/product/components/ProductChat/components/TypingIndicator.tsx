@@ -1,42 +1,37 @@
 // src/features/product/components/ProductChat/components/TypingIndicator.tsx
 import React from 'react';
-import { motion } from 'framer-motion';
 
-const TypingIndicator = () => {
+interface TypingIndicatorProps {
+  assistantName?: string;
+  className?: string;
+}
+
+const TypingIndicator: React.FC<TypingIndicatorProps> = ({ 
+  assistantName = 'Rose',
+  className = '' 
+}) => {
   return (
-    <div className="flex items-start max-w-[85%] mb-2">
-      <div className="flex items-center space-x-1 bg-white p-3 rounded-[20px] rounded-tl-sm shadow-sm">
-        <motion.div
-          className="w-2 h-2 bg-[#FF7E93] rounded-full"
-          animate={{ y: [0, -5, 0] }}
-          transition={{
-            duration: 0.6,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0
-          }}
+    <div className={`flex items-center space-x-1 ${className}`}>
+      {/* Animation des points de frappe */}
+      <div className="flex space-x-1">
+        <div 
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
         />
-        <motion.div
-          className="w-2 h-2 bg-[#FF7E93] rounded-full"
-          animate={{ y: [0, -5, 0] }}
-          transition={{
-            duration: 0.6,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.2
-          }}
+        <div 
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: '150ms', animationDuration: '1.4s' }}
         />
-        <motion.div
-          className="w-2 h-2 bg-[#FF7E93] rounded-full"
-          animate={{ y: [0, -5, 0] }}
-          transition={{
-            duration: 0.6,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.4
-          }}
+        <div 
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: '300ms', animationDuration: '1.4s' }}
         />
       </div>
+      
+      {/* Texte "écrit..." */}
+      <span className="text-xs text-gray-500 ml-2">
+        {assistantName} écrit...
+      </span>
     </div>
   );
 };
