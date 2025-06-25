@@ -297,90 +297,115 @@ const ChatContainer = ({
 
   // GESTION DES MESSAGES avec le service optimisé
   const sendMessage = async (content: string) => {
-    try {
-      console.log('📤 Processing message:', { content, sessionId, currentStep });
-      
-      // Ajouter le message utilisateur
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content,
-        timestamp: new Date().toISOString()
-      };
-      
-      addMessage(userMessage);
-      await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    console.log('📤 Processing message:', { content, sessionId, currentStep });
+    
+    // Ajouter le message utilisateur
+    const userMessage: ChatMessageType = {
+      type: 'user',
+      content,
+      timestamp: new Date().toISOString()
+    };
+    
+    addMessage(userMessage);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      let response: ChatMessageType;
+    let response: ChatMessageType;
+    
+    // ✅ VÉRIFIER SI C'EST UNE RÉPONSE AU MESSAGE D'ACCUEIL
+    if (welcomeService.isWelcomeResponse(content)) {
+      console.log('🌹 Handling welcome response');
+      response = await welcomeService.handleWelcomeButtonResponse(
+        content,
+        product.id,
+        product.name
+      );
+    } else {
+      // ✅ CORRECTION: Ajouter await devant optimizedService.processMessage
+      console.log('⚙️ Using OptimizedChatService');
+      response = await optimizedService.processMessage(
+        sessionId,
+        content,
+        currentStep || 'initial',
+        product.id,
+        product.name
+      );
+    }
+
+    // Délai pour l'animation
+    setTimeout(() => {
+      console.log('✅ Response generated');
+      addMessage(response);
       
-      // VÉRIFIER SI C'EST UNE RÉPONSE AU MESSAGE D'ACCUEIL
-      if (welcomeService.isWelcomeResponse(content)) {
-        console.log('🌹 Handling welcome response');
-        response = welcomeService.handleWelcomeButtonResponse(
-          content,
-          product.id,
-          product.name
-        );
-      } else {
-        // UTILISER LE SERVICE OPTIMISÉ
-        console.log('⚙️ Using OptimizedChatService');
-        response = await optimizedService.processMessage(
-          sessionId,
-          content,
-          currentStep || 'initial',
-          product.id,
-          product.name
-        );
+      // Mettre à jour l'état
+      if (response.metadata?.nextStep) {
+        store.setCurrentStep?.(response.metadata.nextStep);
+      }
+      
+      if (response.metadata?.orderData) {
+        updateOrderData(response.metadata.orderData);
       }
 
-      // Délai pour l'animation
-      setTimeout(() => {
-        console.log('✅ Response generated');
-        addMessage(response);
+      // ✅ CORRECTION: Gérer les actions spéciales avec vérification de type
+      if (response.metadata?.actions && typeof response.metadata.actions === 'object') {
+        const actions = response.metadata.actions;
         
-        // Mettre à jour l'état
-        if (response.metadata?.nextStep) {
-          store.setCurrentStep?.(response.metadata.nextStep);
-        }
-        
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
-        }
-
-        // ✅ CORRECTION: Gérer les actions spéciales avec vérification de type
-        if (response.metadata?.actions && typeof response.metadata.actions === 'object') {
-          const actions = response.metadata.actions;
+        // Vérifier si showPayment existe et est true
+        if ('showPayment' in actions && actions.showPayment === true) {
+          // ✅ CORRECTION: Utiliser PaymentProvider harmonisé (lowercase)
+          let paymentProvider: PaymentProvider;
           
-          // Vérifier si showPayment existe et est true
-          if ('showPayment' in actions && actions.showPayment === true) {
-            const paymentProvider: PaymentProvider = response.metadata.paymentProvider || 'bictorys';
-            setPaymentModal({ 
-              isOpen: true, 
-              iframeUrl: '', 
-              provider: paymentProvider // ✅ CORRECTION: Utiliser PaymentProvider typé
-            });
+          // Mapping des valeurs possibles vers le type harmonisé
+          const providerFromMetadata = response.metadata.paymentProvider;
+          switch (providerFromMetadata) {
+            case 'wave':
+              paymentProvider = 'wave'; // ✅ CORRECTION: lowercase
+              break;
+            case 'orange_money':
+              paymentProvider = 'orange_money'; // ✅ CORRECTION: lowercase
+              break;
+            case 'wave':
+            case 'orange_money':
+            case 'card':
+            case 'CASH':
+            case 'cash_on_delivery':
+            case 'stripe':
+            case 'bictorys':
+            case 'other':
+              paymentProvider = providerFromMetadata;
+              break;
+            default:
+              paymentProvider = 'bictorys'; // Fallback
           }
+          
+          setPaymentModal({ 
+            isOpen: true, 
+            iframeUrl: '', 
+            provider: paymentProvider // ✅ CORRECTION: Type harmonisé
+          });
         }
-      }, 800);
+      }
+    }, 800);
 
-    } catch (err) {
-      console.error('❌ Error in sendMessage:', err);
-      
-      setTimeout(() => {
-        const errorMessage: ChatMessageType = {
-          type: 'assistant',
-          content: `😔 **Une erreur est survenue**\n\nVoulez-vous réessayer ou contacter notre support ?`,
-          choices: ['🔄 Réessayer', '📞 Contacter le support'],
-          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-          metadata: {
-            nextStep: 'error_recovery' as ConversationStep,
-            flags: { hasError: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-        addMessage(errorMessage);
-      }, 500);
-    }
-  };
+  } catch (err) {
+    console.error('❌ Error in sendMessage:', err);
+    
+    setTimeout(() => {
+      const errorMessage: ChatMessageType = {
+        type: 'assistant',
+        content: `😔 **Une erreur est survenue**\n\nVoulez-vous réessayer ou contacter notre support ?`,
+        choices: ['🔄 Réessayer', '📞 Contacter le support'],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'error_recovery' as ConversationStep,
+          flags: { hasError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+      addMessage(errorMessage);
+    }, 500);
+  }
+};
 
   // GESTION DES CHOIX
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -442,20 +467,6 @@ const ChatContainer = ({
     });
   }, [setPaymentModal]);
 
-  // GESTION PANIER
-  const handleQuantityChange = useCallback((productId: string, newQuantity: number) => {
-    updateOrderData({ quantity: newQuantity });
-  }, [updateOrderData]);
-
-  const handleProceedToCheckout = useCallback(() => {
-    sendMessage('Je veux finaliser ma commande');
-  }, []);
-
-  // FONCTION onClose par défaut
-  const handleClose = onClose || (() => {
-    console.log('Close chat requested');
-  });
-
   // RENDU PRINCIPAL
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
@@ -463,12 +474,9 @@ const ChatContainer = ({
       <div className="flex-shrink-0">
         <ChatHeader
           product={productData}
-          onClose={handleClose}
           isDesktop={!isMobile}
           cartItems={cartItems}
           showCart={cartItems.length > 0}
-          onQuantityChange={handleQuantityChange}
-          onProceedToCheckout={handleProceedToCheckout}
         />
       </div>
 

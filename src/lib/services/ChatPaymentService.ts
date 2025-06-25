@@ -47,7 +47,7 @@ export class PaymentService {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       if (!API_URL) throw new Error('API URL not configured');
 
-      if (method === 'WAVE' || method === 'ORANGE_MONEY') {
+      if (method === 'wave' || method === 'orange_money') {
         const response = await fetch(`${API_URL}/payments/mobile`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -67,7 +67,7 @@ export class PaymentService {
         };
       }
 
-      if (method === 'STRIPE') {
+      if (method === 'stripe') {
         const response = await fetch(`${API_URL}/payments/stripe/create-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -177,7 +177,7 @@ export class PaymentService {
     }
   ): string {
     switch (method) {
-      case 'WAVE':
+      case 'wave':
         return [
           `Pour payer avec Wave :`,
           ``,
@@ -189,7 +189,7 @@ export class PaymentService {
           `Une fois le paiement effectué, dites-moi "oui" pour que je puisse vérifier.`
         ].join('\n');
       
-      case 'ORANGE_MONEY':
+      case 'orange_money':
         return [
           `Pour payer avec Orange Money :`,
           ``,
@@ -201,7 +201,7 @@ export class PaymentService {
           `Une fois le paiement effectué, dites-moi "oui" pour que je puisse vérifier.`
         ].join('\n');
       
-      case 'STRIPE':
+      case 'stripe':
         return `Vous allez être redirigé vers une page de paiement sécurisée. ` +
                `Cliquez sur ce lien pour procéder au paiement : ${paymentData.paymentUrl}`;
       
