@@ -26,6 +26,7 @@ export type PaymentProvider =
   | 'wave' 
   | 'orange_money' 
   | 'card' 
+  | 'CASH' 
   | 'cash_on_delivery'
   | 'stripe'
   | 'bictorys'
@@ -48,6 +49,23 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered'
   | 'cancelled';
+
+
+// ✅ CORRECTION 2: Interface pour OrderService (si nécessaire)
+export interface OrderCreationData {
+  session_id: string;
+  product_id: string;
+  store_id: string;
+  quantity: number;
+  phone: string;
+  first_name: string;
+  last_name: string;
+  city: string;
+  address: string;
+  payment_method: PaymentProvider;
+  total_amount: number;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
 
 // ==========================================
 // CONVERSATION STEPS - VERSION COMPLÈTE CORRIGÉE
@@ -396,7 +414,7 @@ export interface ProductData {
   rating?: number;
   reviews_count?: number;
   sales_count?: number;
-  status: string;                 // ✅ REQUIS pour éviter l'erreur
+  status: string;                
   chatbot_variables?: any;
   metadata?: any;
   stock_quantity?: number;
@@ -414,12 +432,15 @@ export interface ProductData {
   testimonials?: Testimonial[];
   usage_scenarios?: string[];
   
-  // Propriétés pour la compatibilité
+  // ✅ PROPRIÉTÉS CORRIGÉES - utiliser createdAt au lieu de created_at
   slug?: string;
   media?: string[];
   topics?: string[];
-  createdAt?: string;
+  createdAt?: string;  // ✅ CORRIGÉ: utiliser createdAt
   imageUrl?: string;
+  
+  // ✅ AJOUT: Signature d'index pour accès dynamique sécurisé
+  [key: string]: any;
 }
 
 // ✅ ALIAS POUR COMPATIBILITÉ
@@ -687,7 +708,7 @@ export interface ChatMessageMetadata {
   
   // Propriétés utilisateur
   userPreferences?: UserPreferences;
-  availableProducts?: ProductData[];      // ✅ CORRIGÉ: utilise ProductData[]
+  availableProducts?: ProductData[];
   currentOrder?: OrderData;
   existingCustomer?: boolean;
   newCustomer?: boolean;
@@ -696,9 +717,11 @@ export interface ChatMessageMetadata {
   freeDeliveryThreshold?: number;
   recommendedAction?: 'accelerate' | 'nurture' | 'convert';
   
-  // Propriétés diverses
+  // ✅ CORRECTION PRINCIPALE: actions doit être MessageActions, pas string[]
+  actions?: MessageActions; // ✅ CORRECTION: MessageActions au lieu de string[]
   originalMessage?: string;
-  actions?: string[];
+  
+  // Propriétés diverses
   [key: string]: any;
 }
 
@@ -837,6 +860,41 @@ export interface OrderData {
   [key: string]: any;
 }
 
+// ✅ CORRECTIF 3: Interface ExpressOrderState corrigée
+export interface ExpressOrderState {
+  step: 'quantity' | 'phone' | 'name' | 'address' | 'payment' | 'confirmation';
+  data: {
+    productId: string;
+    productName: string;
+    unitPrice: number;
+    quantity: number;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    city?: string;
+    address?: string;
+    paymentMethod?: PaymentProvider; // ✅ CORRECTION: PaymentProvider au lieu de string
+  };
+  flags: {
+    isExistingCustomer: boolean;
+    needsNameCollection: boolean;
+    needsAddressCollection: boolean;
+  };
+}
+
+// ✅ CORRECTIF 4: Interface MessageActions corrigée
+export interface MessageActions {
+  showCart?: boolean;
+  showProduct?: boolean;
+  triggerUpsell?: boolean;
+  showTestimonials?: boolean;
+  redirectWhatsApp?: boolean;
+  showPayment?: boolean; 
+  showQuantitySelector?: boolean;
+  showDeliveryOptions?: boolean;
+  showSummary?: boolean;
+}
+
 // ==========================================
 // ÉTATS ET CONTEXTES
 // ==========================================
@@ -852,7 +910,7 @@ export interface PaymentState {
 export interface PaymentModalState {
   isOpen: boolean;
   iframeUrl: string;
-  provider?: PaymentProvider;
+  provider?: PaymentProvider | undefined; 
 }
 
 // ✅ INTERFACE CHAT STATE ÉTENDUE (correction erreur sendMessage)

@@ -1,4 +1,4 @@
-// src/stores/chatStore.ts - CORRECTION MESSAGE DUPLIQUÉ
+// src/stores/chatStore.ts - VERSION CORRIGÉE COMPLÈTE
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ChatMessage, ConversationStep, ChatOrderData } from '@/types/chat';
@@ -25,7 +25,7 @@ interface ConversationContext {
   mentionedTopics: string[];
   concerns: string[];
   interests: string[];
-  lastUserMessage?: string;
+  lastUserMessage?: string; // ✅ CORRECTION: reste string pour cohérence
   messageCount: number;
   freeTextEnabled: boolean;
 }
@@ -103,9 +103,27 @@ const MAX_STORED_MESSAGES = 100;
 // ✅ SOLUTION ANTI-DUPLICATA: Cache global des messages ajoutés
 const addedMessageCache = new Set<string>();
 
-// ✅ FONCTION: Générer un ID unique pour les messages
+// ✅ FONCTION: Générer un ID unique pour les messages (CORRIGÉE)
 const generateMessageId = (message: ChatMessage): string => {
-  return `${message.type}-${message.content.substring(0, 50)}-${message.timestamp}`;
+  // ✅ CORRECTION: Conversion sécurisée du contenu en string
+  let contentPreview = '';
+  if (message.content) {
+    if (typeof message.content === 'string') {
+      contentPreview = message.content.substring(0, 50);
+    } else {
+      // Pour ReactNode ou autres types, convertir en string ou utiliser un fallback
+      contentPreview = String(message.content).substring(0, 50);
+    }
+  }
+  
+  return `${message.type}-${contentPreview}-${message.timestamp}`;
+};
+
+// ✅ FONCTION UTILITAIRE: Conversion sécurisée du contenu en string
+const getContentAsString = (content: ChatMessage['content']): string => {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  return String(content);
 };
 
 // Storage sécurisé
@@ -296,14 +314,14 @@ export const useChatStore = create<ChatState>()(
         }, 2000);
       },
 
-      // ✅ CORRECTION ANTI-DUPLICATA: addMessage avec cache global
+      // ✅ CORRECTION ANTI-DUPLICATA: addMessage avec cache global et types corrigés
       addMessage: (message: ChatMessage) => {
         if (!message?.content || !message?.type) {
           console.warn('⚠️ Invalid message:', message);
           return;
         }
 
-        // ✅ GÉNÉRATION ID UNIQUE POUR LE MESSAGE
+        // ✅ GÉNÉRATION ID UNIQUE POUR LE MESSAGE (avec conversion sécurisée)
         const messageId = generateMessageId(message);
         
         // ✅ VÉRIFIER CACHE GLOBAL
@@ -337,6 +355,9 @@ export const useChatStore = create<ChatState>()(
           const isUserMessage = message.type === 'user';
           const newMessages = [...state.messages, message].slice(-MAX_STORED_MESSAGES);
           
+          // ✅ CORRECTION: Conversion sécurisée du contenu pour lastUserMessage
+          const messageContentAsString = isUserMessage ? getContentAsString(message.content) : undefined;
+          
           // Construire le nouvel état
           const newState: ChatState = {
             ...state,
@@ -352,7 +373,8 @@ export const useChatStore = create<ChatState>()(
             conversationContext: {
               ...state.conversationContext,
               messageCount: state.conversationContext.messageCount + (isUserMessage ? 1 : 0),
-              lastUserMessage: isUserMessage ? message.content : state.conversationContext.lastUserMessage
+              // ✅ CORRECTION: Utiliser la conversion sécurisée
+              lastUserMessage: isUserMessage ? messageContentAsString : state.conversationContext.lastUserMessage
             }
           };
 

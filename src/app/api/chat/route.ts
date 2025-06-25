@@ -1,6 +1,6 @@
-// src/app/api/chat/route.ts - VERSION CORRIGÉE AVEC BONNE MÉTHODE
+// src/app/api/chat/route.ts - VERSION ENTIÈREMENT CORRIGÉE
 import { NextRequest, NextResponse } from "next/server";
-import { RoseAIEngine } from "@/lib/services/RoseAIEngine";
+import { OptimizedRoseAIEngine } from "@/lib/services/OptimizedRoseAIEngine";
 import { OptimizedChatService } from "@/lib/services/OptimizedChatService";
 import type { ConversationStep, ChatMessage } from '@/types/chat';
 
@@ -45,20 +45,20 @@ interface ChatResponse {
   error?: string;
 }
 
-// 🚀 CLASSE PRINCIPALE DU CHAT API
-class OptimizedChatAPI {
-  private static instance: OptimizedChatAPI;
-  private roseAI: RoseAIEngine;
+// 🚀 CLASSE PRINCIPALE DU CHAT API - VERSION CORRIGÉE
+class CorrectedChatAPI {
+  private static instance: CorrectedChatAPI;
+  private roseAI: OptimizedRoseAIEngine;
   private chatService: OptimizedChatService;
 
   private constructor() {
-    this.roseAI = RoseAIEngine.getInstance();
+    this.roseAI = OptimizedRoseAIEngine.getInstance();
     this.chatService = OptimizedChatService.getInstance();
   }
 
-  public static getInstance(): OptimizedChatAPI {
+  public static getInstance(): CorrectedChatAPI {
     if (!this.instance) {
-      this.instance = new OptimizedChatAPI();
+      this.instance = new CorrectedChatAPI();
     }
     return this.instance;
   }
@@ -93,9 +93,9 @@ class OptimizedChatAPI {
         return this.createWhatsAppRedirection();
       }
 
-      // 🚀 PRIORITÉ 4: Traitement avec Rose AI
-      console.log('🌹 Processing with Rose AI');
-      return await this.processWithRoseAI(request);
+      // 🚀 PRIORITÉ 4: Traitement avec Rose AI CORRIGÉ
+      console.log('🌹 Processing with Fixed Rose AI');
+      return await this.processWithFixedRoseAI(request);
 
     } catch (error) {
       console.error('❌ Chat API Error:', error);
@@ -103,34 +103,40 @@ class OptimizedChatAPI {
     }
   }
 
-  // ⚡ GESTION DE LA COMMANDE EXPRESS
+  // ⚡ GESTION DE LA COMMANDE EXPRESS - CORRIGÉE
   private async handleExpressOrder(request: ChatRequest): Promise<ChatResponse> {
     try {
       console.log('⚡ Processing express order request');
 
-      // ✅ UTILISER LA MÉTHODE PUBLIQUE handleExpressFlow
-      const response = await this.chatService.handleExpressFlow(
-        request.sessionId,
-        request.message,
-        'express_start' // Signal pour démarrer le flow express
-      );
+      // ✅ UTILISER LA MÉTHODE PUBLIQUE handleExpressFlow AVEC GESTION D'ERREUR
+      try {
+        const response = await this.chatService.handleExpressFlow(
+          request.sessionId,
+          request.message,
+          'express_start'
+        );
 
-      // ✅ TRAITEMENT SÉCURISÉ DU CONTENU
-      const content = typeof response.content === 'string' 
-        ? response.content 
-        : String(response.content);
+        // ✅ TRAITEMENT SÉCURISÉ DU CONTENU
+        const content = typeof response.content === 'string' 
+          ? response.content 
+          : String(response.content);
 
-      return {
-        success: true,
-        message: content,
-        choices: response.choices || [],
-        nextStep: response.metadata?.nextStep || 'express_quantity',
-        type: 'assistant',
-        orderData: response.metadata?.orderData,
-        actions: {
-          showCart: true
-        }
-      };
+        return {
+          success: true,
+          message: content,
+          choices: response.choices || [],
+          nextStep: response.metadata?.nextStep || 'express_quantity',
+          type: 'assistant',
+          orderData: response.metadata?.orderData,
+          actions: {
+            showCart: true
+          }
+        };
+      } catch (serviceError) {
+        console.error('❌ ChatService error:', serviceError);
+        // Fallback vers Rose AI si le service express échoue
+        return await this.processWithFixedRoseAI(request);
+      }
 
     } catch (error) {
       console.error('❌ Express order error:', error);
@@ -138,34 +144,40 @@ class OptimizedChatAPI {
     }
   }
 
-  // 🛒 CONTINUER LE FLOW D'ACHAT
+  // 🛒 CONTINUER LE FLOW D'ACHAT - CORRIGÉ
   private async continueOrderFlow(request: ChatRequest): Promise<ChatResponse> {
     try {
       console.log('🛒 Continuing order flow');
 
-      // ✅ UTILISER LA MÉTHODE PUBLIQUE handleExpressStep
-      const response = await this.chatService.handleExpressStep(
-        request.sessionId,
-        request.message,
-        request.currentStep!
-      );
+      // ✅ UTILISER LA MÉTHODE PUBLIQUE handleExpressStep AVEC GESTION D'ERREUR
+      try {
+        const response = await this.chatService.handleExpressStep(
+          request.sessionId,
+          request.message,
+          request.currentStep!
+        );
 
-      // ✅ TRAITEMENT SÉCURISÉ DU CONTENU
-      const content = typeof response.content === 'string' 
-        ? response.content 
-        : String(response.content);
+        // ✅ TRAITEMENT SÉCURISÉ DU CONTENU
+        const content = typeof response.content === 'string' 
+          ? response.content 
+          : String(response.content);
 
-      return {
-        success: true,
-        message: content,
-        choices: response.choices || [],
-        nextStep: response.metadata?.nextStep || request.currentStep!,
-        type: 'assistant',
-        orderData: response.metadata?.orderData,
-        actions: {
-          showCart: this.shouldShowCart(response.metadata?.nextStep || request.currentStep!)
-        }
-      };
+        return {
+          success: true,
+          message: content,
+          choices: response.choices || [],
+          nextStep: response.metadata?.nextStep || request.currentStep!,
+          type: 'assistant',
+          orderData: response.metadata?.orderData,
+          actions: {
+            showCart: this.shouldShowCart(response.metadata?.nextStep || request.currentStep!)
+          }
+        };
+      } catch (serviceError) {
+        console.error('❌ Order flow service error:', serviceError);
+        // Fallback vers Rose AI si le service d'achat échoue
+        return await this.processWithFixedRoseAI(request);
+      }
 
     } catch (error) {
       console.error('❌ Order flow error:', error);
@@ -173,12 +185,12 @@ class OptimizedChatAPI {
     }
   }
 
-  // 🌹 TRAITEMENT AVEC ROSE AI - CORRIGÉ AVEC BONNE MÉTHODE
-  private async processWithRoseAI(request: ChatRequest): Promise<ChatResponse> {
+  // 🌹 TRAITEMENT AVEC ROSE AI CORRIGÉ - NOUVELLE MÉTHODE
+  private async processWithFixedRoseAI(request: ChatRequest): Promise<ChatResponse> {
     try {
-      console.log('🌹 Processing with Rose AI');
+      console.log('🌹 Processing with Fixed Rose AI');
 
-      // ✅ UTILISER LA BONNE MÉTHODE: processCustomerMessage
+      // ✅ UTILISER LE MOTEUR AI CORRIGÉ
       const aiResponse = await this.roseAI.processCustomerMessage({
         productId: request.productId,
         sessionId: request.sessionId,
@@ -202,7 +214,7 @@ class OptimizedChatAPI {
       };
 
     } catch (error) {
-      console.error('❌ Rose AI error:', error);
+      console.error('❌ Fixed Rose AI error:', error);
       return this.createFallbackResponse(request);
     }
   }
@@ -324,13 +336,11 @@ Pouvez-vous me dire ce que vous souhaitez faire ?
       success: false,
       message: `😔 **Une erreur est survenue**
 
-${error?.message || 'Erreur inconnue'}
-
-Voulez-vous réessayer ?`,
+Voulez-vous réessayer ou continuer avec moi ?`,
       choices: [
         '🔄 Réessayer',
-        '📞 Contacter le support',
-        '🔙 Recommencer'
+        '💬 Continuer le chat',
+        '📞 Contacter le support'
       ],
       nextStep: 'error_recovery',
       type: 'assistant',
@@ -349,13 +359,30 @@ export async function OPTIONS() {
   });
 }
 
-// ✅ HANDLER POST PRINCIPAL
+// ✅ HANDLER POST PRINCIPAL - VERSION SÉCURISÉE
 export async function POST(request: NextRequest) {
   try {
     console.log('🎯 Chat API POST request received');
 
-    // ✅ PARSING DU BODY
-    const body = await request.json();
+    // ✅ PARSING DU BODY AVEC GESTION D'ERREUR
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('❌ JSON parsing error:', parseError);
+      return NextResponse.json({
+        success: false,
+        message: 'Format de requête invalide',
+        choices: ['🔄 Réessayer'],
+        nextStep: 'error',
+        type: 'assistant',
+        error: 'Invalid JSON format'
+      }, { 
+        status: 400,
+        headers: corsHeaders 
+      });
+    }
+
     const chatRequest: ChatRequest = {
       message: body.message || '',
       productId: body.productId || '',
@@ -367,11 +394,19 @@ export async function POST(request: NextRequest) {
       timeOnPage: body.timeOnPage
     };
 
-    // ✅ VALIDATION
+    // ✅ VALIDATION AMÉLIORÉE
     if (!chatRequest.message.trim()) {
       return NextResponse.json({
         success: false,
-        error: 'Message vide'
+        message: 'Message vide. Que souhaitez-vous me dire ?',
+        choices: [
+          'Je veux acheter un jeu',
+          'J\'ai des questions',
+          'Découvrir vos jeux'
+        ],
+        nextStep: 'empty_message',
+        type: 'assistant',
+        error: 'Empty message'
       }, { 
         status: 400,
         headers: corsHeaders 
@@ -381,21 +416,28 @@ export async function POST(request: NextRequest) {
     if (!chatRequest.productId) {
       return NextResponse.json({
         success: false,
-        error: 'Product ID manquant'
+        message: 'Identifiant produit manquant. Veuillez rafraîchir la page.',
+        choices: [
+          '🔄 Rafraîchir la page',
+          '🏠 Retour à l\'accueil'
+        ],
+        nextStep: 'missing_product',
+        type: 'assistant',
+        error: 'Missing product ID'
       }, { 
         status: 400,
         headers: corsHeaders 
       });
     }
 
-    // ✅ TRAITEMENT
+    // ✅ TRAITEMENT AVEC GESTION D'ERREUR COMPLÈTE
     console.log('🚀 Processing chat request:', {
       message: chatRequest.message.substring(0, 50),
       productId: chatRequest.productId,
       step: chatRequest.currentStep
     });
 
-    const chatAPI = OptimizedChatAPI.getInstance();
+    const chatAPI = CorrectedChatAPI.getInstance();
     const response = await chatAPI.processMessage(chatRequest);
 
     console.log('✅ Chat response generated:', {
@@ -409,15 +451,19 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Chat API Error:', error);
+    console.error('❌ Critical Chat API Error:', error);
     
     return NextResponse.json({
       success: false,
-      message: 'Une erreur interne est survenue',
-      choices: ['🔄 Réessayer', '📞 Support'],
+      message: '😔 **Oups ! Quelque chose ne va pas**\n\nNe vous inquiétez pas, nous pouvons continuer autrement.',
+      choices: [
+        '🔄 Réessayer',
+        '📱 WhatsApp Support',
+        '🔙 Recommencer'
+      ],
       nextStep: 'critical_error',
       type: 'assistant',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Critical system error'
     }, {
       status: 500,
       headers: corsHeaders
@@ -428,11 +474,19 @@ export async function POST(request: NextRequest) {
 // ✅ FALLBACK POUR AUTRES MÉTHODES
 export async function GET() {
   return NextResponse.json({
-    message: 'Chat API is running',
+    message: 'VIENS ON S\'CONNAÎT Chat API is running! 🌹',
+    version: '2.0.0',
+    status: 'healthy',
     endpoints: {
       POST: '/api/chat - Send chat message',
       OPTIONS: '/api/chat - CORS preflight'
-    }
+    },
+    features: [
+      'Express order flow',
+      'Intelligent responses',
+      'WhatsApp fallback',
+      'Error recovery'
+    ]
   }, {
     headers: corsHeaders
   });

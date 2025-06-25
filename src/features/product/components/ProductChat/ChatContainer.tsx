@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - CORRECTION old_price
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -9,6 +9,7 @@ import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal'
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
+import { WelcomeMessageService } from '@/lib/services/WelcomeMessageService';
 import DynamicContentService from '@/lib/services/DynamicContentService';
 import { SessionManager } from '@/lib/services/SessionManager';
 import ChatMessage from './components/ChatMessage';
@@ -18,6 +19,7 @@ import ChatHeader from './components/ChatHeader';
 import QuantitySelector from './components/QuantitySelector';
 import type { PaymentProvider } from '@/types/order';
 import type { Product } from '@/types/product';
+import type { ProductData } from '@/types/chat';
 import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
 import { supabase } from '@/lib/supabase';
 import { SpeechRecognition } from '@/types/speech';
@@ -27,13 +29,52 @@ interface ChatContainerProps {
   storeId: string;
   isMobile?: boolean;
   isFullscreen?: boolean;
+  onClose?: () => void;
 }
+
+// ✅ FONCTION UTILITAIRE: Convertir Product en ProductData
+const convertProductToProductData = (product: Product): ProductData => {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description || '',
+    price: product.price,
+    status: product.status || 'active',
+    stock_quantity: product.stock_quantity || 0,
+    
+    // Propriétés spécifiques avec vérification sécurisée
+    game_rules: (product as any).game_rules || '',
+    chatbot_variables: (product as any).chatbot_variables || {},
+    metadata: (product as any).metadata || {},
+    images: product.images || [],
+    category: product.category || 'default',
+    
+    // Dates et métadonnées
+    createdAt: (product as any).created_at || new Date().toISOString(),
+    
+    // Propriétés optionnelles
+    target_audience: (product as any).target_audience,
+    benefits: (product as any).benefits,
+    rating: (product as any).rating || 5,
+    reviewCount: (product as any).reviews_count || 15,
+    originalPrice: (product as any).compare_at_price,
+    sales_count: (product as any).sales_count,
+    stats: (product as any).stats,
+    testimonials: (product as any).testimonials,
+    usage_scenarios: (product as any).usage_scenarios,
+    slug: (product as any).slug,
+    media: (product as any).media,
+    topics: (product as any).topics,
+    imageUrl: (product as any).imageUrl
+  };
+};
 
 const ChatContainer = ({ 
   product,
   storeId,
   isMobile = false, 
-  isFullscreen = false 
+  isFullscreen = false,
+  onClose
 }: ChatContainerProps) => {
   const chatRef = useRef<HTMLDivElement>(null);
   const [inputMessage, setInputMessage] = useState('');
@@ -43,20 +84,24 @@ const ChatContainer = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
   
-  // ✅ NOUVEAU: États pour la reconnaissance vocale
+  // États pour la reconnaissance vocale
   const [isListening, setIsListening] = useState(false);
   const [isVoiceSupported, setIsVoiceSupported] = useState(false);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   
-  // ✅ Initialisation des services dans le composant
+  // Services initialisés
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
+  const [welcomeService] = useState(() => WelcomeMessageService.getInstance());
   const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
   
-  // ✅ État global pour éviter les doublons
+  // État global pour éviter les doublons
   const [globalInitialized, setGlobalInitialized] = useState(false);
 
-  // ✅ Utilisation sécurisée du store
+  // CONVERSION: Product vers ProductData
+  const productData = convertProductToProductData(product);
+
+  // Utilisation sécurisée du store
   const store = useChatStore();
   const {
     messages = [],
@@ -91,7 +136,32 @@ const ChatContainer = ({
     }
   } = store;
 
-  // ✅ NOUVEAU: Initialisation de la reconnaissance vocale
+  // État du panier dérivé de orderData
+  const [cartItems, setCartItems] = useState<Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>>([]);
+
+  // Mettre à jour cartItems quand orderData change
+  useEffect(() => {
+    if (orderData.quantity && orderData.quantity > 0) {
+      const newCartItems = [{
+        productId: product.id,
+        productName: product.name,
+        quantity: orderData.quantity,
+        unitPrice: product.price,
+        totalPrice: orderData.quantity * product.price
+      }];
+      setCartItems(newCartItems);
+    } else {
+      setCartItems([]);
+    }
+  }, [orderData.quantity, product.id, product.name, product.price]);
+
+  // INITIALISATION DE LA RECONNAISSANCE VOCALE
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -122,7 +192,7 @@ const ChatContainer = ({
     }
   }, []);
 
-  // ✅ NOUVEAU: Fonction pour gérer la reconnaissance vocale
+  // FONCTION RECONNAISSANCE VOCALE
   const toggleVoiceInput = useCallback(() => {
     if (!isVoiceSupported || !recognition || isProcessing) return;
     
@@ -135,146 +205,83 @@ const ChatContainer = ({
     }
   }, [isVoiceSupported, recognition, isListening, isProcessing]);
 
-  // ✅ Service de contenu dynamique avec type 'target'
-  const getProductInfoFromDatabase = useCallback(async (infoType: 'description' | 'benefits' | 'usage' | 'testimonials' | 'target') => {
-    try {
-      return await dynamicContentService.getProductInfo(product.id, infoType);
-    } catch (error) {
-      console.error('Error fetching product info:', error);
-      return `Informations sur le **${product.name}** (données par défaut)`;
-    }
-  }, [product.id, product.name, dynamicContentService]);
-
-  // ✅ Récupérer les infos de livraison
-  const getDeliveryInfoFromDatabase = useCallback(async () => {
-    try {
-      return await dynamicContentService.getDeliveryInfo();
-    } catch (error) {
-      console.error('Error fetching delivery info:', error);
-      return null;
-    }
-  }, [dynamicContentService]);
-
-  // ✅ INITIALISATION CORRIGÉE avec gestion des doublons
+  // INITIALISATION CORRIGÉE du chat avec message d'accueil
   useEffect(() => {
     if (!product?.id || welcomeMessageAdded || globalInitialized) return;
 
     const initializeChat = async () => {
       try {
-        console.log('🖥️ Initializing desktop chat session:', { productId: product.id, storeId });
+        console.log('🚀 Initializing chat session:', { productId: product.id, storeId, isDesktop: !isMobile });
         
-        // ✅ VÉRIFICATION: État global d'abord
+        // Vérifier si déjà des messages
         const globalState = useChatStore.getState();
         const currentMessages = globalState.messages || [];
         
-        // Si des messages existent déjà ou si déjà initialisé, ne rien faire
         if (currentMessages.length > 0 || globalState.flags?.isInitialized) {
-          console.log('📝 Desktop chat already has messages or is initialized, skipping');
+          console.log('📝 Chat already has messages or is initialized, skipping');
           setIsInitialized(true);
           setWelcomeMessageAdded(true);
           setGlobalInitialized(true);
           return;
         }
 
-        // ✅ UTILISER SessionManager pour éviter les doublons
+        // Créer session
         const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
-        console.log('🆕 Desktop session created with SessionManager:', newSessionId);
-
-        // ✅ VÉRIFIER ENCORE UNE FOIS avant d'initialiser
-        const latestState = useChatStore.getState();
-        if (latestState.messages?.length > 0) {
-          console.log('⚠️ Messages detected during initialization, aborting welcome');
-          setIsInitialized(true);
-          setWelcomeMessageAdded(true);
-          setGlobalInitialized(true);
-          return;
-        }
+        console.log('🆕 Session created:', newSessionId);
 
         if (initializeSession) {
           initializeSession(product.id, storeId, newSessionId);
           setIsInitialized(true);
           
-          // ✅ DÉLAI PLUS LONG pour éviter les conditions de course
+          // Délai pour éviter les conditions de course
           setTimeout(() => {
             const finalState = useChatStore.getState();
             
-            // ✅ TRIPLE VÉRIFICATION avant d'ajouter le message
             if (finalState.messages?.length === 0 && !welcomeMessageAdded && !finalState.flags?.isInitialized) {
-              const welcomeMessage: ChatMessageType = {
-                type: 'assistant',
-                content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
-
-Je vois que vous vous intéressez à notre jeu **${product.name}**. C'est excellent ✨
-
-Comment puis-je vous aider ?`,
-                choices: [
-                  'Je veux l\'acheter maintenant',
-                  'J\'ai des questions à poser',
-                  'Je veux en savoir plus'
-                ],
-                assistant: {
-                  name: 'Rose',
-                  title: 'Assistante d\'achat',
-                  avatar: undefined
-                },
-                metadata: {
-                  nextStep: 'initial_engagement' as ConversationStep,
-                  productId: product.id,
-                  sessionId: newSessionId,
-                  flags: { 
-                    isWelcome: true,
-                    preventAIIntervention: true
-                  }
-                },
-                timestamp: new Date().toISOString()
-              };
+              // UTILISER LE SERVICE DE MESSAGE D'ACCUEIL
+              const welcomeMessage = !isMobile 
+                ? welcomeService.generateDesktopWelcomeMessage(
+                    product.name,
+                    newSessionId,
+                    product.id,
+                    product.price,
+                    productData.reviewCount
+                  )
+                : welcomeService.generateWelcomeMessage(
+                    product.name,
+                    newSessionId,
+                    product.id
+                  );
               
-              console.log('📝 Adding welcome message to desktop chat');
+              console.log('📝 Adding welcome message to chat');
               addMessage(welcomeMessage);
               setWelcomeMessageAdded(true);
               setGlobalInitialized(true);
               
-              // ✅ MARQUER COMME INITIALISÉ dans le store
               if (store.updateFlags) {
                 store.updateFlags({ isInitialized: true });
               }
               
-              // ✅ MARQUER L'INITIALISATION GLOBALEMENT
               localStorage.setItem('vosc-chat-initialized', 'true');
             } else {
-              console.log('⚠️ Desktop: Welcome message skipped - messages exist or already initialized');
+              console.log('⚠️ Welcome message skipped - messages exist or already initialized');
               setWelcomeMessageAdded(true);
               setGlobalInitialized(true);
             }
-          }, 800); // Délai augmenté à 800ms
+          }, 800);
         }
         
       } catch (err) {
-        console.error('❌ Error initializing desktop chat:', err);
+        console.error('❌ Error initializing chat:', err);
         setIsInitialized(true);
         setWelcomeMessageAdded(true);
       }
     };
 
     initializeChat();
-  }, [product.id, storeId, welcomeMessageAdded, globalInitialized, sessionManager, initializeSession, addMessage, store]);
+  }, [product.id, storeId, welcomeMessageAdded, globalInitialized, isMobile, sessionManager, initializeSession, addMessage, store, welcomeService, productData.reviewCount]);
 
-  // ✅ SURVEILLANCE DES CHANGEMENTS D'ÉTAT GLOBAL
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'vosc-chat-initialized' && e.newValue === 'true') {
-        console.log('🔄 Chat initialized by another instance');
-        setGlobalInitialized(true);
-        setIsInitialized(true);
-        setWelcomeMessageAdded(true);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // ✅ Auto-scroll optimisé
+  // Auto-scroll optimisé
   useEffect(() => {
     if (chatRef.current) {
       const scrollToBottom = () => {
@@ -288,200 +295,115 @@ Comment puis-je vous aider ?`,
     }
   }, [messages, showTyping]);
 
-  // ✅ GESTION DES MESSAGES STANDARDS avec données dynamiques
-  const handleStandardMessages = async (content: string): Promise<ChatMessageType> => {
-    if (content.includes('J\'ai des questions à poser') || content.includes('questions')) {
-      return {
-        type: 'assistant',
-        content: `Parfait ! Posez-moi toutes vos questions sur le jeu **${product.name}**.
-
-Je peux vous expliquer :
-* Comment y jouer
-* Pour qui ce jeu est adapté
-* Les bénéfices que vous pouvez en tirer
-* Ce qu'en disent nos clients
-
-Que voulez-vous savoir ?`,
-        choices: [
-          'Comment y jouer ?',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?',
-          'Quels sont les avis clients ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'question_mode' as ConversationStep,
-          flags: { questionMode: true }
-        },
+  // GESTION DES MESSAGES avec le service optimisé
+  const sendMessage = async (content: string) => {
+    try {
+      console.log('📤 Processing message:', { content, sessionId, currentStep });
+      
+      // Ajouter le message utilisateur
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content,
         timestamp: new Date().toISOString()
       };
+      
+      addMessage(userMessage);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      let response: ChatMessageType;
+      
+      // VÉRIFIER SI C'EST UNE RÉPONSE AU MESSAGE D'ACCUEIL
+      if (welcomeService.isWelcomeResponse(content)) {
+        console.log('🌹 Handling welcome response');
+        response = welcomeService.handleWelcomeButtonResponse(
+          content,
+          product.id,
+          product.name
+        );
+      } else {
+        // UTILISER LE SERVICE OPTIMISÉ
+        console.log('⚙️ Using OptimizedChatService');
+        response = await optimizedService.processMessage(
+          sessionId,
+          content,
+          currentStep || 'initial',
+          product.id,
+          product.name
+        );
+      }
+
+      // Délai pour l'animation
+      setTimeout(() => {
+        console.log('✅ Response generated');
+        addMessage(response);
+        
+        // Mettre à jour l'état
+        if (response.metadata?.nextStep) {
+          store.setCurrentStep?.(response.metadata.nextStep);
+        }
+        
+        if (response.metadata?.orderData) {
+          updateOrderData(response.metadata.orderData);
+        }
+
+        // ✅ CORRECTION: Gérer les actions spéciales avec vérification de type
+        if (response.metadata?.actions && typeof response.metadata.actions === 'object') {
+          const actions = response.metadata.actions;
+          
+          // Vérifier si showPayment existe et est true
+          if ('showPayment' in actions && actions.showPayment === true) {
+            const paymentProvider: PaymentProvider = response.metadata.paymentProvider || 'bictorys';
+            setPaymentModal({ 
+              isOpen: true, 
+              iframeUrl: '', 
+              provider: paymentProvider // ✅ CORRECTION: Utiliser PaymentProvider typé
+            });
+          }
+        }
+      }, 800);
+
+    } catch (err) {
+      console.error('❌ Error in sendMessage:', err);
+      
+      setTimeout(() => {
+        const errorMessage: ChatMessageType = {
+          type: 'assistant',
+          content: `😔 **Une erreur est survenue**\n\nVoulez-vous réessayer ou contacter notre support ?`,
+          choices: ['🔄 Réessayer', '📞 Contacter le support'],
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+          metadata: {
+            nextStep: 'error_recovery' as ConversationStep,
+            flags: { hasError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+        addMessage(errorMessage);
+      }, 500);
     }
-
-    // ✅ Gestion "Comment y jouer ?"
-    if (content.includes('Comment y jouer') || content.includes('comment jouer')) {
-      const gameRules = await getProductInfoFromDatabase('usage');
-      return {
-        type: 'assistant',
-        content: `🎯 **Comment jouer à ${product.name} ?**
-
-${gameRules}
-
-Avez-vous d'autres questions ou souhaitez-vous passer commande ?`,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'post_rules_engagement' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ Gestion "C'est pour qui ?"
-    if (content.includes('C\'est pour qui') || content.includes('pour qui')) {
-      const targetInfo = await getProductInfoFromDatabase('target');
-      return {
-        type: 'assistant',
-        content: `👥 **Pour qui est fait ${product.name} ?**
-
-${targetInfo}
-
-Ce jeu vous intéresse-t-il pour votre situation ?`,
-        choices: [
-          'Oui, parfait pour moi !',
-          'Je veux l\'acheter maintenant',
-          'Quels sont les bénéfices ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'target_audience_shown' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ Gestion "Quels sont les bénéfices ?"
-    if (content.includes('bénéfices') || content.includes('avantages')) {
-      const benefits = await getProductInfoFromDatabase('benefits');
-      return {
-        type: 'assistant',
-        content: `💝 **Les bénéfices de ${product.name} :**
-
-${benefits}
-
-Ces bénéfices vous motivent-ils à essayer le jeu ?`,
-        choices: [
-          'Oui, je le veux !',
-          'Je veux l\'acheter maintenant',
-          'Quels sont les avis clients ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'benefits_shown' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ Gestion "Avis clients"
-    if (content.includes('avis') || content.includes('témoignages')) {
-      const testimonials = await getProductInfoFromDatabase('testimonials');
-      return {
-        type: 'assistant',
-        content: `⭐ **Ce que disent nos clients sur ${product.name} :**
-
-${testimonials}
-
-Prêt(e) à rejoindre nos clients satisfaits ?`,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'J\'ai d\'autres questions',
-          'Je veux en savoir plus'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'social_proof_shown' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ Gestion "Je veux en savoir plus"
-    if (content.includes('en savoir plus') || content.includes('savoir plus')) {
-      const description = await getProductInfoFromDatabase('description');
-      return {
-        type: 'assistant',
-        content: `💡 **Tout savoir sur ${product.name} :**
-
-${description}
-
-Que souhaitez-vous faire maintenant ?`,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'J\'ai des questions'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'product_info_shown' as ConversationStep
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // Réponse par défaut
-    return {
-      type: 'assistant',
-      content: `Merci pour votre message ! Comment puis-je vous aider davantage avec le jeu **${product.name}** ?`,
-      choices: [
-        'Je veux l\'acheter maintenant',
-        'J\'ai des questions à poser',
-        'Je veux en savoir plus'
-      ],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'initial_engagement' as ConversationStep
-      },
-      timestamp: new Date().toISOString()
-    };
   };
 
-  // ✅ Gestion des choix avec protection
+  // GESTION DES CHOIX
   const handleChoiceSelect = useCallback(async (choice: string) => {
     if (isProcessing) {
       console.log('⏳ Processing in progress, ignoring choice');
       return;
     }
 
-    console.log('🔘 Desktop choice selected:', choice);
-    await sendMessage(choice);
-  }, [isProcessing]);
+    console.log('🔘 Choice selected:', choice);
+    setIsProcessing(true);
+    updateTypingStatus(true);
+    
+    try {
+      await sendMessage(choice);
+    } catch (error) {
+      console.error('❌ Error sending choice:', error);
+    } finally {
+      updateTypingStatus(false);
+      setIsProcessing(false);
+    }
+  }, [isProcessing, updateTypingStatus]);
 
-  // ✅ Gestion des événements clavier
+  // GESTION ÉVÉNEMENTS CLAVIER
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -489,7 +411,7 @@ Que souhaitez-vous faire maintenant ?`,
     }
   }, [inputMessage, isProcessing]);
 
-  // ✅ CORRECTION: Soumission de formulaire avec typage fixé
+  // SOUMISSION DE FORMULAIRE
   const handleSubmit = useCallback(() => {
     const content = inputMessage.trim();
   
@@ -511,113 +433,7 @@ Que souhaitez-vous faire maintenant ?`,
       });
   }, [inputMessage, isProcessing, updateTypingStatus]);
 
-  // ✅ FONCTION PRINCIPALE: sendMessage pour desktop
-  const sendMessage = async (content: string) => {
-    try {
-      console.log('🖥️ Processing desktop message:', { content, sessionId, isExpressMode, currentStep });
-      
-      // Ajouter le message utilisateur immédiatement
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          flags: {
-            isButtonChoice: true,
-            preventAIIntervention: true
-          }
-        }
-      };
-      
-      addMessage(userMessage);
-
-      // Petite pause pour l'animation
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      let response: ChatMessageType;
-      
-      // ✅ UTILISER TOUJOURS L'API POUR L'IA
-      console.log('🚀 Sending to enhanced chat API...');
-      
-      try {
-        const apiResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: content,
-            productId: product.id,
-            currentStep: currentStep || 'initial',
-            orderData: orderData || {},
-            sessionId: sessionId || Date.now().toString(),
-            storeId: storeId || 'default'
-          }),
-        });
-
-        if (!apiResponse.ok) {
-          throw new Error(`API error: ${apiResponse.status}`);
-        }
-
-        const aiResponse = await apiResponse.json();
-        console.log('✅ Enhanced API response:', aiResponse);
-
-        response = {
-          type: 'assistant',
-          content: aiResponse.message || "Je suis là pour vous aider !",
-          choices: aiResponse.choices || [],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: aiResponse.nextStep || 'generic_response',
-            orderData: aiResponse.orderData,
-            flags: {}
-          },
-          timestamp: new Date().toISOString()
-        };
-
-      } catch (apiError) {
-        console.error('❌ API call failed, using fallback:', apiError);
-        response = await handleStandardMessages(content);
-      }
-      
-      // Délai pour l'animation
-      setTimeout(() => {
-        console.log('✅ Desktop: Response generated');
-        addMessage(response);
-        
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
-        }
-      }, 800);
-
-    } catch (err) {
-      console.error('❌ Desktop: Error in sendMessage:', err);
-      
-      setTimeout(() => {
-        const errorMessage: ChatMessageType = {
-          type: 'assistant',
-          content: `😔 **Une erreur est survenue**
-
-Voulez-vous réessayer ou contacter notre support ?`,
-          choices: ['🔄 Réessayer', '📞 Contacter le support'],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'error_recovery' as ConversationStep,
-            flags: { hasError: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-        addMessage(errorMessage);
-      }, 500);
-    }
-  };
-
+  // GESTION FERMETURE MODAL PAIEMENT
   const handleClosePaymentModal = useCallback(() => {
     setPaymentModal({ 
       isOpen: false, 
@@ -626,26 +442,37 @@ Voulez-vous réessayer ou contacter notre support ?`,
     });
   }, [setPaymentModal]);
 
-  // ✅ RENDU PRINCIPAL
+  // GESTION PANIER
+  const handleQuantityChange = useCallback((productId: string, newQuantity: number) => {
+    updateOrderData({ quantity: newQuantity });
+  }, [updateOrderData]);
+
+  const handleProceedToCheckout = useCallback(() => {
+    sendMessage('Je veux finaliser ma commande');
+  }, []);
+
+  // FONCTION onClose par défaut
+  const handleClose = onClose || (() => {
+    console.log('Close chat requested');
+  });
+
+  // RENDU PRINCIPAL
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
-      {/* ✅ HEADER avec PROPS CORRIGÉES - CORRECTION FINALE pour old_price */}
-      <div className="flex-shrink-0 border-b-2 border-gray-100">
-        <ChatHeader 
-          productId={product.id}
-          title={product.name}
-          rating={product.stats?.satisfaction || 5}
-          price={product.price?.toString() || '0'}
-          oldPrice={
-            // ✅ CORRECTION: Gestion sécurisée de old_price qui n'existe pas dans Product
-            product.price && product.price > 0 
-              ? undefined // Pas d'ancien prix pour l'instant
-              : undefined
-          }
+      {/* HEADER AVEC NOUVEAU FORMAT */}
+      <div className="flex-shrink-0">
+        <ChatHeader
+          product={productData}
+          onClose={handleClose}
+          isDesktop={!isMobile}
+          cartItems={cartItems}
+          showCart={cartItems.length > 0}
+          onQuantityChange={handleQuantityChange}
+          onProceedToCheckout={handleProceedToCheckout}
         />
       </div>
 
-      {/* ✅ ZONE MESSAGES */}
+      {/* ZONE MESSAGES */}
       <div 
         ref={chatRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
@@ -701,7 +528,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
         </AnimatePresence>
       </div>
 
-      {/* ✅ ZONE SAISIE avec bordures améliorées et micro activé */}
+      {/* ZONE SAISIE avec reconnaissance vocale */}
       <div className="flex-shrink-0 border-t-2 border-gray-100 px-4 py-3">
         <div className="relative flex items-center">
           <input
@@ -715,7 +542,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
             maxLength={500}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {/* ✅ BOUTON MICRO ACTIVÉ */}
+            {/* BOUTON MICRO */}
             <button
               type="button"
               onClick={toggleVoiceInput}
@@ -738,6 +565,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
             
+            {/* BOUTON ENVOYER */}
             <button
               type="button"
               onClick={handleSubmit}
@@ -759,7 +587,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
         </div>
       </div>
 
-      {/* Modals de paiement avec toutes les props obligatoires */}
+      {/* MODALS DE PAIEMENT */}
       <BictorysPaymentModal
         isOpen={paymentModal?.isOpen || false}
         onClose={handleClosePaymentModal}

@@ -1,9 +1,19 @@
-// src/types/order.ts - Version Complète Corrigée
+// src/types/order.ts - VERSION CORRIGÉE AVEC PAYMENTPROVIDER HARMONISÉ
 
 import { z } from 'zod';
 import type { ChatMessage, ConversationStep, MessageFlags } from '@/types/chat';
 
-export type PaymentProvider = 'WAVE' | 'ORANGE_MONEY' | 'STRIPE' | 'CASH';
+// ✅ CORRECTION PRINCIPALE: PaymentProvider harmonisé avec types/chat.ts
+export type PaymentProvider = 
+  | 'wave'           // ✅ CORRECTION: lowercase au lieu de 'WAVE'
+  | 'orange_money'   // ✅ CORRECTION: lowercase au lieu de 'ORANGE_MONEY'
+  | 'card' 
+  | 'CASH' 
+  | 'cash_on_delivery'
+  | 'stripe'
+  | 'bictorys'
+  | 'other';
+
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'success';
 export type DeliveryStatus = 'pending' | 'processing' | 'shipped' | 'delivered';
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'processing' | 'paid' | 'cancelled' | 'delivered' | 'failed';
@@ -86,7 +96,7 @@ export interface BaseOrderData {
 
 export interface OrderData extends BaseOrderData {
   status: OrderStatus;
-  paymentStatus: PaymentStatus; // ✅ Type corrigé
+  paymentStatus: PaymentStatus;
   subtotal: number;
   currentItem?: OrderItem;
   quantity?: number;
@@ -206,7 +216,7 @@ export function createOrderView(order: OrderData): OrderView {
     },
     subtotal: order.total_amount - order.delivery_cost,
     deliveryStatus: order.metadata?.deliveryStatus || 'pending',
-    paymentStatus: order.paymentStatus, // ✅ Utilise le type correct
+    paymentStatus: order.paymentStatus,
     paymentMethod: order.payment_method,
     totalAmount: order.total_amount,
     deliveryCost: order.delivery_cost
@@ -251,11 +261,11 @@ export type PartialOrderUpdate = Partial<Omit<OrderData, 'metadata'>> & {
   metadata?: Partial<OrderMetadata>;
 };
 
-// Types pour les paiements
+// ✅ CORRECTION: Types pour les paiements avec PaymentProvider harmonisé
 export interface BictorysPaymentRequest {
   amount: number;
   currency: 'XOF';
-  provider: Extract<PaymentProvider, 'WAVE' | 'ORANGE_MONEY'>;
+  provider: Extract<PaymentProvider, 'wave' | 'orange_money'>; // ✅ CORRECTION: lowercase
   phoneNumber: string;
   orderId: string;
   metadata?: Record<string, any>;
