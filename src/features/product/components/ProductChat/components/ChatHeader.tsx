@@ -254,7 +254,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             {/* Infos produit */}
             <div>
               <h2 className="text-lg font-bold text-gray-900 leading-tight">
-                {finalTitle}
+                Le Jeu {finalTitle}
               </h2>
               <div className="flex items-center space-x-2 mt-1">
                 {/* Étoiles + nombre d'avis */}
@@ -376,7 +376,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           
           {/* Titre du produit */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-[#132D5D] truncate">{finalTitle}</h1>
+            <h1 className="text-lg font-bold text-[#132D5D] truncate">Le Jeu {finalTitle}</h1>
           </div>
 
           {/* Bouton fermer mobile */}

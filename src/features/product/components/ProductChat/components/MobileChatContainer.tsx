@@ -1,5 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx
-// VERSION FINALE OPTIMISÉE : Design épuré + Vocal + Corrections + IA intelligente
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE AVEC BARRE PANIER
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -10,6 +9,7 @@ import { useChatStore } from '@/stores/chatStore';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal';
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
+import { WelcomeMessageService } from '@/lib/services/WelcomeMessageService';
 import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { useSpeechRecognition } from '@/lib/services/SpeechRecognitionService';
@@ -21,6 +21,7 @@ import type { ProductData } from '@/types/chat';
 import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
 import type { RealTimeStats } from '@/types/product';
 import { supabase } from '@/lib/supabase';
+import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 
 interface MobileChatContainerProps {
   product: ProductData;
@@ -196,6 +197,9 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   });
   const [rating, setRating] = useState(product.stats?.satisfaction || 5);
 
+  // ✅ Service d'accueil corrigé
+  const welcomeService = WelcomeMessageService.getInstance();
+
   // ✅ Utilisation sélective du store pour éviter les re-renders
   const store = useChatStore();
   const {
@@ -229,7 +233,113 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   } = store;
 
-  // ✅ INITIALISATION AVEC TYPING INDICATOR RÉALISTE
+  // ✅ NOUVEAU : État du panier dérivé des messages et orderData
+  const [cartInfo, setCartInfo] = useState({
+    hasItems: false,
+    itemsCount: 0,
+    totalAmount: 0,
+    productName: product.name
+  });
+
+  // ✅ CORRECTION MAJEURE : Fonction de détection du panier pour mobile
+  const detectCartFromMessages = useCallback(() => {
+    console.log('🛒 [MOBILE] DÉTECTION PANIER:', { 
+      orderData, 
+      messagesLength: messages?.length,
+      currentStep,
+      flags
+    });
+
+    let newCartInfo = {
+      hasItems: false,
+      itemsCount: 0,
+      totalAmount: 0,
+      productName: product.name
+    };
+
+    // PRIORITÉ 1: orderData direct (plus fiable)
+    if (orderData.quantity && orderData.quantity > 0) {
+      const totalAmount = (orderData.quantity || 1) * product.price;
+      
+      newCartInfo = {
+        hasItems: true,
+        itemsCount: orderData.quantity,
+        totalAmount: totalAmount,
+        productName: product.name
+      };
+      
+      console.log('✅ [MOBILE] Cart found in orderData:', newCartInfo);
+      return newCartInfo;
+    }
+
+    // PRIORITÉ 2: Analyser les messages pour détecter une commande
+    if (messages && messages.length > 0) {
+      const hasCommanderMessages = messages.some(msg => {
+        const content = typeof msg.content === 'string' ? msg.content : String(msg.content || '');
+        return content.includes('C\'est noté ! Vous commandez') ||
+               content.includes('exemplaire') ||
+               content.includes('Prix total') ||
+               (msg.metadata?.flags?.expressMode && msg.metadata?.flags?.quantitySelection);
+      });
+
+      if (hasCommanderMessages) {
+        let quantity = 1;
+        
+        // Analyser les messages de la fin vers le début pour trouver la quantité
+        for (const msg of [...messages].reverse()) {
+          const content = typeof msg.content === 'string' ? msg.content : String(msg.content || '');
+          
+          if (content.includes('exemplaire')) {
+            const qtyMatch = content.match(/(\d+)\s*exemplaire/);
+            if (qtyMatch) quantity = parseInt(qtyMatch[1]);
+            
+            // Essayer d'extraire le prix total du message
+            const priceMatch = content.match(/(\d+(?:[\s,]\d{3})*)\s*FCFA/);
+            if (priceMatch) {
+              const totalAmount = parseInt(priceMatch[1].replace(/[\s,]/g, ''));
+              
+              newCartInfo = {
+                hasItems: true,
+                itemsCount: quantity,
+                totalAmount: totalAmount,
+                productName: product.name
+              };
+              
+              console.log('✅ [MOBILE] Cart found in messages:', newCartInfo);
+              break;
+            } else {
+              // Calculer le total basé sur le prix du produit et la quantité
+              newCartInfo = {
+                hasItems: true,
+                itemsCount: quantity,
+                totalAmount: quantity * product.price,
+                productName: product.name
+              };
+              
+              console.log('✅ [MOBILE] Cart calculated from quantity:', newCartInfo);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    console.log('📊 [MOBILE] Final cart info:', newCartInfo);
+    return newCartInfo;
+  }, [orderData, messages, currentStep, flags, product.name, product.price]);
+
+  // ✅ EFFET pour mettre à jour le panier quand les messages ou orderData changent
+  useEffect(() => {
+    const newCartInfo = detectCartFromMessages();
+    
+    // Seulement mettre à jour si quelque chose a changé
+    if (JSON.stringify(newCartInfo) !== JSON.stringify(cartInfo)) {
+      console.log('🔄 [MOBILE] Updating cart info:', newCartInfo);
+      setCartInfo(newCartInfo);
+    }
+  }, [detectCartFromMessages, cartInfo]);
+
+  // ✅ INITIALISATION CORRIGÉE avec message d'accueil correct
   useEffect(() => {
     if (!product?.id || initializationStarted || welcomeMessageSent) {
       return;
@@ -260,7 +370,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           initializeSession(product.id, storeId, newSessionId);
         }
         
-        // ✅ NOUVEAU : Séquence réaliste avec typing indicator
+        // ✅ NOUVEAU : Séquence réaliste avec typing indicator et message CORRECT
         setTimeout(() => {
           // Vérifier encore une fois qu'aucun message n'a été ajouté
           const currentState = useChatStore.getState();
@@ -271,41 +381,20 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
             setShowTyping(true);
             updateTypingStatus(true);
             
-            // ✅ ÉTAPE 2: Après 2 secondes, afficher le message
+            // ✅ ÉTAPE 2: Après 2 secondes, afficher le MESSAGE CORRECT
             setTimeout(() => {
               setShowTyping(false);
               updateTypingStatus(false);
               
-              const welcomeMessage: ChatMessageType = {
-                type: 'assistant',
-                content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
-
-Je vois que vous vous intéressez à notre jeu **${product.name}**. C'est excellent ✨
-
-Comment puis-je vous aider ?`,
-                choices: [
-                  'Je veux l\'acheter maintenant',
-                  'J\'ai des questions à poser',
-                  'Je veux en savoir plus'
-                ],
-                assistant: {
-                  name: 'Rose',
-                  title: 'Assistante d\'achat',
-                  avatar: undefined
-                },
-                metadata: {
-                  nextStep: 'initial_engagement' as ConversationStep,
-                  productId: product.id,
-                  sessionId: sessionId,
-                  flags: { 
-                    isWelcome: true,
-                    preventAIIntervention: true
-                  }
-                },
-                timestamp: new Date().toISOString()
-              };
+              // ✅ UTILISER LE SERVICE CORRECT POUR MOBILE
+              const welcomeMessage = welcomeService.generateMobileWelcomeMessage(
+                product.name,
+                sessionId,
+                product.id,
+                product.price
+              );
               
-              console.log('📝 Adding welcome message to mobile chat');
+              console.log('📝 Adding CORRECT welcome message to mobile chat');
               addMessage(welcomeMessage);
               setWelcomeMessageSent(true);
             }, 2000); // ✅ 2 secondes de typing indicator
@@ -323,7 +412,7 @@ Comment puis-je vous aider ?`,
     };
 
     initializeChat();
-  }, [product.id, storeId, initializationStarted, welcomeMessageSent, updateTypingStatus, addMessage]);
+  }, [product.id, storeId, initializationStarted, welcomeMessageSent, updateTypingStatus, addMessage, welcomeService, sessionId]);
 
   // ✅ Header management
   useEffect(() => {
@@ -433,91 +522,9 @@ Comment puis-je vous aider ?`,
   const handleStandardMessages = useCallback(async (content: string): Promise<ChatMessageType> => {
     console.log('📝 Processing standard message:', content);
 
-    // ✅ BOUTON : "J'ai des questions à poser"
-    if (content.includes('J\'ai des questions à poser') || content.includes('questions à poser')) {
-      return {
-        type: 'assistant',
-        content: `🤔 **Parfait ! Posez-moi toutes vos questions.**
-
-Je peux vous expliquer :
-• Comment jouer à ce jeu
-• Pour qui ce jeu est adapté  
-• Les bénéfices que vous pouvez en tirer
-• Ce qu'en disent nos clients
-• Ou n'importe quelle autre question
-
-Que voulez-vous savoir ?`,
-        choices: [
-          'Comment y jouer ?',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?',
-          'Quels sont les avis clients ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'question_mode' as ConversationStep,
-          flags: { questionMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ BOUTON : "Je veux en savoir plus"
-    if (content.includes('Je veux en savoir plus') || content.includes('en savoir plus')) {
-      try {
-        const { data: productData, error } = await supabase
-          .from('products')
-          .select('description, name')
-          .eq('id', product.id)
-          .maybeSingle();
-
-        let description = '';
-        
-        if (error || !productData || !productData.description) {
-          description = `📝 **Découvrez le jeu ${product.name}**
-
-Ce jeu de cartes relationnel est conçu pour créer des conversations authentiques et renforcer vos liens.
-
-✨ **Pourquoi nos clients l'adorent :**
-• Facilite la communication
-• Crée des moments mémorables  
-• Renforce l'intimité et la complicité
-• Convient à tous les âges
-
-💡 **Prêt(e) à découvrir une nouvelle façon de vous connecter ?**`;
-        } else {
-          description = `📝 **Découvrez le jeu ${productData.name}**
-
-${productData.description}
-
-💡 **Prêt(e) à découvrir une nouvelle façon de vous connecter ?**`;
-        }
-
-        return {
-          type: 'assistant',
-          content: description,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'Comment y jouer ?',
-            'Quels sont les avis clients ?',
-            'J\'ai d\'autres questions'
-          ],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'description_shown' as ConversationStep,
-            flags: { descriptionShown: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        console.error('❌ Error fetching product description:', error);
-      }
+    // ✅ UTILISER LE SERVICE D'ACCUEIL POUR LES RÉPONSES STANDARD
+    if (welcomeService.isWelcomeResponse(content)) {
+      return await welcomeService.handleWelcomeButtonResponse(content, product.id, product.name);
     }
 
     // ✅ BOUTON : "Comment y jouer ?"
@@ -755,38 +762,6 @@ ${testimonialTexts}
       }
     }
 
-    // ✅ GESTION DES ANCIENS BOUTONS POUR COMPATIBILITÉ
-    if (content.includes('Poser une question') || content.includes('❓')) {
-      return {
-        type: 'assistant',
-        content: `🤔 **Parfait ! Posez-moi toutes vos questions.**
-
-Je peux vous expliquer :
-• Comment jouer à ce jeu
-• Pour qui ce jeu est adapté  
-• Les bénéfices que vous pouvez en tirer
-• Ce qu'en disent nos clients
-• Ou n'importe quelle autre question
-
-Que voulez-vous savoir ?`,
-        choices: [
-          'Comment y jouer ?',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?',
-          'Quels sont les avis clients ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'question_mode' as ConversationStep,
-          flags: { questionMode: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
     // Réponse par défaut
     return {
       type: 'assistant',
@@ -805,7 +780,7 @@ Que voulez-vous savoir ?`,
       },
       timestamp: new Date().toISOString()
     };
-  }, [product.id, product.name]);
+  }, [product.id, product.name, welcomeService]);
 
   // ✅ Créer un message d'erreur
   const createErrorResponse = useCallback((errorText: string): ChatMessageType => ({
@@ -827,105 +802,105 @@ Voulez-vous réessayer ou contacter notre support ?`,
 
   // ✅ Envoi de message avec protection
   const sendMessage = useCallback(async (content: string) => {
-    if (isProcessing) {
-      console.log('⏳ Already processing a message, ignoring');
-      return;
-    }
+  if (isProcessing) {
+    console.log('⏳ Already processing a message, ignoring');
+    return;
+  }
 
-    try {
-      console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
-      
-      // Ajouter le message utilisateur immédiatement
-      const userMessage: ChatMessageType = {
-        type: 'user',
-        content,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          flags: {
-            isButtonChoice: true,
-            preventAIIntervention: true
-          }
-        }
-      };
-      
-      addMessage(userMessage);
-
-      let response: ChatMessageType;
-      
-      try {
-        const apiResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: content,
-            productId: product.id,
-            currentStep: currentStep || 'initial',
-            orderData: orderData || {},
-            sessionId: sessionId || `${product.id}_${Date.now()}`,
-            storeId: storeId || 'default'
-          }),
-        });
-
-        if (!apiResponse.ok) {
-          throw new Error(`Mobile API error ${apiResponse.status}`);
-        }
-
-        const aiResponse = await apiResponse.json();
-        console.log('✅ Mobile: Enhanced API response received');
-
-        response = {
-          type: 'assistant',
-          content: aiResponse.message || "Je suis là pour vous aider !",
-          choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: aiResponse.nextStep || currentStep,
-            orderData: aiResponse.orderData,
-            flags: aiResponse.flags || {}
-          },
-          timestamp: new Date().toISOString()
-        };
-
-      } catch (apiError) {
-        console.error('❌ Mobile: API call failed:', apiError);
-        
-        const isStandardButton = [
-          'Je veux l\'acheter maintenant', 'J\'ai des questions à poser', 'Je veux en savoir plus',
-          'Comment y jouer', 'C\'est pour qui', 'Quels sont les bénéfices', 'avis clients',
-          'Poser une question', 'Comment ça fonctionne', 'témoignages', 'En savoir plus'
-        ].some(btn => content.includes(btn));
-        
-        if (isStandardButton) {
-          response = await handleStandardMessages(content);
-        } else {
-          response = createErrorResponse(`Problème de connexion: ${apiError instanceof Error ? apiError.message : 'Erreur inconnue'}`);
+  try {
+    console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
+    
+    // Ajouter le message utilisateur immédiatement
+    const userMessage: ChatMessageType = {
+      type: 'user',
+      content,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        flags: {
+          isButtonChoice: true,
+          preventAIIntervention: true
         }
       }
-      
-      // Délai pour l'animation
-      setTimeout(() => {
-        console.log('✅ Mobile: Response generated');
-        addMessage(response);
-        
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
-        }
-      }, 800);
+    };
+    
+    addMessage(userMessage);
 
-    } catch (err) {
-      console.error('❌ Mobile: Error in sendMessage:', err);
+    let response: ChatMessageType;
+    
+    // ✅ CORRECTION MAJEURE: Utiliser directement OptimizedChatService comme sur desktop
+    try {
+      // Utilisation de l'API chat pour cohérence
+      const apiResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          productId: product.id,
+          currentStep: currentStep || 'initial',
+          orderData: orderData || {},
+          sessionId: sessionId || `${product.id}_${Date.now()}`,
+          storeId: storeId || 'default'
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error(`Mobile API error ${apiResponse.status}`);
+      }
+
+      const aiResponse = await apiResponse.json();
+      console.log('✅ Mobile: API response received');
+
+      response = {
+        type: 'assistant',
+        content: aiResponse.message || "Je suis là pour vous aider !",
+        choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: aiResponse.nextStep || currentStep,
+          orderData: aiResponse.orderData,
+          flags: aiResponse.flags || {}
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (apiError) {
+      console.error('❌ Mobile: API call failed, falling back to direct service:', apiError);
       
-      setTimeout(() => {
-        const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
-        addMessage(errorMessage);
-      }, 500);
+      // ✅ FALLBACK: Utiliser directement OptimizedChatService
+      const optimizedService = OptimizedChatService.getInstance();
+      response = await optimizedService.processMessage(
+        sessionId || `${product.id}_${Date.now()}`,
+        content,
+        currentStep || 'initial',
+        product.id,
+        product.name
+      );
     }
-  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, handleStandardMessages, createErrorResponse]);
+    
+    // Délai pour l'animation
+    setTimeout(() => {
+      console.log('✅ Mobile: Response generated');
+      addMessage(response);
+      
+      if (response.metadata?.orderData) {
+        updateOrderData(response.metadata.orderData);
+      }
+    }, 800);
+
+  } catch (err) {
+    console.error('❌ Mobile: Error in sendMessage:', err);
+    
+    setTimeout(() => {
+      const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+      addMessage(errorMessage);
+    }, 500);
+  }
+}, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, createErrorResponse]);
 
   // ✅ Gestion des choix avec protection
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -1051,32 +1026,41 @@ Voulez-vous réessayer ou contacter notre support ?`,
             </div>
           </div>
 
-          {/* ✅ BARRE DE COMMANDE MOBILE - Style épuré */}
-          {orderData?.items && orderData.items.length > 0 && (
-            <div className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3">
+          {/* ✅ CORRECTION MAJEURE : BARRE DE COMMANDE MOBILE - Maintenant fonctionnelle */}
+          {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-[#FF7E93]/10 to-[#FF6B9D]/10 border-t border-[#FF7E93]/20 px-4 py-3"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
+                  <div className="relative flex items-center justify-center w-6 h-6 bg-[#FF7E93] rounded-full">
                     <ShoppingBag className="w-3 h-3 text-white" />
+                    {cartInfo.itemsCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                        {cartInfo.itemsCount}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs font-medium text-[#132D5D]">
-                      Ma commande ({(orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)} article{((orderData.items || []).reduce((sum, item) => sum + item.quantity, 0)) > 1 ? 's' : ''})
+                      Ma commande ({cartInfo.itemsCount} article{cartInfo.itemsCount > 1 ? 's' : ''})
                     </p>
                     <p className="text-xs text-gray-600 truncate max-w-[200px]">
-                      {(orderData.items || []).map(item => `${item.name} x${item.quantity}`).join(', ')}
+                      {cartInfo.productName} x{cartInfo.itemsCount}
                     </p>
                   </div>
                 </div>
                 
                 <div className="text-right">
                   <p className="text-sm font-bold text-[#FF7E93]">
-                    {(orderData.total_amount || 0).toLocaleString()} FCFA
+                    {cartInfo.totalAmount.toLocaleString()} FCFA
                   </p>
                   <p className="text-xs text-gray-500">Total</p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
 

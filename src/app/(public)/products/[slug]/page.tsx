@@ -1,4 +1,4 @@
-// src/app/(public)/products/[slug]/page.tsx
+// src/app/(public)/products/[slug]/page.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +7,7 @@ import ClientOnly from '@/components/utils/ClientOnly';
 import { productService } from '@/lib/services/product.service';
 import type { Product } from '@/types/product';
 import AdaptiveProductPageContent from '@/features/product/components/AdaptiveProductPageContent';
-import { ChatProvider } from '@/features/product/context/ChatContext';
+// ❌ SUPPRIMÉ: import { ChatProvider } from '@/features/product/context/ChatContext';
 import ProductNotFound from './not-found';
 
 export default function ProductPage() {
@@ -61,9 +61,9 @@ export default function ProductPage() {
 
   return (
     <ClientOnly>
-      <ChatProvider product={product}>
-        <AdaptiveProductPageContent productId={product.id} product={product} />
-      </ChatProvider>
+      {/* ❌ SUPPRIMÉ: <ChatProvider product={product}> */}
+      <AdaptiveProductPageContent productId={product.id} product={product} />
+      {/* ❌ SUPPRIMÉ: </ChatProvider> */}
     </ClientOnly>
   );
 }

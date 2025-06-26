@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useChatContext } from '@/features/product/context/ChatContext';
+import { useChatStore } from '@/stores/chatStore';
 import { pusherClient } from '@/lib/pusher';
 import type { PaymentProvider, CustomerInfo } from '@/types/order';
 
@@ -33,7 +33,10 @@ export function BictorysPaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const { dispatch } = useChatContext();
+  
+  // ✅ REMPLACÉ: useChatContext par useChatStore
+  const { addMessage } = useChatStore();
+  
   const [pusherChannel, setPusherChannel] = useState<any>(null);
 
   useEffect(() => {
@@ -51,24 +54,52 @@ export function BictorysPaymentModal({
     channel.bind('payment_status', (data: any) => {
       if (data.status === 'success') {
         onClose();
-        dispatch({
-          type: 'ADD_MESSAGE',
-          payload: {
-            type: 'assistant',
-            content: `✅ Paiement réussi !
+        
+        // ✅ REMPLACÉ: dispatch par addMessage direct
+        addMessage({
+          type: 'assistant',
+          content: `✅ **Paiement réussi !**
             
 Votre commande sera livrée à :
-${customerInfo.city}
+**${customerInfo.city}**
 
 ${customerInfo.email ? `Un email de confirmation vous a été envoyé à ${customerInfo.email}.` : ''}
 
 Que puis-je faire d'autre pour vous ?`,
-            choices: ["Suivre ma commande", "J'ai une question"]
-          }
+          choices: ["Suivre ma commande", "J'ai une question"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'payment_success', // ✅ CORRIGÉ: Utilise une étape existante
+            flags: { paymentCompleted: true }
+          },
+          timestamp: new Date().toISOString()
         });
       } else if (data.status === 'failed') {
         setError(data.error || 'Le paiement a échoué');
         setIsLoading(false);
+        
+        // ✅ AJOUTÉ: Message d'erreur dans le chat
+        addMessage({
+          type: 'assistant',
+          content: `❌ **Le paiement a échoué**
+
+${data.error || 'Une erreur est survenue lors du paiement.'}
+
+Voulez-vous réessayer ou choisir un autre mode de paiement ?`,
+          choices: ["🔄 Réessayer", "💳 Autre mode de paiement", "📞 Contacter le support"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'payment_failed', // ✅ CORRIGÉ: Utilise une étape existante
+            flags: { paymentFailed: true }
+          },
+          timestamp: new Date().toISOString()
+        });
       }
     });
 
@@ -121,6 +152,26 @@ Que puis-je faire d'autre pour vous ?`,
         setupPusherListener(data.transactionId);
       }
 
+      // ✅ AJOUTÉ: Message de confirmation dans le chat
+      addMessage({
+        type: 'assistant',
+        content: `🔄 **Redirection vers ${provider === 'wave_money' ? 'Wave' : 'Orange Money'}**
+
+Vous allez être redirigé vers votre application de paiement mobile.
+
+Suivez les instructions pour finaliser votre paiement.`,
+        choices: [],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'payment_processing',
+          flags: { paymentInitiated: true }
+        },
+        timestamp: new Date().toISOString()
+      });
+
     } catch (err) {
       console.error('Payment initiation error:', err);
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
@@ -170,10 +221,10 @@ Que puis-je faire d'autre pour vous ?`,
               <button 
                 onClick={() => handlePaymentInitiation('wave_money')}
                 disabled={isLoading}
-                className="w-full p-4 flex items-center gap-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="w-full p-4 flex items-center gap-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 <img src="/images/payments/wave_1.svg" alt="Wave" className="w-8 h-8" />
-                <div>
+                <div className="text-left">
                   <div className="font-medium">Wave</div>
                   <div className="text-sm text-gray-500">Mobile Money</div>
                 </div>
@@ -182,10 +233,10 @@ Que puis-je faire d'autre pour vous ?`,
               <button 
                 onClick={() => handlePaymentInitiation('orange_money')}
                 disabled={isLoading}
-                className="w-full p-4 flex items-center gap-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="w-full p-4 flex items-center gap-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 <img src="/images/payments/om_1.svg" alt="Orange Money" className="w-8 h-8" />
-                <div>
+                <div className="text-left">
                   <div className="font-medium">Orange Money</div>
                   <div className="text-sm text-gray-500">Mobile Money</div>
                 </div>

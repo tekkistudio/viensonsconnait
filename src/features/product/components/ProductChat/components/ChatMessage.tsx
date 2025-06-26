@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION FINALE SANS ERREURS
+// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE AVEC WAVE
 'use client';
 
 import React, { useState } from 'react';
@@ -8,8 +8,10 @@ import {
   Clock, 
   CreditCard, 
   Copy,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
+import Image from 'next/image';
 import type { ChatMessage as ChatMessageType, ChatMessageMetadata } from '@/types/chat';
 import { ensureStringContent } from '@/types/chat';
 import { ChatProductCard, ChatProductList, ChatOrderSummary } from './ChatProductCards';
@@ -98,15 +100,16 @@ const isPaymentButton = (choice: string): boolean => {
   );
 };
 
-// ✅ FONCTION: Gestion des paiements directs
-const handleDirectPayment = async (
+// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec validation manuelle
+const handleWavePayment = async (
   choice: string, 
-  metadata?: ChatMessageMetadata
+  metadata?: ChatMessageMetadata,
+  onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('💳 Processing direct payment:', choice);
+  console.log('🌊 Processing Wave payment:', choice);
   
   try {
-    // Extraire le montant de manière sécurisée
+    // ✅ CORRECTION: Extraire le montant de manière sécurisée
     let amount = 0;
     
     if (metadata?.paymentAmount && typeof metadata.paymentAmount === 'number') {
@@ -116,60 +119,83 @@ const handleDirectPayment = async (
     }
     
     if (amount <= 0) {
-      console.warn('⚠️ No valid payment amount found');
+      console.warn('⚠️ No valid payment amount found for Wave');
       return { success: false };
     }
     
-    // ✅ WAVE PAYMENT
-    if (choice.toLowerCase().includes('wave') || choice.includes('🌊')) {
-      const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
-      
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    // ✅ CORRECTION: Construire l'URL Wave avec le montant
+    const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
+    
+    console.log('🔗 Opening Wave payment URL:', waveUrl);
+    
+    // ✅ Redirection selon le type d'appareil
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      // Mobile : Ouvrir dans la même fenêtre pour activer l'app Wave
+      window.location.href = waveUrl;
+    } else {
+      // Desktop : Ouvrir dans un nouvel onglet
+      const newWindow = window.open(waveUrl, '_blank', 'width=800,height=600');
+      if (!newWindow) {
+        // Si le popup est bloqué, essayer la même fenêtre
         window.location.href = waveUrl;
-      } else {
-        window.open(waveUrl, '_blank', 'width=800,height=600');
-      }
-      
-      return { success: true, redirected: true };
-    }
-    
-    // ✅ STRIPE PAYMENT
-    if (choice.toLowerCase().includes('carte') || choice.includes('💳')) {
-      const orderId = String(
-        metadata?.orderId || 
-        (metadata?.orderData && isValidOrderData(metadata.orderData) ? 
-          (metadata.orderData as any).id || (metadata.orderData as any).order_id : '') ||
-        Date.now()
-      );
-      
-      const response = await fetch('/api/stripe/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          currency: 'eur',
-          orderId,
-          customerName: 'Client',
-          successUrl: `${window.location.origin}/payment-success?order_id=${orderId}`,
-          cancelUrl: `${window.location.origin}/payment-canceled?order_id=${orderId}`
-        }),
-      });
-
-      if (response.ok) {
-        const session = await response.json();
-        if (session.url) {
-          window.location.href = session.url;
-          return { success: true, redirected: true };
-        }
       }
     }
     
-    return { success: false };
+    // ✅ NOUVEAU: Après redirection, envoyer un message pour demander l'ID de transaction
+    setTimeout(() => {
+      if (onChoiceSelect) {
+        onChoiceSelect('WAVE_PAYMENT_INITIATED');
+      }
+    }, 2000);
+    
+    return { success: true, redirected: true };
     
   } catch (error) {
-    console.error('❌ Payment error:', error);
+    console.error('❌ Wave payment error:', error);
     return { success: false };
   }
+};
+
+// ✅ FONCTION: Gestion des paiements Stripe avec modal intégré
+const handleStripePayment = async (
+  choice: string, 
+  metadata?: ChatMessageMetadata,
+  onChoiceSelect?: (choice: string) => void
+): Promise<{ success: boolean; redirected?: boolean }> => {
+  console.log('💳 Processing Stripe payment with integrated modal:', choice);
+  
+  try {
+    let amount = 0;
+    
+    if (metadata?.paymentAmount && typeof metadata.paymentAmount === 'number') {
+      amount = metadata.paymentAmount;
+    } else if (metadata?.orderData && isValidOrderData(metadata.orderData)) {
+      amount = extractTotalAmount(metadata.orderData);
+    }
+    
+    if (amount <= 0) {
+      console.warn('⚠️ No valid payment amount found for Stripe');
+      return { success: false };
+    }
+    
+    // ✅ NOUVEAU: Déclencher l'ouverture du modal Stripe intégré
+    if (onChoiceSelect) {
+      onChoiceSelect(`STRIPE_MODAL_OPEN:${amount}`);
+    }
+    
+    return { success: true, redirected: false };
+    
+  } catch (error) {
+    console.error('❌ Stripe modal opening error:', error);
+    return { success: false };
+  }
+};
+
+// ✅ NOUVEAU: Validation d'ID de transaction Wave
+const validateWaveTransactionId = (transactionId: string): boolean => {
+  // Les IDs Wave commencent par 'T' et font généralement 14-16 caractères
+  const waveIdPattern = /^T[A-Z0-9]{10,15}$/i;
+  return waveIdPattern.test(transactionId.trim().toUpperCase());
 };
 
 // ✅ COMPOSANT PRINCIPAL
@@ -183,7 +209,7 @@ export default function ChatMessage({
 
   const messageContent = ensureStringContent(message.content);
   
-  // ✅ ACCÈS SÉCURISÉ AUX MÉTADONNÉES - Plus d'erreurs TypeScript
+  // ✅ ACCÈS SÉCURISÉ AUX MÉTADONNÉES
   const metadata = message.metadata || {};
   
   // Utilisation des type guards pour éliminer les erreurs TypeScript
@@ -196,26 +222,45 @@ export default function ChatMessage({
   const upsellProduct = metadata.upsellProduct;
   const hasUpsellProduct = isValidUpsellProduct(upsellProduct);
 
-  // ✅ GESTION DES CLICS SUR LES BOUTONS
+  // ✅ GESTION DES CLICS SUR LES BOUTONS CORRIGÉE
   const handleChoiceClick = async (choice: string): Promise<void> => {
     if (processingPayment) return;
     
-    // Gérer les paiements directs
-    if (isPaymentButton(choice)) {
+    // ✅ CORRECTION: Gestion spécifique Wave
+    if (choice.toLowerCase().includes('wave')) {
       setProcessingPayment(choice);
       
       try {
-        const result = await handleDirectPayment(choice, metadata);
+        const result = await handleWavePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Payment processed successfully');
+          console.log('✅ Wave payment process initiated');
+          // Le message de demande d'ID sera géré par le service
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Wave payment processing failed:', error);
+      } finally {
+        setProcessingPayment(null);
+      }
+    }
+    
+    // ✅ Gestion Stripe
+    else if (choice.toLowerCase().includes('carte')) {
+      setProcessingPayment(choice);
+      
+      try {
+        const result = await handleStripePayment(choice, metadata);
+        
+        if (result.success) {
+          console.log('✅ Stripe payment redirected');
           if (!result.redirected && onChoiceSelect) {
             onChoiceSelect(`Paiement ${choice} traité`);
           }
           return;
         }
       } catch (error) {
-        console.error('❌ Payment processing failed:', error);
+        console.error('❌ Stripe payment processing failed:', error);
       } finally {
         setProcessingPayment(null);
       }
@@ -371,12 +416,13 @@ export default function ChatMessage({
               />
             )}
 
-            {/* ✅ BOUTONS DE CHOIX */}
+            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE */}
             {message.choices && message.choices.length > 0 && (
               <div className="grid gap-2">
                 {message.choices.map((choice, index) => {
                   const isPrimary = choice.includes('acheter') || choice.includes('⚡');
-                  const isPayment = isPaymentButton(choice);
+                  const isWave = choice.toLowerCase().includes('wave');
+                  const isStripe = choice.toLowerCase().includes('carte');
                   const isProcessingThis = processingPayment === choice;
                   
                   return (
@@ -390,12 +436,13 @@ export default function ChatMessage({
                         px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
                         flex items-center justify-center gap-2 min-h-[48px] w-full
                         disabled:opacity-50 disabled:cursor-not-allowed
-                        ${isPrimary || isPayment
+                        ${isPrimary 
                           ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
-                          : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
-                        }
-                        ${choice.toLowerCase().includes('wave') 
-                          ? 'bg-[#4BD2FA] hover:bg-[#3BC9E8] text-white' : ''
+                          : isWave
+                            ? 'bg-[#4BD2FA] hover:bg-[#3BC9E8] text-white shadow-md hover:shadow-lg'
+                            : isStripe
+                              ? 'bg-[#635BFF] hover:bg-[#5A52E8] text-white shadow-md hover:shadow-lg'
+                              : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
                         }
                       `}
                     >
@@ -406,8 +453,22 @@ export default function ChatMessage({
                         </>
                       ) : (
                         <>
-                          {isPayment && <CreditCard className="w-4 h-4" />}
+                          {/* ✅ CORRECTION: Icônes spécifiques selon le type de paiement */}
+                          {isWave ? (
+                            <Image 
+                              src="/images/payments/wave_2.svg" 
+                              alt="Wave" 
+                              width={16} 
+                              height={16} 
+                              className="flex-shrink-0" 
+                            />
+                          ) : isStripe ? (
+                            <CreditCard className="w-4 h-4" />
+                          ) : choice.toLowerCase().includes('livraison') ? (
+                            <span>💵</span>
+                          ) : null}
                           <span>{choice}</span>
+                          {(isWave || isStripe) && <ExternalLink className="w-3 h-3 opacity-75" />}
                         </>
                       )}
                     </motion.button>

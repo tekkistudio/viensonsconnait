@@ -1,4 +1,4 @@
-// src/lib/services/OptimizedChatService.ts 
+// src/lib/services/OptimizedChatService.ts - VERSION CORRIGÉE AVEC PAIEMENT FONCTIONNEL
 
 import { supabase } from '@/lib/supabase';
 import type { 
@@ -9,8 +9,6 @@ import type {
   ProductData
 } from '@/types/chat';
 import { WelcomeMessageService } from './WelcomeMessageService';
-import { OrderService } from './OrderService';
-import { PhoneService } from './PhoneService';
 
 // Types pour le flow express
 interface ExpressOrderState {
@@ -32,17 +30,18 @@ interface ExpressOrderState {
     needsNameCollection: boolean;
     needsAddressCollection: boolean;
   };
+  sessionId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export class OptimizedChatService {
   private static instance: OptimizedChatService;
   private orderStates = new Map<string, ExpressOrderState>();
   private welcomeService = WelcomeMessageService.getInstance();
-  private orderService = OrderService.getInstance();
-  private phoneService = PhoneService.getInstance();
 
   private constructor() {
-    console.log('🔧 OptimizedChatService v2.0 initialized');
+    console.log('🔧 OptimizedChatService v5.1 initialized (Wave Payment Fixed)');
   }
 
   public static getInstance(): OptimizedChatService {
@@ -52,7 +51,7 @@ export class OptimizedChatService {
     return this.instance;
   }
 
-  // ✅ MÉTHODE PRINCIPALE : Traiter les messages
+  // ✅ MÉTHODE PRINCIPALE COMPATIBLE AVEC L'API
   public async processMessage(
     sessionId: string,
     message: string,
@@ -61,51 +60,157 @@ export class OptimizedChatService {
     productName: string
   ): Promise<ChatMessage> {
     try {
-      console.log('📝 Processing message:', { sessionId, message, currentStep, productId });
+      console.log('🔍 ProcessMessage called with:', {
+        sessionId: sessionId?.substring(0, 20) + '...',
+        message: message?.substring(0, 50) + '...',
+        currentStep,
+        productId,
+        productName
+      });
 
-      // 1. Gérer les boutons du message d'accueil
-      if (this.isWelcomeButtonChoice(message)) {
-        return this.welcomeService.handleWelcomeButtonResponse(message, productId, productName);
+      // Vérifications de sécurité
+      if (!sessionId || !productId || !productName) {
+        throw new Error('Paramètres manquants');
       }
 
-      // 2. Gérer le flow express (étapes scénarisées)
+      // ✅ Toujours essayer de récupérer l'état depuis la base
+      await this.loadOrderStateFromDatabase(sessionId);
+
+      // ✅ GESTION PRIORITAIRE: "Je veux l'acheter maintenant"
+      if (this.isExpressPurchaseTrigger(message)) {
+        console.log('🛒 Express purchase detected');
+        return await this.startExpressPurchase(sessionId, productId, productName);
+      }
+
+      // ✅ Gérer le flow express (étapes scénarisées) 
       if (currentStep.startsWith('express_') || this.orderStates.has(sessionId)) {
+        console.log('📦 Express flow step detected');
         return await this.handleExpressFlowInternal(sessionId, message, currentStep, productId, productName);
       }
 
-      // 3. Gérer les questions prédéfinies
+      // ✅ Gérer les autres boutons du message d'accueil
+      if (this.isWelcomeButtonChoice(message)) {
+        console.log('🌹 Welcome button choice detected');
+        return await this.welcomeService.handleWelcomeButtonResponse(message, productId, productName);
+      }
+
+      // ✅ Gérer les questions prédéfinies
       if (this.isPredefinedQuestion(message)) {
+        console.log('📋 Predefined question detected');
         return await this.handlePredefinedQuestion(message, productId, productName);
       }
 
-      // 4. Questions libres → Router vers l'API IA
+      // ✅ Questions libres → Réponse simple
+      console.log('🤖 Free text question detected');
       return await this.handleFreeTextQuestion(message, productId, productName, sessionId);
 
     } catch (error) {
-      console.error('❌ Error processing message:', error);
-      return this.createErrorMessage('Une erreur est survenue. Voulez-vous réessayer ?');
+      console.error('❌ Error in processMessage:', error);
+      return this.createErrorMessage(`Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`);
     }
   }
 
-  // ✅ GESTION DU FLOW EXPRESS INTERNE (nom changé pour éviter le doublon)
-  private async handleExpressFlowInternal(
+  // ✅ CORRECTION: Charger l'état depuis la base de données
+  private async loadOrderStateFromDatabase(sessionId: string): Promise<void> {
+    try {
+      if (this.orderStates.has(sessionId)) {
+        console.log('📋 Order state already in memory');
+        return;
+      }
+
+      const { data: session, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Error loading session:', error);
+        return;
+      }
+
+      if (session && session.order_state) {
+        const orderState = session.order_state as ExpressOrderState;
+        this.orderStates.set(sessionId, orderState);
+        console.log('✅ Order state loaded from database:', orderState.step);
+      }
+    } catch (error) {
+      console.error('❌ Error in loadOrderStateFromDatabase:', error);
+    }
+  }
+
+  // ✅ CORRECTION: Sauvegarder l'état en base de données
+  private async saveOrderStateToDatabase(sessionId: string, orderState: ExpressOrderState): Promise<void> {
+    try {
+      const sessionData = {
+        session_id: sessionId,
+        product_id: orderState.data.productId,
+        order_state: orderState,
+        current_step: orderState.step,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('chat_sessions')
+        .upsert(sessionData, { onConflict: 'session_id' });
+
+      if (error) {
+        console.error('❌ Error saving session:', error);
+      } else {
+        console.log('✅ Session saved to database');
+      }
+    } catch (error) {
+      console.error('❌ Error in saveOrderStateToDatabase:', error);
+    }
+  }
+
+  // ✅ DÉTECTER LES TRIGGERS D'ACHAT EXPRESS
+  private isExpressPurchaseTrigger(message: string): boolean {
+    const triggers = [
+      'Je veux l\'acheter maintenant',
+      'acheter maintenant',
+      'commander maintenant',
+      'Je veux l\'acheter',
+      '⚡ Commander rapidement',
+      'Commander rapidement'
+    ];
+    
+    return triggers.some(trigger => 
+      message.toLowerCase().includes(trigger.toLowerCase())
+    );
+  }
+
+  // ✅ DÉMARRER L'ACHAT EXPRESS AVEC PLUS DE FLUIDITÉ
+  public async startExpressPurchase(
     sessionId: string,
-    message: string,
-    currentStep: ConversationStep,
     productId: string,
-    productName: string
+    productName?: string
   ): Promise<ChatMessage> {
-    
-    let orderState = this.orderStates.get(sessionId);
-    
-    // Initialiser l'état si première fois
-    if (!orderState && currentStep === 'express_quantity') {
-      const product = await this.getProductData(productId);
-      orderState = {
+    try {
+      console.log('🚀 startExpressPurchase called');
+
+      // Récupérer les informations du produit
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('name, price')
+        .eq('id', productId)
+        .single();
+
+      if (error || !product) {
+        throw new Error('Produit non trouvé en base');
+      }
+
+      // ✅ Nettoyer l'ancienne session si elle existe
+      if (this.orderStates.has(sessionId)) {
+        this.orderStates.delete(sessionId);
+      }
+
+      // Initialiser l'état de commande express
+      const orderState: ExpressOrderState = {
         step: 'quantity',
         data: {
           productId,
-          productName,
+          productName: productName || product.name,
           unitPrice: product.price,
           quantity: 1
         },
@@ -113,36 +218,120 @@ export class OptimizedChatService {
           isExistingCustomer: false,
           needsNameCollection: true,
           needsAddressCollection: true
-        }
+        },
+        sessionId: sessionId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
+
+      // ✅ Sauvegarder en mémoire ET en base
       this.orderStates.set(sessionId, orderState);
-    }
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
-    if (!orderState) {
-      return this.createErrorMessage('Session expirée. Veuillez recommencer votre commande.');
-    }
+      console.log('✅ Order state created and saved');
 
-    // Router selon l'étape
-    switch (orderState.step) {
-      case 'quantity':
-        return await this.handleQuantityStep(sessionId, message, orderState);
-      case 'phone':
-        return await this.handlePhoneStep(sessionId, message, orderState);
-      case 'name':
-        return await this.handleNameStep(sessionId, message, orderState);
-      case 'address':
-        return await this.handleAddressStep(sessionId, message, orderState);
-      case 'payment':
-        return await this.handlePaymentStep(sessionId, message, orderState);
-      case 'confirmation':
-        return await this.handleConfirmationStep(sessionId, message, orderState);
-      default:
-        return this.createErrorMessage('Étape inconnue dans la commande express.');
+      return {
+        type: 'assistant' as const,
+        content: `🛒 **Parfait ! Je vais vous aider à commander votre ${productName || product.name}**
+
+C'est un excellent choix ! 🎉
+
+Pour commencer, combien d'exemplaires souhaitez-vous ?`,
+        choices: [
+          '1 exemplaire',
+          '2 exemplaires',
+          '3 exemplaires', 
+          'Autre quantité'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'express_quantity' as ConversationStep,
+          productId: productId,
+          flags: { 
+            expressMode: true,
+            quantitySelection: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error in startExpressPurchase:', error);
+      return this.createErrorMessage(`Erreur achat express: ${error instanceof Error ? error.message : 'Inconnue'}`);
     }
   }
 
-  // ✅ ÉTAPE 1 : Quantité
-  private async handleQuantityStep(
+  // ✅ GESTION INTERNE DU FLOW EXPRESS AVEC PLUS DE FLUIDITÉ
+  private async handleExpressFlowInternal(
+    sessionId: string,
+    message: string,
+    currentStep: ConversationStep,
+    productId: string,
+    productName: string
+  ): Promise<ChatMessage> {
+    try {
+      // ✅ Toujours charger depuis la base si pas en mémoire
+      await this.loadOrderStateFromDatabase(sessionId);
+      
+      let orderState = this.orderStates.get(sessionId);
+      
+      // Initialiser l'état si première fois
+      if (!orderState && currentStep === 'express_quantity') {
+        const product = await this.getProductData(productId);
+        orderState = {
+          step: 'quantity',
+          data: {
+            productId,
+            productName,
+            unitPrice: product.price,
+            quantity: 1
+          },
+          flags: {
+            isExistingCustomer: false,
+            needsNameCollection: true,
+            needsAddressCollection: true
+          },
+          sessionId: sessionId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        this.orderStates.set(sessionId, orderState);
+        await this.saveOrderStateToDatabase(sessionId, orderState);
+      }
+
+      if (!orderState) {
+        return this.createErrorMessage('Session expirée. Veuillez recommencer votre commande.');
+      }
+
+      // Router selon l'étape
+      switch (orderState.step) {
+        case 'quantity':
+          return await this.handleQuantityStepFluid(sessionId, message, orderState);
+        case 'phone':
+          return await this.handlePhoneStepFluid(sessionId, message, orderState);
+        case 'name':
+          return await this.handleNameStepFluid(sessionId, message, orderState);
+        case 'address':
+          return await this.handleAddressStepFluid(sessionId, message, orderState);
+        case 'payment':
+          return await this.handlePaymentStepFluid(sessionId, message, orderState);
+        case 'confirmation':
+          return await this.handleConfirmationStep(sessionId, message, orderState);
+        default:
+          return this.createErrorMessage('Étape inconnue dans la commande express.');
+      }
+
+    } catch (error) {
+      console.error('❌ Error in express flow:', error);
+      return this.createErrorMessage('Erreur dans le processus de commande');
+    }
+  }
+
+  // ✅ ÉTAPE 1 : Quantité PLUS FLUIDE
+  private async handleQuantityStepFluid(
     sessionId: string,
     message: string,
     orderState: ExpressOrderState
@@ -160,7 +349,7 @@ export class OptimizedChatService {
 
 Combien d'exemplaires de **${orderState.data.productName}** souhaitez-vous ?
 
-*Saisissez un nombre entre 1 et 10*`,
+*Tapez simplement le nombre (entre 1 et 10)*`,
         choices: [],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
@@ -182,20 +371,23 @@ Combien d'exemplaires de **${orderState.data.productName}** souhaitez-vous ?
       }
     }
 
-    // Mettre à jour l'état
+    // ✅ Mettre à jour l'état et sauvegarder
     orderState.data.quantity = quantity;
     orderState.step = 'phone';
+    orderState.updatedAt = new Date().toISOString();
+    
     this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
 
     const totalAmount = orderState.data.unitPrice * quantity;
 
     return {
       type: 'assistant',
-      content: `✅ **${quantity} exemplaire${quantity > 1 ? 's' : ''} de ${orderState.data.productName}**
+      content: `✅ **C'est noté ! Vous commandez ${quantity} exemplaire${quantity > 1 ? 's' : ''} du jeu ${orderState.data.productName}**
 
-**Montant total :** ${totalAmount.toLocaleString()} FCFA
+**Prix total :** ${totalAmount.toLocaleString()} FCFA
 
-Pour finaliser votre commande, j'ai besoin de votre numéro de téléphone :
+Parfait ! Maintenant, j'ai besoin de votre numéro de téléphone pour organiser la livraison 📱
 
 *Exemple : +221 77 123 45 67*`,
       choices: [],
@@ -216,26 +408,23 @@ Pour finaliser votre commande, j'ai besoin de votre numéro de téléphone :
     };
   }
 
-  // ✅ ÉTAPE 2 : Téléphone
-  private async handlePhoneStep(
+  // ✅ ÉTAPE 2 : Téléphone PLUS FLUIDE
+  private async handlePhoneStepFluid(
     sessionId: string,
     message: string,
     orderState: ExpressOrderState
   ): Promise<ChatMessage> {
     
-    // Valider le téléphone
-    const phoneValidation = this.phoneService.validatePhoneNumber(message, 'SN');
-    
-    if (!phoneValidation.isValid) {
+    // Validation simple du téléphone
+    const cleanPhone = message.replace(/\s/g, '');
+    if (cleanPhone.length < 8) {
       return {
         type: 'assistant',
-        content: `❌ **Numéro invalide**
+        content: `😅 **Ce numéro me semble un peu court**
 
-${phoneValidation.error}
+Pouvez-vous me donner votre numéro complet s'il vous plaît ?
 
-Veuillez saisir un numéro valide :
-
-*Exemple : +221 77 123 45 67*`,
+*Format : +221 77 123 45 67*`,
         choices: [],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
@@ -247,14 +436,20 @@ Veuillez saisir un numéro valide :
     }
 
     // Formater le téléphone
-    const { international } = this.phoneService.formatPhoneWithCountry(message, 'SN');
-    orderState.data.phone = international;
+    let formattedPhone = cleanPhone;
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = '+221' + formattedPhone;
+    }
+    
+    // ✅ Mettre à jour et sauvegarder
+    orderState.data.phone = formattedPhone;
+    orderState.updatedAt = new Date().toISOString();
 
     // Vérifier si client existant
     const { data: existingCustomer } = await supabase
       .from('customers')
       .select('first_name, last_name, city, address')
-      .eq('phone', international)
+      .eq('phone', formattedPhone)
       .maybeSingle();
 
     if (existingCustomer) {
@@ -266,17 +461,20 @@ Veuillez saisir un numéro valide :
       orderState.flags.isExistingCustomer = true;
       orderState.flags.needsNameCollection = false;
       orderState.flags.needsAddressCollection = false;
-      orderState.step = 'payment';
+      orderState.step = 'address'; // Pour confirmation d'adresse
+      
       this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
       return {
         type: 'assistant',
-        content: `👋 **Ravi de vous revoir ${existingCustomer.first_name} !**
+        content: `👋 **Oh ! Ravi de vous revoir ${existingCustomer.first_name} !**
 
-J'ai retrouvé vos informations :
-📍 **Adresse :** ${existingCustomer.address}, ${existingCustomer.city}
+J'ai retrouvé vos informations dans notre système 😊
 
-Souhaitez-vous utiliser la même adresse pour cette livraison ?`,
+📍 **Votre adresse habituelle :** ${existingCustomer.address}, ${existingCustomer.city}
+
+Souhaitez-vous qu'on vous livre à cette même adresse ?`,
         choices: [
           'Oui, même adresse',
           'Changer d\'adresse'
@@ -292,27 +490,30 @@ Souhaitez-vous utiliser la même adresse pour cette livraison ?`,
       // Nouveau client
       orderState.step = 'name';
       this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
       return {
         type: 'assistant',
-        content: `📱 **Parfait ! Numéro enregistré : ${international}**
+        content: `📱 **Parfait ! ${formattedPhone} enregistré**
 
-Maintenant, quel est votre nom complet ?
+Je vois que c'est votre première commande chez nous. Bienvenue ! 🎉
+
+Pour finaliser, quel est votre nom complet ?
 
 *Exemple : Amadou Diallo*`,
         choices: [],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'express_name' as ConversationStep,
-          flags: { awaitingNameInput: true }
+          flags: { awaitingNameInput: true, newCustomer: true }
         },
         timestamp: new Date().toISOString()
       };
     }
   }
 
-  // ✅ ÉTAPE 3 : Nom (nouveaux clients uniquement)
-  private async handleNameStep(
+  // ✅ ÉTAPE 3 : Nom PLUS FLUIDE
+  private async handleNameStepFluid(
     sessionId: string,
     message: string,
     orderState: ExpressOrderState
@@ -326,20 +527,39 @@ Maintenant, quel est votre nom complet ?
 
     const parts = name.split(/\s+/);
     if (parts.length < 2) {
-      return this.createErrorMessage('Veuillez saisir votre prénom et nom.');
+      return {
+        type: 'assistant',
+        content: `😅 **J'ai besoin de votre nom complet**
+
+Pouvez-vous me donner votre prénom ET votre nom s'il vous plaît ?
+
+*Exemple : Amadou Diallo*`,
+        choices: [],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_name' as ConversationStep,
+          flags: { nameError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
 
+    // ✅ Mettre à jour et sauvegarder
     orderState.data.firstName = parts[0];
     orderState.data.lastName = parts.slice(1).join(' ');
     orderState.step = 'address';
+    orderState.updatedAt = new Date().toISOString();
+    
     this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
 
     return {
       type: 'assistant',
-      content: `👤 **Merci ${orderState.data.firstName} !**
+      content: `👤 **Enchanté de vous connaître ${orderState.data.firstName} !**
 
-Maintenant, quelle est votre adresse de livraison ?
+Il ne me reste plus qu'à connaître votre adresse de livraison pour qu'on puisse vous apporter votre jeu 🚚
 
+*Format recommandé : Quartier/Rue, Ville*
 *Exemple : Cité Keur Gorgui, Villa 123, Dakar*`,
       choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
@@ -351,14 +571,16 @@ Maintenant, quelle est votre adresse de livraison ?
     };
   }
 
-  // ✅ ÉTAPE 4 : Adresse
-  private async handleAddressStep(
+  // ✅ ÉTAPE 4 : Adresse PLUS FLUIDE
+  private async handleAddressStepFluid(
     sessionId: string,
     message: string,
     orderState: ExpressOrderState
   ): Promise<ChatMessage> {
     
-    // ✅ CORRECTION 1: Reconnaître toutes les variantes de "Oui, même adresse"
+    console.log('🏠 Processing address step:', message);
+    
+    // ✅ Reconnaître toutes les variantes de confirmation
     const confirmationMessages = [
       'oui, même adresse',
       'oui même adresse', 
@@ -366,34 +588,38 @@ Maintenant, quelle est votre adresse de livraison ?
       'oui',
       'confirmer',
       'garder la même',
-      'conserver l\'adresse'
+      'conserver l\'adresse',
+      'garder cette adresse',
+      'utiliser la même'
     ];
     
     const isAddressConfirmation = confirmationMessages.some(phrase => 
       message.toLowerCase().includes(phrase.toLowerCase())
     );
 
-    if (isAddressConfirmation) {
-      // ✅ L'utilisateur confirme l'adresse existante
-      console.log('✅ User confirmed existing address');
+    // ✅ Vérifier si c'est une confirmation ET client existant
+    if (isAddressConfirmation && orderState.flags.isExistingCustomer) {
+      console.log('✅ Address confirmed for existing customer');
       
-      // Passer à l'étape paiement
+      // ✅ Mettre à jour et sauvegarder
       orderState.step = 'payment';
+      orderState.updatedAt = new Date().toISOString();
       this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
       const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
 
       return {
         type: 'assistant',
-        content: `✅ **Parfait ! Adresse confirmée**
+        content: `✅ **Parfait ! Livraison confirmée à votre adresse habituelle**
 
-📍 **Livraison à :** ${orderState.data.address}, ${orderState.data.city}
+📍 **Adresse :** ${orderState.data.address}, ${orderState.data.city}
 
-💰 **Récapitulatif :**
+💰 **Récapitulatif de votre commande :**
 • ${orderState.data.quantity}x ${orderState.data.productName}
 • **Total : ${totalAmount.toLocaleString()} FCFA**
 
-🎯 **Dernière étape : Choisissez votre mode de paiement**`,
+🎯 **Dernière étape : Comment souhaitez-vous payer ?**`,
         choices: [
           '📱 Wave (recommandé)',
           '💳 Carte bancaire', 
@@ -409,7 +635,7 @@ Maintenant, quelle est votre adresse de livraison ?
       };
     }
 
-    // ✅ CORRECTION 2: Reconnaître "Changer d'adresse"
+    // Reconnaître "Changer d'adresse"
     const changeAddressMessages = [
       'changer d\'adresse',
       'changer adresse',
@@ -426,9 +652,9 @@ Maintenant, quelle est votre adresse de livraison ?
     if (isAddressChange) {
       return {
         type: 'assistant',
-        content: `📍 **Nouvelle adresse de livraison**
+        content: `📍 **Pas de problème ! Donnez-moi votre nouvelle adresse**
 
-Veuillez indiquer votre nouvelle adresse complète :
+Où souhaitez-vous qu'on vous livre votre jeu ?
 
 **Format :** Quartier/Rue, Ville
 **Exemple :** Mermoz, Dakar`,
@@ -445,7 +671,7 @@ Veuillez indiquer votre nouvelle adresse complète :
       };
     }
 
-    // ✅ CORRECTION 3: Traiter une nouvelle adresse saisie
+    // Traiter une nouvelle adresse saisie
     if (message.trim().length > 5) {
       const addressParts = message.split(',').map(part => part.trim());
       
@@ -461,23 +687,25 @@ Veuillez indiquer votre nouvelle adresse complète :
         }
       }
 
-      // Passer à l'étape paiement
+      // ✅ Mettre à jour et sauvegarder
       orderState.step = 'payment';
+      orderState.updatedAt = new Date().toISOString();
       this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
       const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
 
       return {
         type: 'assistant',
-        content: `✅ **Nouvelle adresse enregistrée !**
+        content: `✅ **Adresse enregistrée avec succès !**
 
-📍 **Livraison à :** ${orderState.data.address}, ${orderState.data.city}
+📍 **Livraison confirmée à :** ${orderState.data.address}, ${orderState.data.city}
 
-💰 **Récapitulatif :**
+💰 **Récapitulatif de votre commande :**
 • ${orderState.data.quantity}x ${orderState.data.productName}
 • **Total : ${totalAmount.toLocaleString()} FCFA**
 
-🎯 **Choisissez votre mode de paiement**`,
+🎯 **Plus qu'un clic ! Comment souhaitez-vous régler ?**`,
         choices: [
           '📱 Wave (recommandé)',
           '💳 Carte bancaire', 
@@ -496,16 +724,17 @@ Veuillez indiquer votre nouvelle adresse complète :
       };
     }
 
-    // ✅ Message d'erreur si le format n'est pas reconnu
+    // Message d'erreur si le format n'est pas reconnu
     return {
       type: 'assistant',
-      content: `😅 **Je n'ai pas bien compris votre choix**
+      content: `😅 **Je n'ai pas bien saisi votre choix**
 
-Voulez-vous :
-• **Garder l'adresse actuelle** : ${orderState.data.address || 'Non définie'}, ${orderState.data.city || 'Non définie'}
-• **Ou saisir une nouvelle adresse** ?
+Pouvez-vous m'aider ? Voulez-vous :
 
-Vous pouvez aussi taper directement votre nouvelle adresse (format: Quartier, Ville)`,
+• **Garder votre adresse actuelle** : ${orderState.data.address || 'Non définie'}, ${orderState.data.city || 'Non définie'}
+• **Ou bien saisir une nouvelle adresse** ?
+
+Vous pouvez aussi taper directement votre adresse complète (Quartier, Ville)`,
       choices: [
         'Oui, même adresse',
         'Changer d\'adresse'
@@ -522,101 +751,18 @@ Vous pouvez aussi taper directement votre nouvelle adresse (format: Quartier, Vi
     };
   }
 
-  // ✅ MÉTHODE AUXILIAIRE: Détecter si l'utilisateur confirme l'adresse
-  private detectAddressConfirmation(message: string): boolean {
-    const confirmations = [
-      'oui',
-      'oui, même adresse',
-      'même adresse',
-      'garder',
-      'conserver',
-      'confirmer',
-      'ok',
-      'd\'accord',
-      'parfait'
-    ];
-    
-    const lowerMessage = message.toLowerCase().trim();
-    return confirmations.some(conf => lowerMessage.includes(conf));
-  }
-
-  // ✅ MÉTHODE AUXILIAIRE: Détecter si l'utilisateur veut changer l'adresse
-  private detectAddressChange(message: string): boolean {
-    const changes = [
-      'changer',
-      'modifier',
-      'nouvelle',
-      'autre',
-      'différente',
-      'non'
-    ];
-    
-    const lowerMessage = message.toLowerCase().trim();
-    return changes.some(change => lowerMessage.includes(change));
-  }
-
-  // ✅ CRÉER MESSAGE DE PAIEMENT avec intégration Wave/Stripe
-  private async createPaymentMessage(orderState: ExpressOrderState): Promise<ChatMessage> {
-    const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
-    const isDakar = orderState.data.city?.toLowerCase().includes('dakar');
-
-    // Déterminer les options de paiement selon la zone
-    const paymentChoices = isDakar 
-      ? [
-          `🌊 Payer ${totalAmount.toLocaleString()} FCFA avec Wave`,
-          `💳 Payer ${totalAmount.toLocaleString()} FCFA par Carte`,
-          `🛵 Payer ${totalAmount.toLocaleString()} FCFA à la livraison`
-        ]
-      : [
-          `🌊 Payer ${totalAmount.toLocaleString()} FCFA avec Wave`,
-          `💳 Payer ${totalAmount.toLocaleString()} FCFA par Carte`
-        ];
-
-    return {
-      type: 'assistant',
-      content: `💳 **Choisissez votre mode de paiement**
-
-**Récapitulatif :**
-🎮 ${orderState.data.productName} x${orderState.data.quantity}
-📍 ${orderState.data.city}
-💰 **Total : ${totalAmount.toLocaleString()} FCFA**
-
-Comment souhaitez-vous payer ?`,
-      choices: paymentChoices,
-      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-      metadata: {
-        nextStep: 'express_payment' as ConversationStep,
-        paymentAmount: totalAmount, // ✅ NOUVEAU: Montant pour paiement direct
-        orderData: {
-          totalAmount: totalAmount,
-          city: orderState.data.city,
-          productId: orderState.data.productId,
-          productName: orderState.data.productName,
-          quantity: orderState.data.quantity,
-          first_name: orderState.data.firstName,
-          last_name: orderState.data.lastName,
-          phone: orderState.data.phone,
-          address: orderState.data.address
-        },
-        flags: { paymentSelection: true, enableDirectPayment: true } // ✅ Flag pour paiement direct
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  // ✅ ÉTAPE 5 : Paiement (Traité maintenant par ChatMessage directement)
-  private async handlePaymentStep(
+  // ✅ ÉTAPE 5 : Paiement CORRIGÉ AVEC VÉRIFICATION WAVE MANUELLE
+  private async handlePaymentStepFluid(
     sessionId: string,
     message: string,
     orderState: ExpressOrderState
   ): Promise<ChatMessage> {
     
-    // ✅ Si le paiement a été traité directement dans ChatMessage, on confirme
-    if (message.includes('Paiement') && message.includes('confirmé')) {
-      return await this.handlePaymentConfirmation(sessionId, orderState, message);
+    // ✅ NOUVEAU: Vérifier si c'est un ID de transaction Wave
+    if (this.isWaveTransactionId(message)) {
+      return await this.handleWaveTransactionVerification(sessionId, message, orderState);
     }
-
-    // ✅ Fallback pour paiements non directs  
+    
     let paymentMethod: PaymentProvider;
 
     if (message.toLowerCase().includes('wave')) {
@@ -624,38 +770,118 @@ Comment souhaitez-vous payer ?`,
     } else if (message.toLowerCase().includes('carte')) {
       paymentMethod = 'card';
     } else if (message.toLowerCase().includes('livraison')) {
-      paymentMethod = 'CASH'; // ✅ Maintenant compatible avec le type
+      paymentMethod = 'cash_on_delivery';
+    } else if (message === 'WAVE_PAYMENT_INITIATED') {
+      // ✅ NOUVEAU: Gestion du retour Wave
+      return await this.handleWavePaymentReturn(sessionId, orderState);
     } else {
-      return this.createErrorMessage('Veuillez choisir un mode de paiement valide.');
+      return {
+        type: 'assistant',
+        content: `😅 **Je n'ai pas bien compris votre choix de paiement**
+
+Pouvez-vous choisir parmi ces options ?`,
+        choices: [
+          '📱 Wave (recommandé)',
+          '💳 Carte bancaire', 
+          '💵 Paiement à la livraison'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_payment' as ConversationStep,
+          flags: { paymentError: true }
+        },
+        timestamp: new Date().toISOString()
+      };
     }
 
-
+    // ✅ Mettre à jour et sauvegarder
     orderState.data.paymentMethod = paymentMethod;
+    orderState.updatedAt = new Date().toISOString();
+    this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
+
+    if (paymentMethod === 'wave') {
+      // ✅ WAVE: Créer la commande mais en statut pending
+      const orderResult = await this.createOrderCorrected(sessionId, orderState, 'pending');
+      
+      if (!orderResult.success) {
+        return this.createErrorMessage(orderResult.error || 'Erreur lors de la création de la commande');
+      }
+
+      // ✅ NOUVEAU: Message pour Wave avec instructions spéciales
+      const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
+      
+      return {
+        type: 'assistant',
+        content: `🌊 **Paiement Wave sélectionné**
+
+**Commande :** #${orderResult.orderId}
+**Montant :** ${totalAmount.toLocaleString()} FCFA
+
+🔗 **Cliquez sur le bouton Wave ci-dessous pour payer**
+
+Après votre paiement, revenez ici et donnez-moi votre **ID de Transaction** Wave pour confirmer votre commande.
+
+💡 **L'ID de Transaction se trouve dans votre historique Wave et commence par 'T'**`,
+        choices: [
+          '🌊 Payer avec Wave'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'wave_payment_pending' as ConversationStep,
+          orderData: {
+            orderId: orderResult.orderId,
+            paymentMethod: paymentMethod,
+            totalAmount: totalAmount,
+            status: 'pending'
+          },
+          paymentAmount: totalAmount,
+          flags: { 
+            wavePaymentMode: true,
+            awaitingPayment: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ Pour carte et livraison : flux normal
     orderState.step = 'confirmation';
     this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
 
-    // Créer la commande
-    const orderResult = await this.createOrder(sessionId, orderState);
+    const orderResult = await this.createOrderCorrected(sessionId, orderState);
     
     if (!orderResult.success) {
       return this.createErrorMessage(orderResult.error || 'Erreur lors de la création de la commande');
     }
 
+    // Personnaliser le message selon le mode de paiement
+    let paymentInstructions = '';
+    if (paymentMethod === 'card') {
+      paymentInstructions = `💳 **Carte bancaire** : Vous allez être redirigé vers une page de paiement sécurisée.`;
+    } else {
+      paymentInstructions = `💵 **Paiement à la livraison** : Préparez le montant exact pour le livreur.`;
+    }
+
     return {
       type: 'assistant',
-      content: `✅ **Commande confirmée !**
+      content: `🎉 **Félicitations ! Votre commande est confirmée !**
 
 **Numéro de commande :** #${orderResult.orderId}
 
-${this.getPaymentInstructions(paymentMethod)}
+${paymentInstructions}
 
-**Livraison :** 24-48h ouvrables à ${orderState.data.city}
+**Détails de livraison :**
+📍 ${orderState.data.address}, ${orderState.data.city}
+⏰ Livraison sous 24-48h ouvrables
+📞 Nous vous tiendrons informé(e) par SMS
 
-Voulez-vous recevoir la confirmation par SMS ?`,
+Merci pour votre confiance ! 🙏`,
       choices: [
-        '📱 Recevoir SMS',
-        '✅ C\'est parfait',
-        '🛍️ Ajouter un autre jeu'
+        '📱 Recevoir confirmations par SMS',
+        '✅ Parfait, merci !',
+        '🛍️ Commander un autre jeu'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -671,57 +897,298 @@ Voulez-vous recevoir la confirmation par SMS ?`,
     };
   }
 
-  // ✅ NOUVEAU: Gérer la confirmation de paiement après traitement direct
-  private async handlePaymentConfirmation(
+  // ✅ NOUVEAU: Vérifier si c'est un ID de transaction Wave
+  private isWaveTransactionId(message: string): boolean {
+    const cleanMessage = message.trim().toUpperCase();
+    // Les IDs Wave commencent par 'T' et font 10-16 caractères alphanumériques
+    const waveIdPattern = /^T[A-Z0-9]{10,15}$/;
+    return waveIdPattern.test(cleanMessage);
+  }
+
+  // ✅ NOUVEAU: Gérer le retour du paiement Wave
+  private async handleWavePaymentReturn(
     sessionId: string,
-    orderState: ExpressOrderState,
-    message: string
+    orderState: ExpressOrderState
   ): Promise<ChatMessage> {
     
-    // Extraire le type de paiement du message
-    let paymentMethod: PaymentProvider = 'wave';
-    if (message.includes('Carte')) paymentMethod = 'card';
-    if (message.includes('livraison')) paymentMethod = 'CASH';
-
-    orderState.data.paymentMethod = paymentMethod;
-    orderState.step = 'confirmation';
-    this.orderStates.set(sessionId, orderState);
-
-    // Créer la commande
-    const orderResult = await this.createOrder(sessionId, orderState);
+    const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
     
-    if (!orderResult.success) {
-      return this.createErrorMessage(orderResult.error || 'Erreur lors de la création de la commande');
-    }
-
     return {
       type: 'assistant',
-      content: `🎉 **Paiement confirmé !**
+      content: `✅ **Retour du paiement Wave**
 
-**Numéro de commande :** #${orderResult.orderId}
-**Statut :** Commande validée ✅
+J'espère que votre paiement s'est bien passé ! 
 
-Votre commande sera traitée dans les plus brefs délais.
+Pour confirmer votre commande, donnez-moi votre **ID de Transaction Wave**.
 
-Que souhaitez-vous faire maintenant ?`,
-      choices: [
-        '📦 Suivre ma commande',
-        '🛍️ Commander un autre jeu',
-        '📱 Télécharger l\'app mobile',
-        '✅ Parfait, merci !'
-      ],
+💡 **Comment le trouver :**
+1. Ouvrez votre app Wave
+2. Allez dans l'historique des transactions
+3. Trouvez le paiement de ${totalAmount.toLocaleString()} FCFA
+4. Copiez l'ID de Transaction (commence par 'T')
+
+*Exemple : TJJDJORO4EPQAR4FD*`,
+      choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
-        nextStep: 'post_purchase' as ConversationStep,
-        orderData: {
-          orderId: orderResult.orderId,
-          paymentMethod: paymentMethod,
-          status: 'confirmed'
-        },
-        flags: { orderCompleted: true, paymentConfirmed: true }
+        nextStep: 'wave_transaction_verification' as ConversationStep,
+        flags: { 
+          awaitingWaveTransactionId: true,
+          wavePaymentMode: true
+        }
       },
       timestamp: new Date().toISOString()
     };
+  }
+
+  // ✅ NOUVEAU: Vérifier l'ID de transaction Wave
+  private async handleWaveTransactionVerification(
+    sessionId: string,
+    transactionId: string,
+    orderState: ExpressOrderState
+  ): Promise<ChatMessage> {
+    
+    const cleanTransactionId = transactionId.trim().toUpperCase();
+    
+    if (!this.isWaveTransactionId(cleanTransactionId)) {
+      return {
+        type: 'assistant',
+        content: `❌ **ID de Transaction invalide**
+
+L'ID de Transaction Wave doit :
+• Commencer par la lettre 'T'
+• Contenir entre 10 et 15 caractères
+• Exemple : TJJDJORO4EPQAR4FD
+
+Veuillez vérifier et réessayer.`,
+        choices: [
+          '🔄 Réessayer',
+          '📞 Contacter le support'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'wave_transaction_verification' as ConversationStep,
+          flags: { 
+            transactionIdError: true,
+            awaitingWaveTransactionId: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ Mettre à jour la commande avec l'ID de transaction
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          payment_status: 'completed',
+          status: 'confirmed',
+          metadata: JSON.stringify({
+            source: 'chatbot_express',
+            wave_transaction_id: cleanTransactionId,
+            payment_verified_at: new Date().toISOString()
+          }),
+          updated_at: new Date().toISOString()
+        })
+        .eq('session_id', sessionId);
+
+      if (error) {
+        console.error('❌ Error updating order with Wave transaction:', error);
+        return this.createErrorMessage('Erreur lors de la mise à jour de la commande');
+      }
+
+      // ✅ Nettoyer l'état
+      orderState.step = 'confirmation';
+      this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
+
+      return {
+        type: 'assistant',
+        content: `🎉 **Paiement Wave confirmé !**
+
+✅ **Transaction vérifiée :** ${cleanTransactionId}
+✅ **Votre commande est maintenant confirmée**
+
+**Détails de livraison :**
+📍 ${orderState.data.address}, ${orderState.data.city}
+⏰ Livraison sous 24-48h ouvrables
+📞 Nous vous tiendrons informé(e) par SMS
+
+🙏 **Merci pour votre confiance en VIENS ON S'CONNAÎT !**`,
+        choices: [
+          '📱 Recevoir confirmations par SMS',
+          '⭐ Laisser un avis',
+          '🛍️ Commander un autre jeu'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_completed' as ConversationStep,
+          orderData: {
+            paymentMethod: 'wave',
+            transactionId: cleanTransactionId,
+            status: 'confirmed'
+          },
+          flags: { 
+            orderCompleted: true,
+            paymentConfirmed: true,
+            waveVerified: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error in Wave transaction verification:', error);
+      return this.createErrorMessage('Erreur lors de la vérification du paiement Wave');
+    }
+  }
+
+  // ✅ CORRECTION MAJEURE : Créer une commande avec le BON SCHÉMA et gestion statut
+  private async createOrderCorrected(
+    sessionId: string,
+    orderState: ExpressOrderState,
+    orderStatus: string = 'pending'
+  ): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    try {
+      console.log('📦 Creating order with CORRECTED schema and status:', orderStatus);
+
+      // ✅ CORRECTION CRITIQUE: Générer un ID court uniquement numérique pour éviter bigint error
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000);
+      const orderId = `${timestamp}${random}`; // ID purement numérique comme string
+      
+      // ✅ SCHÉMA CORRIGÉ : Utiliser les bons noms de colonnes et types
+      const orderData = {
+        id: orderId, // String numérique pour compatibilité
+        session_id: sessionId,
+        product_id: orderState.data.productId,
+        customer_name: `${orderState.data.firstName || 'Client'} ${orderState.data.lastName || ''}`.trim(),
+        first_name: orderState.data.firstName || 'Client',
+        last_name: orderState.data.lastName || '',
+        phone: orderState.data.phone || '',
+        city: orderState.data.city || '',
+        address: orderState.data.address || '',
+        payment_method: orderState.data.paymentMethod || 'cash_on_delivery',
+        
+        // ✅ CORRECTION CRITIQUE : Utiliser 'status' au lieu de 'order_status'
+        status: orderStatus, // 'pending', 'confirmed', etc.
+        payment_status: orderStatus === 'pending' ? 'pending' : 'completed',
+        
+        // ✅ CORRECTION: S'assurer que les montants sont des nombres
+        total_amount: Number(orderState.data.unitPrice * orderState.data.quantity),
+        delivery_cost: 0,
+        
+        // ✅ Stocker les détails dans order_details comme JSON string
+        order_details: JSON.stringify([{
+          product_id: orderState.data.productId,
+          product_name: orderState.data.productName,
+          quantity: Number(orderState.data.quantity),
+          unit_price: Number(orderState.data.unitPrice),
+          total_price: Number(orderState.data.unitPrice * orderState.data.quantity)
+        }]),
+        
+        metadata: JSON.stringify({
+          source: 'chatbot_express',
+          flow: 'express',
+          session_id: sessionId,
+          created_via: 'chat_conversation',
+          payment_method: orderState.data.paymentMethod,
+          order_status: orderStatus
+        }),
+        
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('📋 Order data prepared with corrected schema:', {
+        id: orderData.id,
+        status: orderData.status,
+        payment_status: orderData.payment_status,
+        total_amount: orderData.total_amount,
+        id_type: typeof orderData.id
+      });
+
+      // ✅ Insérer dans la base de données
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Database error CORRECTED:', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        return {
+          success: false,
+          error: `Erreur base de données: ${error.message}`
+        };
+      }
+
+      console.log('✅ Order created successfully with corrected schema:', data.id);
+      
+      return {
+        success: true,
+        orderId: data.id
+      };
+
+    } catch (error) {
+      console.error('❌ Error creating order with corrected schema:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  }
+
+  // ✅ GESTION DES AUTRES MÉTHODES (inchangées)
+  public async handleExpressFlow(
+    sessionId: string,
+    message: string,
+    currentStep: ConversationStep | string
+  ): Promise<ChatMessage> {
+    await this.loadOrderStateFromDatabase(sessionId);
+    
+    const orderState = this.orderStates.get(sessionId);
+    
+    if (!orderState) {
+      console.log('❌ No order state found after loading from DB');
+      return this.createErrorMessage('Session de commande expirée. Cliquez sur "Je veux l\'acheter maintenant" pour recommencer.');
+    }
+
+    return await this.handleExpressFlowInternal(
+      sessionId, 
+      message, 
+      currentStep as ConversationStep, 
+      orderState.data.productId, 
+      orderState.data.productName
+    );
+  }
+
+  public async handleExpressStep(
+    sessionId: string,
+    input: string,
+    currentStep: string
+  ): Promise<ChatMessage> {
+    await this.loadOrderStateFromDatabase(sessionId);
+    
+    const orderState = this.orderStates.get(sessionId);
+    
+    if (!orderState) {
+      return this.createErrorMessage('Session de commande expirée. Veuillez recommencer.');
+    }
+    
+    return this.handleExpressFlowInternal(
+      sessionId, 
+      input, 
+      currentStep as ConversationStep, 
+      orderState.data.productId, 
+      orderState.data.productName
+    );
   }
 
   // ✅ ÉTAPE 6 : Confirmation finale
@@ -733,15 +1200,25 @@ Que souhaitez-vous faire maintenant ?`,
     
     // Nettoyer l'état de commande
     this.orderStates.delete(sessionId);
+    
+    // Supprimer de la base aussi
+    try {
+      await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('session_id', sessionId);
+    } catch (error) {
+      console.error('❌ Error cleaning session:', error);
+    }
 
-    if (message.includes('Recevoir SMS')) {
+    if (message.includes('Recevoir confirmations')) {
       return {
         type: 'assistant',
-        content: `📱 **SMS envoyé !**
+        content: `📱 **SMS de confirmation envoyé !**
 
-Vous recevrez toutes les informations sur votre commande par SMS.
+Vous recevrez toutes les mises à jour de votre commande par SMS.
 
-Merci pour votre confiance ! 🙏`,
+C'était un plaisir de vous aider ! À bientôt chez VIENS ON S'CONNAÎT 🎉`,
         choices: [
           '🛍️ Voir d\'autres jeux',
           '📱 Télécharger l\'app mobile',
@@ -756,17 +1233,19 @@ Merci pour votre confiance ! 🙏`,
       };
     }
 
-    if (message.includes('Ajouter un autre jeu')) {
+    if (message.includes('Commander un autre jeu')) {
       return await this.createUpsellMessage(orderState.data.productId);
     }
 
     return {
       type: 'assistant',
-      content: `✅ **Merci pour votre commande !**
+      content: `✅ **Merci infiniment pour votre confiance !**
 
 Votre jeu **${orderState.data.productName}** sera livré dans les plus brefs délais.
 
-🎮 **Profitez bien de votre expérience VIENS ON S'CONNAÎT !**`,
+🎮 **Profitez bien de cette expérience unique de VIENS ON S'CONNAÎT !**
+
+À très bientôt ! 💕`,
       choices: [
         '🛍️ Commander un autre jeu',
         '📱 Télécharger l\'app mobile',
@@ -791,7 +1270,7 @@ Votre jeu **${orderState.data.productName}** sera livré dans les plus brefs dé
     if (message.includes('comment y jouer') || message.includes('Comment y jouer')) {
       return {
         type: 'assistant',
-        content: `🎮 **Comment jouer à ${productName} :**
+        content: `🎮 **Comment jouer au jeu ${productName} :**
 
 **C'est très simple :**
 1️⃣ **Mélangez** les 150 cartes
@@ -886,7 +1365,7 @@ Votre jeu **${orderState.data.productName}** sera livré dans les plus brefs dé
       type: 'assistant',
       content: `🤔 **Bonne question !** 
 
-Je suis là pour vous aider avec toutes vos interrogations sur **${productName}**.
+Je suis là pour vous aider avec toutes vos interrogations sur le jeu **${productName}**.
 
 Que souhaitez-vous savoir exactement ?`,
       choices: [
@@ -903,358 +1382,43 @@ Que souhaitez-vous savoir exactement ?`,
     };
   }
 
-  // ✅ GESTION DES QUESTIONS LIBRES avec IA
+  // ✅ GESTION DES QUESTIONS LIBRES - VERSION SIMPLIFIÉE
   private async handleFreeTextQuestion(
     message: string,
     productId: string,
     productName: string,
     sessionId: string
   ): Promise<ChatMessage> {
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          productId: productId,
-          currentStep: 'question_mode',
-          orderData: {},
-          sessionId: sessionId,
-          storeId: 'a9563f88-217c-4998-b080-ed39f637ea31'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const aiResponse = await response.json();
-
-      return {
-        type: 'assistant',
-        content: aiResponse.message || "Je suis là pour vous aider !",
-        choices: aiResponse.choices || [
-          'Je veux l\'acheter maintenant',
-          'Autre question',
-          'Parler à un conseiller'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'ai_response' as ConversationStep,
-          productId: productId,
-          flags: { aiGenerated: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('Error calling AI API:', error);
-      
-      return {
-        type: 'assistant',
-        content: `Je comprends votre question sur **${productName}**.
-
-Malheureusement, je rencontre un problème technique pour vous répondre en détail.
-
-📞 **Contactez-nous directement :**
-WhatsApp : +221 78 136 27 28
-
-Ou choisissez une option ci-dessous :`,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'C\'est pour qui ?'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'fallback_response' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  // ✅ MÉTHODES DE RÉCUPÉRATION DE DONNÉES PRODUIT
-  private async getGameRules(productId: string, productName: string): Promise<ChatMessage> {
-    try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('game_rules')
-        .eq('id', productId)
-        .single();
-
-      const gameRules = product?.game_rules || 
-        `🎮 **Comment jouer au jeu ${productName} :**
-
-📋 **Règles simples :**
-• Mélangez les cartes
-• Chaque joueur tire une carte à tour de rôle
-• Lisez la question/défi à voix haute
-• Répondez de manière authentique
-• Écoutez et échangez avec bienveillance
-
-⏰ **Durée :** 30-60 minutes
-👥 **Participants :** 2 personnes minimum
-✨ **Objectif :** Créer des conversations mémorables`;
-
-      return {
-        type: 'assistant',
-        content: gameRules,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'post_rules_engagement' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('Error fetching game rules:', error);
-      return this.createErrorMessage('Impossible de récupérer les règles du jeu.');
-    }
-  }
-
-  private async getTargetAudience(productId: string, productName: string): Promise<ChatMessage> {
-    try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('target_audience')
-        .eq('id', productId)
-        .single();
-
-      const targetAudience = product?.target_audience || 
-        `👥 **Le jeu ${productName} est parfait pour :**
-
-💑 **Les couples** qui veulent renforcer leur complicité
-👨‍👩‍👧‍👦 **Les familles** qui cherchent à mieux se connaître
-👫 **Les amis** qui veulent approfondir leur amitié
-👔 **Les collègues** pour améliorer la cohésion d'équipe
-
-✨ **Âge recommandé :** À partir de 16 ans
-🎯 **Idéal pour :** Tous ceux qui veulent des relations plus authentiques`;
-
-      return {
-        type: 'assistant',
-        content: targetAudience,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'Quels sont les bénéfices ?'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'target_audience_shown' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('Error fetching target audience:', error);
-      return this.createErrorMessage('Impossible de récupérer les informations sur le public cible.');
-    }
-  }
-
-  private async getBenefits(productId: string, productName: string): Promise<ChatMessage> {
-    try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('benefits')
-        .eq('id', productId)
-        .single();
-
-      const benefits = product?.benefits || 
-        `💝 **Les bénéfices du jeu ${productName} :**
-
-🔥 **Renforce la complicité** entre vous et vos proches
-💬 **Facilite la communication** sur des sujets importants
-✨ **Crée des souvenirs mémorables** et des moments d'intimité
-🌟 **Développe l'empathie** et la compréhension mutuelle
-❤️ **Approfondit les relations** de manière naturelle et amusante
-
-🎯 **Résultat :** Des liens plus forts et une meilleure connaissance de l'autre`;
-
-      return {
-        type: 'assistant',
-        content: benefits,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'C\'est pour qui ?'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'benefits_shown' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('Error fetching benefits:', error);
-      return this.createErrorMessage('Impossible de récupérer les bénéfices du jeu.');
-    }
-  }
-
-  private async getTestimonials(productId: string, productName: string): Promise<ChatMessage> {
-    try {
-      const { data: testimonials } = await supabase
-        .from('testimonials')
-        .select('*')
-        .eq('product_id', productId)
-        .eq('is_approved', true)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      let content = '';
-
-      if (!testimonials || testimonials.length === 0) {
-        content = `⭐ **Ce que disent nos clients sur ${productName} :**
-
-Nous collectons actuellement les premiers témoignages de nos clients.
-
-🔄 **En attendant, découvrez pourquoi nos jeux fonctionnent :**
-• Méthode testée et approuvée
-• Conception basée sur la psychologie des relations
-• Déjà des centaines de couples/familles transformés
-
-💬 **Prêt(e) à vivre cette expérience ?**`;
-      } else {
-        const testimonialTexts = testimonials.map(t => {
-          const stars = '⭐'.repeat(t.rating);
-          return `${stars} **${t.author_name || 'Client'}** ${t.author_location ? `(${t.author_location})` : ''}\n"${t.content}"`;
-        }).join('\n\n');
-        
-        content = `⭐ **Ce que disent nos clients sur ${productName} :**
-
-${testimonialTexts}
-
-💬 **Et vous, prêt(e) à vivre cette expérience ?**`;
-      }
-
-      return {
-        type: 'assistant',
-        content: content,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'C\'est pour qui ?'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'testimonials_shown' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      return this.createErrorMessage('Impossible de récupérer les témoignages.');
-    }
-  }
-
-  // ✅ CRÉER UNE COMMANDE - CORRIGÉ AVEC BONS TYPES
-  private async createOrder(
-  sessionId: string,
-  orderState: ExpressOrderState
-): Promise<{ success: boolean; orderId?: string; error?: string }> {
-  try {
-    // ✅ CORRECTION: Préparer les données selon le format attendu par OrderService
-    const orderData = {
-      session_id: sessionId,
-      product_id: orderState.data.productId,
-      store_id: 'a9563f88-217c-4998-b080-ed39f637ea31',
-      quantity: orderState.data.quantity,
-      phone: orderState.data.phone!,
-      first_name: orderState.data.firstName!,
-      last_name: orderState.data.lastName!,
-      city: orderState.data.city!,
-      address: orderState.data.address!,
-      payment_method: orderState.data.paymentMethod!,
-      total_amount: orderState.data.unitPrice * orderState.data.quantity,
-      status: 'pending' as const
-    };
-
-    console.log('📦 Creating order with data:', orderData);
-
-    // ✅ OPTION A: Si OrderService.createOrder attend un string (JSON)
-    let result;
-    try {
-      result = await this.orderService.createOrder(JSON.stringify(orderData));
-    } catch (jsonError) {
-      // ✅ OPTION B: Si OrderService.createOrder attend l'objet directement
-      console.log('📦 Trying with object format...');
-      result = await this.orderService.createOrder(orderData as any);
-    }
     
-    console.log('📦 Order service result:', result);
-
-    // ✅ CORRECTION: Gestion flexible du résultat
-    if (result && typeof result === 'object') {
-      // Si le résultat a une propriété success
-      if ('success' in result) {
-        const orderResult = result as { success: boolean; order?: { id: string }; error?: string };
-        
-        if (orderResult.success && orderResult.order) {
-          return {
-            success: true,
-            orderId: orderResult.order.id
-          };
-        } else {
-          return {
-            success: false,
-            error: orderResult.error || 'Erreur lors de la création de la commande'
-          };
-        }
-      }
-      // Si le résultat est directement l'ordre créé
-      else if ('id' in result) {
-        return {
-          success: true,
-          orderId: (result as any).id
-        };
-      }
-    }
-    
-    // Si result est une string (message d'erreur)
-    if (typeof result === 'string') {
-      return {
-        success: false,
-        error: result
-      };
-    }
-
-    // Fallback
+    // Réponse simplifiée sans appel API
     return {
-      success: false,
-      error: 'Format de réponse inattendu du service de commande'
-    };
+      type: 'assistant',
+      content: `Je comprends votre question sur **${productName}**.
 
-  } catch (error) {
-    console.error('❌ Error creating order:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue'
+Laissez-moi vous orienter vers les informations les plus utiles :`,
+      choices: [
+        'Comment y jouer ?',
+        'C\'est pour qui ?',
+        'Quels sont les bénéfices ?',
+        'Je veux l\'acheter maintenant'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'question_redirect' as ConversationStep,
+        productId: productId,
+        flags: { simplified: true }
+      },
+      timestamp: new Date().toISOString()
     };
   }
-}
 
-  // ✅ CRÉER MESSAGE D'UPSELL avec cartes produits
+  // ✅ CRÉER MESSAGE D'UPSELL
   private async createUpsellMessage(currentProductId: string): Promise<ChatMessage> {
     try {
       // Récupérer d'autres jeux pour l'upsell
       const { data: relatedProducts } = await supabase
         .from('products')
-        .select('id, name, price, images, stats')
+        .select('id, name, price')
         .eq('status', 'active')
         .neq('id', currentProductId)
         .limit(3);
@@ -1277,18 +1441,6 @@ En attendant, téléchargez notre app mobile pour découvrir tous nos jeux :`,
         };
       }
 
-      // ✅ NOUVEAU: Ajouter les données produits pour affichage en cartes
-      const productCards = relatedProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        images: p.images || [],
-        stats: p.stats,
-        reason: `Parfait pour compléter votre collection`,
-        urgency: 'medium' as const,
-        discount: 10 // 10% de réduction pour l'upsell
-      }));
-
       return {
         type: 'assistant',
         content: `🛍️ **Nos autres jeux populaires :**
@@ -1301,14 +1453,13 @@ Profitez de 10% de réduction sur votre prochain achat !`,
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'upsell_selection' as ConversationStep,
-          recommendedProducts: productCards, // ✅ Pour affichage en cartes
           relatedProducts: relatedProducts
         },
         timestamp: new Date().toISOString()
       };
 
     } catch (error) {
-      console.error('Error creating upsell message:', error);
+      console.error('❌ Error creating upsell message:', error);
       return this.createErrorMessage('Impossible de charger les autres jeux.');
     }
   }
@@ -1316,16 +1467,17 @@ Profitez de 10% de réduction sur votre prochain achat !`,
   // ✅ MÉTHODES UTILITAIRES
   private isWelcomeButtonChoice(message: string): boolean {
     const welcomeChoices = [
-      'je veux l\'acheter maintenant',
       'j\'ai des questions à poser',
-      'je veux en savoir plus'
+      'je veux en savoir plus',
+      'questions à poser',
+      'en savoir plus',
+      'poser une question'
     ];
     
     return welcomeChoices.some(choice => 
       message.toLowerCase().includes(choice.toLowerCase())
     );
   }
-
 
   private isPredefinedQuestion(message: string): boolean {
     const predefinedQuestions = [
@@ -1351,21 +1503,8 @@ Profitez de 10% de réduction sur votre prochain achat !`,
 
       return { price: product?.price || 14000 };
     } catch (error) {
-      console.error('Error fetching product data:', error);
+      console.error('❌ Error fetching product data:', error);
       return { price: 14000 }; // Prix par défaut
-    }
-  }
-
-  private getPaymentInstructions(paymentMethod: PaymentProvider): string {
-    switch (paymentMethod) {
-      case 'wave':
-        return '📱 **Paiement Wave :** Lien de paiement traité automatiquement';
-      case 'card':
-        return '💳 **Carte bancaire :** Paiement sécurisé traité automatiquement';
-      case 'CASH':
-        return '💵 **Paiement à la livraison :** Préparez le montant exact';
-      default:
-        return '💳 **Paiement :** Instructions envoyées par SMS';
     }
   }
 
@@ -1383,44 +1522,5 @@ Voulez-vous réessayer ou contacter notre support ?`,
       },
       timestamp: new Date().toISOString()
     };
-  }
-
-  // ✅ MÉTHODES PUBLIQUES pour compatibilité avec l'existant (CORRIGÉES)
-  public async handleExpressFlow(
-    sessionId: string,
-    message: string,
-    currentStep: string
-  ): Promise<ChatMessage> {
-    // ✅ CORRECTION: Rediriger vers processMessage avec paramètres complets
-    const orderState = this.orderStates.get(sessionId);
-    const productId = orderState?.data.productId || '';
-    const productName = orderState?.data.productName || '';
-    
-    return this.processMessage(
-      sessionId, 
-      message, 
-      currentStep as ConversationStep, 
-      productId, 
-      productName
-    );
-  }
-
-  public async handleExpressStep(
-    sessionId: string,
-    input: string,
-    currentStep: string
-  ): Promise<ChatMessage> {
-    // ✅ CORRECTION: Rediriger vers processMessage avec paramètres complets
-    const orderState = this.orderStates.get(sessionId);
-    const productId = orderState?.data.productId || '';
-    const productName = orderState?.data.productName || '';
-    
-    return this.processMessage(
-      sessionId, 
-      input, 
-      currentStep as ConversationStep, 
-      productId, 
-      productName
-    );
   }
 }

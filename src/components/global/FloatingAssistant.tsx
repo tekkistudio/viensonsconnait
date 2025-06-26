@@ -414,7 +414,7 @@ export default function FloatingAssistant() {
                   />
                   <div>
                     <h3 className="font-semibold">Assistant Dukka</h3>
-                    <p className="text-sm text-theme-secondary">
+                    <p className="text-sm text-white">
                       Votre conseiller business personnel
                     </p>
                   </div>

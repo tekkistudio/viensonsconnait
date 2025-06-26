@@ -1,4 +1,4 @@
-// src/components/payment/StripePaymentModal.tsx
+// src/components/payment/StripePaymentModal.tsx - VERSION INTÉGRÉE DANS LE CHAT
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -18,16 +18,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChatStore } from '@/stores/chatStore';
-import { pusherClient } from '@/lib/pusher';
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface StripePaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  clientSecret: string;
+  clientSecret?: string;
   orderId?: string;
   amount?: number;
   currency?: string;
+  onSuccess?: (paymentIntentId: string) => void;
+  onError?: (error: string) => void;
 }
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -38,23 +40,75 @@ export function StripePaymentModal({
   clientSecret,
   orderId,
   amount,
-  currency = 'eur'
+  currency = 'eur',
+  onSuccess,
+  onError
 }: StripePaymentModalProps) {
   const [key, setKey] = useState(0);
+  const [internalClientSecret, setInternalClientSecret] = useState<string | null>(null);
+  const [isLoadingIntent, setIsLoadingIntent] = useState(false);
 
-  // ✅ CORRECTION: Réinitialiser Elements quand le modal s'ouvre/ferme
+  // ✅ NOUVEAU: Créer automatiquement un PaymentIntent si pas de clientSecret
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !clientSecret && amount && orderId) {
+      createPaymentIntent();
+    } else if (clientSecret) {
+      setInternalClientSecret(clientSecret);
+    }
+  }, [isOpen, clientSecret, amount, orderId]);
+
+  // ✅ FONCTION: Créer un PaymentIntent Stripe
+  const createPaymentIntent = async () => {
+    if (!amount || !orderId) return;
+
+    setIsLoadingIntent(true);
+    
+    try {
+      // Convertir FCFA en EUR (approximation: 1 EUR = 656 FCFA)
+      const amountInEur = Math.max(1, Math.round(amount / 656));
+      
+      const response = await fetch('/api/stripe/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountInEur * 100, // Stripe utilise les centimes
+          currency: 'eur',
+          orderId: orderId,
+          automatic_payment_methods: { enabled: true }
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setInternalClientSecret(data.clientSecret);
+        setKey(prev => prev + 1); // Force re-render des Elements
+      } else {
+        const errorData = await response.json();
+        onError?.(errorData.message || 'Erreur lors de la création du paiement');
+      }
+    } catch (error) {
+      console.error('❌ Error creating PaymentIntent:', error);
+      onError?.('Impossible de créer le paiement. Veuillez réessayer.');
+    } finally {
+      setIsLoadingIntent(false);
+    }
+  };
+
+  // ✅ Réinitialiser Elements quand le modal s'ouvre/ferme
+  useEffect(() => {
+    if (isOpen && internalClientSecret) {
       setKey(prev => prev + 1);
     }
-  }, [isOpen, clientSecret]);
+  }, [isOpen, internalClientSecret]);
 
-  if (!clientSecret) {
+  const finalClientSecret = clientSecret || internalClientSecret;
+
+  if (!finalClientSecret && !isLoadingIntent) {
     return null;
   }
 
   const options = {
-    clientSecret,
+    clientSecret: finalClientSecret,
     appearance: {
       theme: 'stripe' as const,
       variables: {
@@ -82,27 +136,81 @@ export function StripePaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-0">
-        <DialogHeader className="p-6 pb-4">
-          <DialogTitle className="text-xl font-semibold text-gray-900">
-            Paiement sécurisé
-          </DialogTitle>
+      <DialogContent className="sm:max-w-[500px] p-0 gap-0">
+        <DialogHeader className="p-6 pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Paiement par carte
+            </DialogTitle>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
           {amount && (
-            <p className="text-sm text-gray-600 mt-2">
-              Montant à payer : <span className="font-semibold">{amount.toLocaleString()} {currency.toUpperCase()}</span>
-            </p>
+            <div className="flex items-center justify-between text-sm mt-2">
+              <span className="text-gray-600">Montant à payer :</span>
+              <span className="font-semibold text-[#FF7E93]">
+                {amount.toLocaleString()} FCFA
+                <span className="text-xs text-gray-500 ml-1">
+                  (≈ {Math.round(amount / 656)}€)
+                </span>
+              </span>
+            </div>
           )}
         </DialogHeader>
         
-        <div className="px-6 pb-6">
-          <Elements key={key} stripe={stripePromise} options={options}>
-            <PaymentForm 
-              onClose={onClose} 
-              orderId={orderId}
-              amount={amount}
-              currency={currency}
-            />
-          </Elements>
+        <div className="p-6">
+          <AnimatePresence mode="wait">
+            {isLoadingIntent ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-8"
+              >
+                <Loader2 className="w-8 h-8 animate-spin text-[#FF7E93] mb-4" />
+                <p className="text-gray-600">Préparation du paiement sécurisé...</p>
+              </motion.div>
+            ) : finalClientSecret ? (
+              <motion.div
+                key="payment-form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <Elements key={key} stripe={stripePromise} options={options}>
+                  <PaymentForm 
+                    onClose={onClose} 
+                    orderId={orderId}
+                    amount={amount}
+                    currency={currency}
+                    onSuccess={onSuccess}
+                    onError={onError}
+                  />
+                </Elements>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-8"
+              >
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <p className="text-gray-600">Impossible de charger le paiement</p>
+                <Button
+                  onClick={createPaymentIntent}
+                  className="mt-4 bg-[#FF7E93] hover:bg-[#FF7E93]/90"
+                >
+                  Réessayer
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </DialogContent>
     </Dialog>
@@ -114,77 +222,26 @@ interface PaymentFormProps {
   orderId?: string;
   amount?: number;
   currency?: string;
+  onSuccess?: (paymentIntentId: string) => void;
+  onError?: (error: string) => void;
 }
 
-function PaymentForm({ onClose, orderId, amount, currency }: PaymentFormProps) {
+function PaymentForm({ 
+  onClose, 
+  orderId, 
+  amount, 
+  currency,
+  onSuccess,
+  onError 
+}: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [paymentSucceeded, setPaymentSucceeded] = useState(false);
-  const [pusherChannel, setPusherChannel] = useState<any>(null);
   const { addMessage } = useChatStore();
 
-  // ✅ CORRECTION: Setup Pusher pour écouter les confirmations
-  useEffect(() => {
-    if (orderId) {
-      const channel = pusherClient.subscribe(`order_${orderId}`);
-      setPusherChannel(channel);
-
-      channel.bind('payment_status', (data: any) => {
-        console.log('📡 Pusher payment status:', data);
-        
-        if (data.status === 'success') {
-          setPaymentSucceeded(true);
-          setProcessing(false);
-          
-          // ✅ Ajouter message de succès au chat
-          setTimeout(() => {
-            addMessage({
-              type: 'assistant',
-              content: `🎉 **Paiement confirmé !**
-
-✅ Votre commande **#${orderId}** a été validée avec succès.
-
-📧 Un email de confirmation vous sera envoyé sous peu.
-🚚 Votre commande sera préparée et expédiée dans les plus brefs délais.
-
-Merci pour votre confiance ! 🙏`,
-              choices: [
-                '📦 Suivre ma commande',
-                '📞 Nous contacter', 
-                '🛍️ Autres produits'
-              ],
-              assistant: {
-                name: 'Rose',
-                title: 'Assistante d\'achat'
-              },
-              metadata: {
-                orderId,
-                flags: { orderCompleted: true, paymentConfirmed: true }
-              },
-              timestamp: new Date().toISOString()
-            });
-            
-            // Fermer le modal après 2 secondes
-            setTimeout(() => {
-              onClose();
-            }, 2000);
-          }, 1000);
-        } else if (data.status === 'failed') {
-          setError(data.error || 'Le paiement a échoué');
-          setProcessing(false);
-        }
-      });
-
-      return () => {
-        channel.unsubscribe();
-        pusherClient.unsubscribe(`order_${orderId}`);
-      };
-    }
-  }, [orderId, onClose, addMessage]);
-
-  // ✅ CORRECTION: Validation avant soumission
+  // ✅ VALIDATION: Vérifier que Stripe est chargé
   const validateForm = useCallback((): boolean => {
     if (!stripe || !elements) {
       setError('Stripe n\'est pas encore chargé. Veuillez patienter.');
@@ -200,7 +257,7 @@ Merci pour votre confiance ! 🙏`,
     return true;
   }, [stripe, elements]);
 
-  // ✅ CORRECTION: Gestion de la soumission
+  // ✅ GESTION: Soumission du paiement
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -213,18 +270,20 @@ Merci pour votre confiance ! 🙏`,
     try {
       console.log('💳 Starting Stripe payment process...');
 
-      // ✅ Confirmer le paiement
+      // ✅ Confirmer le paiement sans redirection
       const { error: submitError, paymentIntent } = await stripe!.confirmPayment({
         elements: elements!,
+        redirect: 'if_required',
         confirmParams: {
           return_url: `${window.location.origin}/payment/success?order_id=${orderId}`,
-        },
-        redirect: 'if_required'
+        }
       });
 
       if (submitError) {
         console.error('❌ Payment submission error:', submitError);
-        setError(getErrorMessage(submitError.code, submitError.message));
+        const errorMessage = getErrorMessage(submitError.code, submitError.message);
+        setError(errorMessage);
+        onError?.(errorMessage);
         setProcessing(false);
         return;
       }
@@ -236,17 +295,59 @@ Merci pour votre confiance ! 🙏`,
           case 'succeeded':
             console.log('🎉 Payment succeeded immediately');
             setPaymentSucceeded(true);
-            // Le message sera ajouté via Pusher
+            
+            // ✅ NOUVEAU: Ajouter message de succès au chat
+            setTimeout(() => {
+              addMessage({
+                type: 'assistant',
+                content: `🎉 **Paiement par carte réussi !**
+
+✅ **Transaction confirmée**
+💳 **Méthode :** Carte bancaire  
+🆔 **Référence :** ${paymentIntent.id}
+
+📧 Un reçu de paiement vous sera envoyé par email.
+🚚 Votre commande sera préparée et expédiée dans les plus brefs délais.
+
+Merci pour votre confiance ! 🙏`,
+                choices: [
+                  '📦 Suivre ma commande',
+                  '📧 Recevoir le reçu par email',
+                  '🛍️ Autres produits'
+                ],
+                assistant: {
+                  name: 'Rose',
+                  title: 'Assistante d\'achat'
+                },
+                metadata: {
+                  orderId,
+                  paymentIntentId: paymentIntent.id,
+                  flags: { 
+                    orderCompleted: true, 
+                    paymentConfirmed: true,
+                    stripePayment: true 
+                  }
+                },
+                timestamp: new Date().toISOString()
+              });
+              
+              onSuccess?.(paymentIntent.id);
+              
+              // Fermer le modal après 2 secondes
+              setTimeout(() => {
+                onClose();
+              }, 2000);
+            }, 1000);
             break;
             
           case 'processing':
             console.log('⏳ Payment is processing...');
-            // Attendre la confirmation via Pusher
+            setError('Votre paiement est en cours de traitement. Vous recevrez une confirmation sous peu.');
             break;
             
           case 'requires_action':
             console.log('🔐 Payment requires additional action');
-            // Stripe va gérer automatiquement (3D Secure, etc.)
+            // Stripe gère automatiquement (3D Secure, etc.)
             break;
             
           default:
@@ -258,7 +359,9 @@ Merci pour votre confiance ! 🙏`,
 
     } catch (err) {
       console.error('❌ Payment error:', err);
-      setError(err instanceof Error ? err.message : 'Une erreur inattendue s\'est produite');
+      const errorMessage = err instanceof Error ? err.message : 'Une erreur inattendue s\'est produite';
+      setError(errorMessage);
+      onError?.(errorMessage);
       setProcessing(false);
     }
   };
@@ -283,19 +386,23 @@ Merci pour votre confiance ! 🙏`,
   // ✅ AFFICHAGE: État de succès
   if (paymentSucceeded) {
     return (
-      <div className="text-center py-8">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="text-center py-8"
+      >
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Paiement réussi !
         </h3>
         <p className="text-gray-600 mb-4">
-          Votre commande a été confirmée avec succès.
+          Votre paiement a été traité avec succès.
         </p>
         <div className="flex items-center justify-center text-sm text-gray-500">
           <Loader2 className="w-4 h-4 animate-spin mr-2" />
           Fermeture automatique...
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -313,7 +420,9 @@ Merci pour votre confiance ! 🙏`,
             {amount && (
               <div className="flex justify-between">
                 <span>Montant :</span>
-                <span className="font-medium">{amount.toLocaleString()} {currency?.toUpperCase()}</span>
+                <span className="font-medium">
+                  {amount.toLocaleString()} FCFA
+                </span>
               </div>
             )}
           </div>
@@ -369,14 +478,17 @@ Merci pour votre confiance ! 🙏`,
               Traitement...
             </>
           ) : (
-            `Payer ${amount ? amount.toLocaleString() + ' ' + currency?.toUpperCase() : ''}`
+            `Payer ${amount ? Math.round(amount / 656) + '€' : ''}`
           )}
         </Button>
       </div>
 
       {/* ✅ Informations de sécurité */}
-      <div className="text-xs text-gray-500 text-center pt-2">
-        <p>🔒 Paiement sécurisé par Stripe</p>
+      <div className="text-xs text-gray-500 text-center pt-2 border-t">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span>Paiement sécurisé par Stripe</span>
+        </div>
         <p>Vos informations bancaires sont chiffrées et protégées</p>
       </div>
     </form>

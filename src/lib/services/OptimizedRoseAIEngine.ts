@@ -361,7 +361,7 @@ export class OptimizedRoseAIEngine {
 
   private createGeneralResponse(product: ProductDataWithStock): RoseResponse {
     return {
-      message: `Je suis là pour vous aider avec **${product.name}** ! 😊\n\nQue souhaitez-vous savoir exactement ?`,
+      message: `Je suis là pour vous aider avec le jeu **${product.name}** ! 😊\n\nQue souhaitez-vous savoir exactement ?`,
       choices: [
         'Comment y jouer ?',
         'C\'est pour qui ?',

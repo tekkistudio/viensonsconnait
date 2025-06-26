@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION FINALE CORRIGÉE
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE MESSAGE INITIAL
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -10,7 +10,6 @@ import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { ConversationProvider } from '@/hooks/useConversationContext';
 import { OptimizedChatService } from '@/lib/services/OptimizedChatService';
 import { WelcomeMessageService } from '@/lib/services/WelcomeMessageService';
-import DynamicContentService from '@/lib/services/DynamicContentService';
 import { SessionManager } from '@/lib/services/SessionManager';
 import ChatMessage from './components/ChatMessage';
 import ChatChoices from './components/ChatChoices';
@@ -21,7 +20,6 @@ import type { PaymentProvider } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { ProductData } from '@/types/chat';
 import type { ChatMessage as ChatMessageType, ConversationStep } from '@/types/chat';
-import { supabase } from '@/lib/supabase';
 import { SpeechRecognition } from '@/types/speech';
 
 interface ChatContainerProps {
@@ -79,6 +77,10 @@ const ChatContainer = ({
   const chatRef = useRef<HTMLDivElement>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [stripeModalData, setStripeModalData] = useState<{
+    amount: number;
+    orderId: string;
+  } | null>(null);
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -92,11 +94,10 @@ const ChatContainer = ({
   // Services initialisés
   const [optimizedService] = useState(() => OptimizedChatService.getInstance());
   const [welcomeService] = useState(() => WelcomeMessageService.getInstance());
-  const [dynamicContentService] = useState(() => DynamicContentService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
   
-  // État global pour éviter les doublons
-  const [globalInitialized, setGlobalInitialized] = useState(false);
+  // États pour éviter les doublons
+  const [initializationLock, setInitializationLock] = useState(false);
 
   // CONVERSION: Product vers ProductData
   const productData = convertProductToProductData(product);
@@ -205,81 +206,85 @@ const ChatContainer = ({
     }
   }, [isVoiceSupported, recognition, isListening, isProcessing]);
 
-  // INITIALISATION CORRIGÉE du chat avec message d'accueil
+  // ✅ INITIALISATION CORRIGÉE DU CHAT avec message d'accueil DESKTOP - VERSION SIMPLIFIÉE
   useEffect(() => {
-    if (!product?.id || welcomeMessageAdded || globalInitialized) return;
+    if (!product?.id || initializationLock) {
+      return;
+    }
 
     const initializeChat = async () => {
       try {
-        console.log('🚀 Initializing chat session:', { productId: product.id, storeId, isDesktop: !isMobile });
+        console.log('🚀 [DESKTOP] Starting SIMPLIFIED chat initialization:', { 
+          productId: product.id, 
+          storeId, 
+          messagesCount: messages.length,
+          flags: flags?.isInitialized
+        });
         
-        // Vérifier si déjà des messages
-        const globalState = useChatStore.getState();
-        const currentMessages = globalState.messages || [];
+        // Verrouiller l'initialisation pour éviter les doublons
+        setInitializationLock(true);
         
-        if (currentMessages.length > 0 || globalState.flags?.isInitialized) {
-          console.log('📝 Chat already has messages or is initialized, skipping');
+        // ✅ CORRECTION: Condition simplifiée - uniquement vérifier les messages
+        if (messages.length > 0) {
+          console.log('📝 [DESKTOP] Messages already exist, skipping initialization');
           setIsInitialized(true);
           setWelcomeMessageAdded(true);
-          setGlobalInitialized(true);
           return;
         }
 
-        // Créer session
-        const newSessionId = await sessionManager.getOrCreateSession(product.id, storeId);
-        console.log('🆕 Session created:', newSessionId);
+        // ✅ ÉTAPE 1: Créer la session immédiatement
+        const newSessionId = `desktop_${product.id}_${Date.now()}`;
+        console.log('🆕 [DESKTOP] Creating session:', newSessionId);
 
+        // ✅ ÉTAPE 2: Initialiser le store
         if (initializeSession) {
           initializeSession(product.id, storeId, newSessionId);
-          setIsInitialized(true);
-          
-          // Délai pour éviter les conditions de course
-          setTimeout(() => {
-            const finalState = useChatStore.getState();
-            
-            if (finalState.messages?.length === 0 && !welcomeMessageAdded && !finalState.flags?.isInitialized) {
-              // UTILISER LE SERVICE DE MESSAGE D'ACCUEIL
-              const welcomeMessage = !isMobile 
-                ? welcomeService.generateDesktopWelcomeMessage(
-                    product.name,
-                    newSessionId,
-                    product.id,
-                    product.price,
-                    productData.reviewCount
-                  )
-                : welcomeService.generateWelcomeMessage(
-                    product.name,
-                    newSessionId,
-                    product.id
-                  );
-              
-              console.log('📝 Adding welcome message to chat');
-              addMessage(welcomeMessage);
-              setWelcomeMessageAdded(true);
-              setGlobalInitialized(true);
-              
-              if (store.updateFlags) {
-                store.updateFlags({ isInitialized: true });
-              }
-              
-              localStorage.setItem('vosc-chat-initialized', 'true');
-            } else {
-              console.log('⚠️ Welcome message skipped - messages exist or already initialized');
-              setWelcomeMessageAdded(true);
-              setGlobalInitialized(true);
-            }
-          }, 800);
+          console.log('✅ [DESKTOP] Store initialized');
+        }
+
+        // ✅ ÉTAPE 3: Ajouter le message d'accueil IMMÉDIATEMENT
+        console.log('➕ [DESKTOP] Adding welcome message immediately...');
+        
+        const welcomeMessage = welcomeService.generateDesktopWelcomeMessage(
+          product.name,
+          newSessionId,
+          product.id,
+          product.price,
+          productData.reviewCount
+        );
+        
+        // ✅ CORRECTION CRITIQUE: Ajouter le message sans délai
+        addMessage(welcomeMessage);
+        setWelcomeMessageAdded(true);
+        setIsInitialized(true);
+        
+        console.log('✅ [DESKTOP] Welcome message added successfully');
+        
+        // Marquer comme initialisé dans le store
+        if (store.updateFlags) {
+          store.updateFlags({ isInitialized: true });
         }
         
       } catch (err) {
-        console.error('❌ Error initializing chat:', err);
+        console.error('❌ [DESKTOP] Error initializing chat:', err);
         setIsInitialized(true);
         setWelcomeMessageAdded(true);
+        setInitializationLock(false);
       }
     };
 
+    // ✅ CORRECTION: Exécuter immédiatement sans délai
     initializeChat();
-  }, [product.id, storeId, welcomeMessageAdded, globalInitialized, isMobile, sessionManager, initializeSession, addMessage, store, welcomeService, productData.reviewCount]);
+  }, [product.id, storeId, initializationLock, messages.length]);
+
+  // ✅ NOUVEAU: Effect séparé pour surveiller l'ajout du message d'accueil
+  useEffect(() => {
+    if (!welcomeMessageAdded && messages.length > 0) {
+      console.log('✅ [DESKTOP] Messages detected, marking as initialized');
+      setWelcomeMessageAdded(true);
+      setIsInitialized(true);
+    }
+  }, [messages.length, welcomeMessageAdded]);
 
   // Auto-scroll optimisé
   useEffect(() => {
@@ -295,138 +300,119 @@ const ChatContainer = ({
     }
   }, [messages, showTyping]);
 
-  // GESTION DES MESSAGES avec le service optimisé
-  const sendMessage = async (content: string) => {
-  try {
-    console.log('📤 Processing message:', { content, sessionId, currentStep });
-    
-    // Ajouter le message utilisateur
-    const userMessage: ChatMessageType = {
-      type: 'user',
-      content,
-      timestamp: new Date().toISOString()
-    };
-    
-    addMessage(userMessage);
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    let response: ChatMessageType;
-    
-    // ✅ VÉRIFIER SI C'EST UNE RÉPONSE AU MESSAGE D'ACCUEIL
-    if (welcomeService.isWelcomeResponse(content)) {
-      console.log('🌹 Handling welcome response');
-      response = await welcomeService.handleWelcomeButtonResponse(
+  // ✅ GESTION DES MESSAGES avec le service optimisé CORRIGÉ
+  const sendMessage = useCallback(async (content: string) => {
+    try {
+      console.log('📤 [DESKTOP] Starting sendMessage:', {
+        content: content.substring(0, 50),
+        sessionId,
+        currentStep,
+        productId: product.id,
+        productName: product.name
+      });
+      
+      // ✅ NOUVEAU: Gérer l'ouverture du modal Stripe
+      if (content.startsWith('STRIPE_MODAL_OPEN:')) {
+        const amount = parseInt(content.split(':')[1]);
+        const orderId = `STRIPE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
+        setStripeModalData({ amount, orderId });
+        setStripeModalOpen(true);
+        return;
+      }
+      
+      // Vérifications de sécurité
+      if (!product?.id || !product?.name || !sessionId) {
+        throw new Error('Données manquantes pour l\'envoi du message');
+      }
+      
+      // Ajouter le message utilisateur immédiatement
+      const userMessage: ChatMessageType = {
+        type: 'user',
         content,
-        product.id,
-        product.name
-      );
-    } else {
-      // ✅ CORRECTION: Ajouter await devant optimizedService.processMessage
-      console.log('⚙️ Using OptimizedChatService');
-      response = await optimizedService.processMessage(
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('📝 [DESKTOP] Adding user message');
+      addMessage(userMessage);
+      
+      // Délai pour l'affichage utilisateur
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('⚙️ [DESKTOP] Calling OptimizedChatService.processMessage');
+      
+      // ✅ UTILISER LE SERVICE CORRIGÉ
+      const response = await optimizedService.processMessage(
         sessionId,
         content,
         currentStep || 'initial',
         product.id,
         product.name
       );
-    }
-
-    // Délai pour l'animation
-    setTimeout(() => {
-      console.log('✅ Response generated');
-      addMessage(response);
       
-      // Mettre à jour l'état
-      if (response.metadata?.nextStep) {
-        store.setCurrentStep?.(response.metadata.nextStep);
-      }
-      
-      if (response.metadata?.orderData) {
-        updateOrderData(response.metadata.orderData);
-      }
+      console.log('✅ [DESKTOP] Response received from service');
 
-      // ✅ CORRECTION: Gérer les actions spéciales avec vérification de type
-      if (response.metadata?.actions && typeof response.metadata.actions === 'object') {
-        const actions = response.metadata.actions;
+      // Délai pour l'animation
+      setTimeout(() => {
+        console.log('✅ [DESKTOP] Adding response to chat');
+        addMessage(response);
         
-        // Vérifier si showPayment existe et est true
-        if ('showPayment' in actions && actions.showPayment === true) {
-          // ✅ CORRECTION: Utiliser PaymentProvider harmonisé (lowercase)
-          let paymentProvider: PaymentProvider;
-          
-          // Mapping des valeurs possibles vers le type harmonisé
-          const providerFromMetadata = response.metadata.paymentProvider;
-          switch (providerFromMetadata) {
-            case 'wave':
-              paymentProvider = 'wave'; // ✅ CORRECTION: lowercase
-              break;
-            case 'orange_money':
-              paymentProvider = 'orange_money'; // ✅ CORRECTION: lowercase
-              break;
-            case 'wave':
-            case 'orange_money':
-            case 'card':
-            case 'CASH':
-            case 'cash_on_delivery':
-            case 'stripe':
-            case 'bictorys':
-            case 'other':
-              paymentProvider = providerFromMetadata;
-              break;
-            default:
-              paymentProvider = 'bictorys'; // Fallback
-          }
-          
-          setPaymentModal({ 
-            isOpen: true, 
-            iframeUrl: '', 
-            provider: paymentProvider // ✅ CORRECTION: Type harmonisé
-          });
+        // Mettre à jour l'état si nécessaire
+        if (response.metadata?.nextStep) {
+          console.log('🔄 [DESKTOP] Updating current step to:', response.metadata.nextStep);
+          store.setCurrentStep?.(response.metadata.nextStep);
         }
-      }
-    }, 800);
+        
+        if (response.metadata?.orderData) {
+          console.log('📦 [DESKTOP] Updating order data');
+          updateOrderData(response.metadata.orderData);
+        }
+      }, 800);
 
-  } catch (err) {
-    console.error('❌ Error in sendMessage:', err);
-    
-    setTimeout(() => {
-      const errorMessage: ChatMessageType = {
-        type: 'assistant',
-        content: `😔 **Une erreur est survenue**\n\nVoulez-vous réessayer ou contacter notre support ?`,
-        choices: ['🔄 Réessayer', '📞 Contacter le support'],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'error_recovery' as ConversationStep,
-          flags: { hasError: true }
-        },
-        timestamp: new Date().toISOString()
-      };
-      addMessage(errorMessage);
-    }, 500);
-  }
-};
+    } catch (err) {
+      console.error('❌ [DESKTOP] Error in sendMessage:', err);
+      
+      setTimeout(() => {
+        const errorMessage: ChatMessageType = {
+          type: 'assistant',
+          content: `😔 **Une erreur s'est produite**
+
+${err instanceof Error ? err.message : 'Erreur inconnue'}
+
+Voulez-vous réessayer ?`,
+          choices: ['🔄 Réessayer', '📞 Contacter le support'],
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+          metadata: {
+            nextStep: 'error_recovery' as ConversationStep,
+            flags: { hasError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+        addMessage(errorMessage);
+      }, 500);
+    }
+  }, [sessionId, currentStep, product.id, product.name, optimizedService, addMessage, updateOrderData, store]);
 
   // GESTION DES CHOIX
   const handleChoiceSelect = useCallback(async (choice: string) => {
     if (isProcessing) {
-      console.log('⏳ Processing in progress, ignoring choice');
+      console.log('⏳ [DESKTOP] Processing in progress, ignoring choice');
       return;
     }
 
-    console.log('🔘 Choice selected:', choice);
+    console.log('🔘 [DESKTOP] Choice selected:', choice);
     setIsProcessing(true);
     updateTypingStatus(true);
     
     try {
       await sendMessage(choice);
     } catch (error) {
-      console.error('❌ Error sending choice:', error);
+      console.error('❌ [DESKTOP] Error sending choice:', error);
     } finally {
       updateTypingStatus(false);
       setIsProcessing(false);
     }
-  }, [isProcessing, updateTypingStatus]);
+  }, [isProcessing, updateTypingStatus, sendMessage]);
 
   // GESTION ÉVÉNEMENTS CLAVIER
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -442,7 +428,7 @@ const ChatContainer = ({
   
     if (!content || isProcessing) return;
     
-    console.log('📤 Submitting message:', content);
+    console.log('📤 [DESKTOP] Submitting message:', content);
     
     setInputMessage('');
     setIsProcessing(true);
@@ -450,13 +436,13 @@ const ChatContainer = ({
     
     sendMessage(content)
       .catch((error) => {
-        console.error('❌ Error sending message:', error);
+        console.error('❌ [DESKTOP] Error sending message:', error);
       })
       .finally(() => {
         updateTypingStatus(false);
         setIsProcessing(false);
       });
-  }, [inputMessage, isProcessing, updateTypingStatus]);
+  }, [inputMessage, isProcessing, updateTypingStatus, sendMessage]);
 
   // GESTION FERMETURE MODAL PAIEMENT
   const handleClosePaymentModal = useCallback(() => {
@@ -467,16 +453,40 @@ const ChatContainer = ({
     });
   }, [setPaymentModal]);
 
-  // RENDU PRINCIPAL
+  // ✅ RENDU CONDITIONNEL pour éviter l'affichage prématuré
+  if (!isInitialized && !initializationLock) {
+    return (
+      <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
+        <div className="flex-shrink-0">
+          <ChatHeader
+            product={productData}
+            isDesktop={!isMobile}
+            cartItems={cartItems}
+            showCart={cartItems.length > 0}
+            onClose={onClose}
+          />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93] mx-auto mb-4" />
+            <p className="text-gray-600">Initialisation du chat...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP SÉPARÉS
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
-      {/* HEADER AVEC NOUVEAU FORMAT */}
+      {/* HEADER */}
       <div className="flex-shrink-0">
         <ChatHeader
           product={productData}
           isDesktop={!isMobile}
           cartItems={cartItems}
           showCart={cartItems.length > 0}
+          onClose={onClose}
         />
       </div>
 
@@ -497,7 +507,8 @@ const ChatContainer = ({
             >
               <ChatMessage message={message} />
               
-              {message.choices && message.choices.length > 0 && (
+              {/* ✅ AFFICHER LES CHOIX SEULEMENT SI PAS DE FLAG useInterfaceButtons */}
+              {message.choices && message.choices.length > 0 && !message.metadata?.flags?.useInterfaceButtons && (
                 <div className="mt-3">
                   <ChatChoices
                     choices={message.choices}
@@ -534,6 +545,51 @@ const ChatContainer = ({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ✅ BOUTONS D'INTERFACE DESKTOP - Affichés SEULEMENT pour le message d'accueil */}
+        {!isMobile && messages.length > 0 && messages[messages.length - 1]?.metadata?.flags?.useInterfaceButtons && (
+          <div className="mt-4 space-y-3">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid grid-cols-1 gap-2"
+            >
+              <button
+                onClick={() => handleChoiceSelect('Je veux l\'acheter maintenant')}
+                disabled={isProcessing}
+                className="w-full px-4 py-3 bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ⚡ Commander rapidement
+              </button>
+              
+              <button
+                onClick={() => handleChoiceSelect('J\'ai des questions à poser')}
+                disabled={isProcessing}
+                className="w-full px-4 py-2 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ❓ Poser une question
+              </button>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleChoiceSelect('Je veux en savoir plus')}
+                  disabled={isProcessing}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  📄 Infos livraison
+                </button>
+                
+                <button
+                  onClick={() => handleChoiceSelect('Je veux en savoir plus')}
+                  disabled={isProcessing}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  💬 En savoir plus sur le jeu
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
 
       {/* ZONE SAISIE avec reconnaissance vocale */}
@@ -610,10 +666,32 @@ const ChatContainer = ({
         }}
       />
       
+      {/* ✅ NOUVEAU: Modal Stripe intégré */}
+      <StripePaymentModal
+        isOpen={stripeModalOpen}
+        onClose={() => {
+          setStripeModalOpen(false);
+          setStripeModalData(null);
+        }}
+        amount={stripeModalData?.amount}
+        orderId={stripeModalData?.orderId}
+        currency="fcfa"
+        onSuccess={(paymentIntentId) => {
+          console.log('✅ Stripe payment successful:', paymentIntentId);
+          setStripeModalOpen(false);
+          setStripeModalData(null);
+        }}
+        onError={(error) => {
+          console.error('❌ Stripe payment error:', error);
+          // Le modal gère déjà l'affichage de l'erreur
+        }}
+      />
+      
+      {/* Legacy Stripe modal pour compatibilité */}
       {payment?.status === 'processing' && payment?.clientSecret && (
         <StripePaymentModal
-          isOpen={stripeModalOpen}
-          onClose={() => setStripeModalOpen(false)}
+          isOpen={true}
+          onClose={() => setPaymentModal({ isOpen: false, iframeUrl: '', provider: undefined })}
           clientSecret={payment.clientSecret}
         />
       )}

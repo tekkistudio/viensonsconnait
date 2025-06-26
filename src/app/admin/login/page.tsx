@@ -101,7 +101,7 @@ export default function AdminLoginPage() {
               <blockquote className="text-xl leading-relaxed text-white mb-8">
                 "Dukka est née d'une observation simple : en Afrique, l'achat n'est pas qu'une simple transaction, c'est avant tout une conversation, un échange humain. C'est par cette conversation que se construit la confiance, que s'échangent les informations sur les produits, et que se conclut la vente. Notre mission est de permettre aux e-commerçants de vendre comme l'Afrique achète."
               </blockquote>
-              <footer className="text-theme-secondary">
+              <footer className="text-white">
                 - Ibuka Ndjoli, founder Dukka
               </footer>
             </div>
