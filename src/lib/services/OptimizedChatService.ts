@@ -1,4 +1,4 @@
-// src/lib/services/OptimizedChatService.ts - VERSION CORRIGÉE AVEC PAIEMENT FONCTIONNEL
+// src/lib/services/OptimizedChatService.ts - VERSION CORRIGÉE AVEC UUID ET WAVE FLOW
 
 import { supabase } from '@/lib/supabase';
 import type { 
@@ -41,7 +41,7 @@ export class OptimizedChatService {
   private welcomeService = WelcomeMessageService.getInstance();
 
   private constructor() {
-    console.log('🔧 OptimizedChatService v5.1 initialized (Wave Payment Fixed)');
+    console.log('🔧 OptimizedChatService v5.3 initialized (Numeric ID + Welcome Fix)');
   }
 
   public static getInstance(): OptimizedChatService {
@@ -80,6 +80,18 @@ export class OptimizedChatService {
       if (this.isExpressPurchaseTrigger(message)) {
         console.log('🛒 Express purchase detected');
         return await this.startExpressPurchase(sessionId, productId, productName);
+      }
+
+      // ✅ NOUVEAU: Gestion du retour Wave et demande d'ID transaction
+      if (message === 'WAVE_PAYMENT_INITIATED') {
+        console.log('🌊 Wave payment return detected');
+        return await this.handleWavePaymentReturn(sessionId);
+      }
+
+      // ✅ NOUVEAU: Validation d'ID de transaction Wave
+      if (this.isWaveTransactionId(message)) {
+        console.log('🔑 Wave transaction ID detected');
+        return await this.handleWaveTransactionVerification(sessionId, message);
       }
 
       // ✅ Gérer le flow express (étapes scénarisées) 
@@ -751,7 +763,7 @@ Vous pouvez aussi taper directement votre adresse complète (Quartier, Ville)`,
     };
   }
 
-  // ✅ ÉTAPE 5 : Paiement CORRIGÉ AVEC VÉRIFICATION WAVE MANUELLE
+  // ✅ ÉTAPE 5 : Paiement CORRIGÉ AVEC WAVE FLOW AUTOMATIQUE
   private async handlePaymentStepFluid(
     sessionId: string,
     message: string,
@@ -801,14 +813,14 @@ Pouvez-vous choisir parmi ces options ?`,
     await this.saveOrderStateToDatabase(sessionId, orderState);
 
     if (paymentMethod === 'wave') {
-      // ✅ WAVE: Créer la commande mais en statut pending
+      // ✅ WAVE: Créer la commande mais en statut pending ET déclencher automatiquement le retour
       const orderResult = await this.createOrderCorrected(sessionId, orderState, 'pending');
       
       if (!orderResult.success) {
         return this.createErrorMessage(orderResult.error || 'Erreur lors de la création de la commande');
       }
 
-      // ✅ NOUVEAU: Message pour Wave avec instructions spéciales
+      // ✅ NOUVEAU: Message pour Wave avec instructions spéciales ET auto-retour
       const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
       
       return {
@@ -820,7 +832,7 @@ Pouvez-vous choisir parmi ces options ?`,
 
 🔗 **Cliquez sur le bouton Wave ci-dessous pour payer**
 
-Après votre paiement, revenez ici et donnez-moi votre **ID de Transaction** Wave pour confirmer votre commande.
+⚠️ **IMPORTANT :** Après votre paiement, revenez ici et donnez-moi votre **ID de Transaction** Wave pour confirmer votre commande.
 
 💡 **L'ID de Transaction se trouve dans votre historique Wave et commence par 'T'**`,
         choices: [
@@ -875,13 +887,13 @@ ${paymentInstructions}
 **Détails de livraison :**
 📍 ${orderState.data.address}, ${orderState.data.city}
 ⏰ Livraison sous 24-48h ouvrables
-📞 Nous vous tiendrons informé(e) par SMS
+📞 Nous vous tiendrons informé(e) via WhatsApp
 
-Merci pour votre confiance ! 🙏`,
+✨ **Merci pour votre confiance en VIENS ON S'CONNAÎT !**`,
       choices: [
-        '📱 Recevoir confirmations par SMS',
-        '✅ Parfait, merci !',
-        '🛍️ Commander un autre jeu'
+        '⭐ Parfait, merci !',
+        '🛍️ Commander un autre jeu',
+        '📱 Télécharger l\'app mobile'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -908,10 +920,17 @@ Merci pour votre confiance ! 🙏`,
   // ✅ NOUVEAU: Gérer le retour du paiement Wave
   private async handleWavePaymentReturn(
     sessionId: string,
-    orderState: ExpressOrderState
+    orderState?: ExpressOrderState
   ): Promise<ChatMessage> {
     
-    const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
+    // Si pas d'orderState fourni, essayer de le récupérer
+    if (!orderState) {
+      orderState = this.orderStates.get(sessionId);
+    }
+
+    const totalAmount = orderState ? 
+      orderState.data.unitPrice * orderState.data.quantity : 
+      0;
     
     return {
       type: 'assistant',
@@ -945,7 +964,7 @@ Pour confirmer votre commande, donnez-moi votre **ID de Transaction Wave**.
   private async handleWaveTransactionVerification(
     sessionId: string,
     transactionId: string,
-    orderState: ExpressOrderState
+    orderState?: ExpressOrderState
   ): Promise<ChatMessage> {
     
     const cleanTransactionId = transactionId.trim().toUpperCase();
@@ -998,10 +1017,16 @@ Veuillez vérifier et réessayer.`,
         return this.createErrorMessage('Erreur lors de la mise à jour de la commande');
       }
 
-      // ✅ Nettoyer l'état
-      orderState.step = 'confirmation';
-      this.orderStates.set(sessionId, orderState);
-      await this.saveOrderStateToDatabase(sessionId, orderState);
+      // ✅ Nettoyer l'état et récupérer les données
+      if (!orderState) {
+        orderState = this.orderStates.get(sessionId);
+      }
+      
+      if (orderState) {
+        orderState.step = 'confirmation';
+        this.orderStates.set(sessionId, orderState);
+        await this.saveOrderStateToDatabase(sessionId, orderState);
+      }
 
       return {
         type: 'assistant',
@@ -1011,15 +1036,15 @@ Veuillez vérifier et réessayer.`,
 ✅ **Votre commande est maintenant confirmée**
 
 **Détails de livraison :**
-📍 ${orderState.data.address}, ${orderState.data.city}
+📍 ${orderState?.data.address || 'Adresse confirmée'}, ${orderState?.data.city || 'Ville confirmée'}
 ⏰ Livraison sous 24-48h ouvrables
-📞 Nous vous tiendrons informé(e) par SMS
+📞 Nous vous tiendrons informé(e) via WhatsApp
 
 🙏 **Merci pour votre confiance en VIENS ON S'CONNAÎT !**`,
         choices: [
-          '📱 Recevoir confirmations par SMS',
-          '⭐ Laisser un avis',
-          '🛍️ Commander un autre jeu'
+          '⭐ Parfait, merci !',
+          '🛍️ Commander un autre jeu',
+          '📱 Télécharger l\'app mobile'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
@@ -1044,23 +1069,24 @@ Veuillez vérifier et réessayer.`,
     }
   }
 
-  // ✅ CORRECTION MAJEURE : Créer une commande avec le BON SCHÉMA et gestion statut
+  // ✅ CORRECTION MAJEURE : Créer une commande avec ID numérique pour bigint
   private async createOrderCorrected(
     sessionId: string,
     orderState: ExpressOrderState,
     orderStatus: string = 'pending'
   ): Promise<{ success: boolean; orderId?: string; error?: string }> {
     try {
-      console.log('📦 Creating order with CORRECTED schema and status:', orderStatus);
+      console.log('📦 Creating order with numeric ID for bigint column, status:', orderStatus);
 
-      // ✅ CORRECTION CRITIQUE: Générer un ID court uniquement numérique pour éviter bigint error
+      // ✅ CORRECTION CRITIQUE: Utiliser un ID numérique pour correspondre au type bigint
       const timestamp = Date.now();
       const random = Math.floor(Math.random() * 1000);
-      const orderId = `${timestamp}${random}`; // ID purement numérique comme string
+      const numericOrderId = parseInt(`${timestamp}${random}`); // ID numérique pour bigint
+      const orderIdString = numericOrderId.toString(); // Version string pour retour
       
       // ✅ SCHÉMA CORRIGÉ : Utiliser les bons noms de colonnes et types
       const orderData = {
-        id: orderId, // String numérique pour compatibilité
+        id: numericOrderId, // Nombre entier pour bigint
         session_id: sessionId,
         product_id: orderState.data.productId,
         customer_name: `${orderState.data.firstName || 'Client'} ${orderState.data.lastName || ''}`.trim(),
@@ -1101,7 +1127,7 @@ Veuillez vérifier et réessayer.`,
         updated_at: new Date().toISOString()
       };
 
-      console.log('📋 Order data prepared with corrected schema:', {
+      console.log('📋 Order data prepared with numeric ID:', {
         id: orderData.id,
         status: orderData.status,
         payment_status: orderData.payment_status,
@@ -1117,7 +1143,7 @@ Veuillez vérifier et réessayer.`,
         .single();
 
       if (error) {
-        console.error('❌ Database error CORRECTED:', {
+        console.error('❌ Database error with numeric ID:', {
           error: error.message,
           code: error.code,
           details: error.details,
@@ -1129,15 +1155,15 @@ Veuillez vérifier et réessayer.`,
         };
       }
 
-      console.log('✅ Order created successfully with corrected schema:', data.id);
+      console.log('✅ Order created successfully with numeric ID:', data.id);
       
       return {
         success: true,
-        orderId: data.id
+        orderId: orderIdString // Retourner la version string pour affichage
       };
 
     } catch (error) {
-      console.error('❌ Error creating order with corrected schema:', error);
+      console.error('❌ Error creating order with numeric ID:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -1145,7 +1171,7 @@ Veuillez vérifier et réessayer.`,
     }
   }
 
-  // ✅ GESTION DES AUTRES MÉTHODES (inchangées)
+  // ✅ GESTION DES AUTRES MÉTHODES (inchangées mais optimisées)
   public async handleExpressFlow(
     sessionId: string,
     message: string,
@@ -1191,7 +1217,7 @@ Veuillez vérifier et réessayer.`,
     );
   }
 
-  // ✅ ÉTAPE 6 : Confirmation finale
+  // ✅ ÉTAPE 6 : Confirmation finale (SMS supprimé)
   private async handleConfirmationStep(
     sessionId: string,
     message: string,
@@ -1211,30 +1237,35 @@ Veuillez vérifier et réessayer.`,
       console.error('❌ Error cleaning session:', error);
     }
 
-    if (message.includes('Recevoir confirmations')) {
+    if (message.includes('Commander un autre jeu')) {
+      return await this.createUpsellMessage(orderState.data.productId);
+    }
+
+    if (message.includes('Télécharger l\'app')) {
       return {
         type: 'assistant',
-        content: `📱 **SMS de confirmation envoyé !**
+        content: `📱 **Téléchargez l'app VIENS ON S'CONNAÎT !**
 
-Vous recevrez toutes les mises à jour de votre commande par SMS.
+Accédez à tous nos jeux directement sur votre smartphone :
 
-C'était un plaisir de vous aider ! À bientôt chez VIENS ON S'CONNAÎT 🎉`,
+🎮 **+10 jeux de cartes** exclusifs
+💝 **Mode couple & famille** 
+🎯 **Défis personnalisés**
+✨ **Nouveau contenu** chaque mois
+
+**Disponible sur :**`,
         choices: [
-          '🛍️ Voir d\'autres jeux',
-          '📱 Télécharger l\'app mobile',
-          '✅ Parfait, merci !'
+          '📱 App Store (iOS)',
+          '🤖 Google Play (Android)',
+          '🔙 Retour à l\'accueil'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
-          nextStep: 'post_purchase' as ConversationStep,
-          flags: { orderCompleted: true, smsRequested: true }
+          nextStep: 'app_download' as ConversationStep,
+          flags: { appPromotion: true }
         },
         timestamp: new Date().toISOString()
       };
-    }
-
-    if (message.includes('Commander un autre jeu')) {
-      return await this.createUpsellMessage(orderState.data.productId);
     }
 
     return {
@@ -1249,7 +1280,7 @@ Votre jeu **${orderState.data.productName}** sera livré dans les plus brefs dé
       choices: [
         '🛍️ Commander un autre jeu',
         '📱 Télécharger l\'app mobile',
-        '⭐ Laisser un avis'
+        '⭐ Merci Rose !'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {

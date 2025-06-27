@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE MESSAGE INITIAL
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE BOUTONS DESKTOP
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -476,7 +476,7 @@ Voulez-vous réessayer ?`,
     );
   }
 
-  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP SÉPARÉS
+  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP CORRIGÉS
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
       {/* HEADER */}
@@ -497,42 +497,58 @@ Voulez-vous réessayer ?`,
         style={{ maxHeight: isFullscreen ? 'calc(100vh - 120px)' : '500px' }}
       >
         <AnimatePresence mode="popLayout">
-          {messages.map((message, index) => (
-            <motion.div
-              key={`${message.timestamp}-${index}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ChatMessage message={message} />
-              
-              {/* ✅ AFFICHER LES CHOIX SEULEMENT SI PAS DE FLAG useInterfaceButtons */}
-              {message.choices && message.choices.length > 0 && !message.metadata?.flags?.useInterfaceButtons && (
-                <div className="mt-3">
-                  <ChatChoices
-                    choices={message.choices}
-                    onChoiceSelect={handleChoiceSelect}
-                    disabled={isProcessing}
-                  />
-                </div>
-              )}
-              
-              {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-                <div className="mt-3">
-                  <QuantitySelector
-                    onQuantitySelect={async (qty) => {
-                      if (message.metadata) {
-                        message.metadata.quantityHandled = true;
-                      }
-                      handleChoiceSelect(qty.toString());
-                    }}
-                    maxQuantity={message.metadata?.maxQuantity || 10}
-                  />
-                </div>
-              )}
-            </motion.div>
-          ))}
+          {messages.map((message, index) => {
+            // ✅ CORRECTION MAJEURE: Déterminer s'il faut afficher les choix ou les boutons d'interface
+            const isLastMessage = index === messages.length - 1;
+            const isWelcomeMessage = message.metadata?.flags?.isWelcome || message.metadata?.flags?.useInterfaceButtons;
+            const shouldShowInterfaceButtons = 
+              !isMobile && 
+              isLastMessage && 
+              message.type === 'assistant' && 
+              isWelcomeMessage;
+            
+            const shouldShowMessageChoices = 
+              message.choices && 
+              message.choices.length > 0 && 
+              !shouldShowInterfaceButtons;
+
+            return (
+              <motion.div
+                key={`${message.timestamp}-${index}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChatMessage message={message} />
+                
+                {/* ✅ CORRECTION: Afficher les choix SEULEMENT si pas de boutons d'interface */}
+                {shouldShowMessageChoices && (
+                  <div className="mt-3">
+                    <ChatChoices
+                      choices={message.choices!} // L'assertion ! car on sait que choices existe
+                      onChoiceSelect={handleChoiceSelect}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                )}
+                
+                {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+                  <div className="mt-3">
+                    <QuantitySelector
+                      onQuantitySelect={async (qty) => {
+                        if (message.metadata) {
+                          message.metadata.quantityHandled = true;
+                        }
+                        handleChoiceSelect(qty.toString());
+                      }}
+                      maxQuantity={message.metadata?.maxQuantity || 10}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
 
           {(showTyping || isTyping) && (
             <motion.div
@@ -546,47 +562,41 @@ Voulez-vous réessayer ?`,
           )}
         </AnimatePresence>
 
-        {/* ✅ BOUTONS D'INTERFACE DESKTOP - Affichés SEULEMENT pour le message d'accueil */}
-        {!isMobile && messages.length > 0 && messages[messages.length - 1]?.metadata?.flags?.useInterfaceButtons && (
+        {/* ✅ BOUTONS D'INTERFACE DESKTOP CORRIGÉS - Mêmes boutons que mobile */}
+        {!isMobile && 
+         messages.length > 0 && 
+         messages[messages.length - 1]?.type === 'assistant' && 
+         (messages[messages.length - 1]?.metadata?.flags?.isWelcome || 
+          messages[messages.length - 1]?.metadata?.flags?.useInterfaceButtons) && (
           <div className="mt-4 space-y-3">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 gap-2"
+              className="grid grid-cols-1 gap-3"
             >
               <button
                 onClick={() => handleChoiceSelect('Je veux l\'acheter maintenant')}
                 disabled={isProcessing}
                 className="w-full px-4 py-3 bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ⚡ Commander rapidement
+                Je veux l'acheter maintenant
               </button>
               
               <button
                 onClick={() => handleChoiceSelect('J\'ai des questions à poser')}
                 disabled={isProcessing}
-                className="w-full px-4 py-2 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ❓ Poser une question
+                J'ai des questions à poser
               </button>
               
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleChoiceSelect('Je veux en savoir plus')}
-                  disabled={isProcessing}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  📄 Infos livraison
-                </button>
-                
-                <button
-                  onClick={() => handleChoiceSelect('Je veux en savoir plus')}
-                  disabled={isProcessing}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  💬 En savoir plus sur le jeu
-                </button>
-              </div>
+              <button
+                onClick={() => handleChoiceSelect('Je veux en savoir plus')}
+                disabled={isProcessing}
+                className="w-full px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Je veux en savoir plus
+              </button>
             </motion.div>
           </div>
         )}

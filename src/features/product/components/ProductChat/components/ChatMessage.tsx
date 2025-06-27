@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE AVEC WAVE
+// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE WAVE FLOW
 'use client';
 
 import React, { useState } from 'react';
@@ -100,7 +100,7 @@ const isPaymentButton = (choice: string): boolean => {
   );
 };
 
-// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec validation manuelle
+// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec auto-retour
 const handleWavePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
@@ -141,12 +141,13 @@ const handleWavePayment = async (
       }
     }
     
-    // ✅ NOUVEAU: Après redirection, envoyer un message pour demander l'ID de transaction
+    // ✅ NOUVEAU: Après redirection, déclencher automatiquement le retour
     setTimeout(() => {
       if (onChoiceSelect) {
+        console.log('🔄 Auto-triggering Wave payment return flow');
         onChoiceSelect('WAVE_PAYMENT_INITIATED');
       }
-    }, 2000);
+    }, 3000); // ✅ 3 secondes pour laisser le temps à l'utilisateur de voir la redirection
     
     return { success: true, redirected: true };
     
@@ -226,7 +227,7 @@ export default function ChatMessage({
   const handleChoiceClick = async (choice: string): Promise<void> => {
     if (processingPayment) return;
     
-    // ✅ CORRECTION: Gestion spécifique Wave
+    // ✅ CORRECTION: Gestion spécifique Wave avec auto-retour
     if (choice.toLowerCase().includes('wave')) {
       setProcessingPayment(choice);
       
@@ -234,8 +235,8 @@ export default function ChatMessage({
         const result = await handleWavePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Wave payment process initiated');
-          // Le message de demande d'ID sera géré par le service
+          console.log('✅ Wave payment process initiated with auto-return');
+          // Le retour automatique est géré dans handleWavePayment
           return;
         }
       } catch (error) {
@@ -250,13 +251,11 @@ export default function ChatMessage({
       setProcessingPayment(choice);
       
       try {
-        const result = await handleStripePayment(choice, metadata);
+        const result = await handleStripePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Stripe payment redirected');
-          if (!result.redirected && onChoiceSelect) {
-            onChoiceSelect(`Paiement ${choice} traité`);
-          }
+          console.log('✅ Stripe payment modal triggered');
+          // Le modal sera géré par le composant parent
           return;
         }
       } catch (error) {
@@ -416,7 +415,7 @@ export default function ChatMessage({
               />
             )}
 
-            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE */}
+            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE AUTO-RETOUR */}
             {message.choices && message.choices.length > 0 && (
               <div className="grid gap-2">
                 {message.choices.map((choice, index) => {
@@ -449,7 +448,7 @@ export default function ChatMessage({
                       {isProcessingThis ? (
                         <>
                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Traitement...</span>
+                          <span>Redirection...</span>
                         </>
                       ) : (
                         <>

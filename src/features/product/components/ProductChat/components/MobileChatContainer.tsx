@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE AVEC BARRE PANIER
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE STRIPE FLOW
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -183,6 +183,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const { setHideHeaderGroup } = useLayoutContext();
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [stripeModalData, setStripeModalData] = useState<{
+    amount: number;
+    orderId: string;
+  } | null>(null);
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -800,107 +804,117 @@ Voulez-vous réessayer ou contacter notre support ?`,
     timestamp: new Date().toISOString()
   }), []);
 
-  // ✅ Envoi de message avec protection
+  // ✅ CORRECTION MAJEURE: Envoi de message avec protection Stripe
   const sendMessage = useCallback(async (content: string) => {
-  if (isProcessing) {
-    console.log('⏳ Already processing a message, ignoring');
-    return;
-  }
-
-  try {
-    console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
-    
-    // Ajouter le message utilisateur immédiatement
-    const userMessage: ChatMessageType = {
-      type: 'user',
-      content,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        flags: {
-          isButtonChoice: true,
-          preventAIIntervention: true
-        }
-      }
-    };
-    
-    addMessage(userMessage);
-
-    let response: ChatMessageType;
-    
-    // ✅ CORRECTION MAJEURE: Utiliser directement OptimizedChatService comme sur desktop
-    try {
-      // Utilisation de l'API chat pour cohérence
-      const apiResponse = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: content,
-          productId: product.id,
-          currentStep: currentStep || 'initial',
-          orderData: orderData || {},
-          sessionId: sessionId || `${product.id}_${Date.now()}`,
-          storeId: storeId || 'default'
-        }),
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error(`Mobile API error ${apiResponse.status}`);
-      }
-
-      const aiResponse = await apiResponse.json();
-      console.log('✅ Mobile: API response received');
-
-      response = {
-        type: 'assistant',
-        content: aiResponse.message || "Je suis là pour vous aider !",
-        choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: aiResponse.nextStep || currentStep,
-          orderData: aiResponse.orderData,
-          flags: aiResponse.flags || {}
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (apiError) {
-      console.error('❌ Mobile: API call failed, falling back to direct service:', apiError);
-      
-      // ✅ FALLBACK: Utiliser directement OptimizedChatService
-      const optimizedService = OptimizedChatService.getInstance();
-      response = await optimizedService.processMessage(
-        sessionId || `${product.id}_${Date.now()}`,
-        content,
-        currentStep || 'initial',
-        product.id,
-        product.name
-      );
+    if (isProcessing) {
+      console.log('⏳ Already processing a message, ignoring');
+      return;
     }
-    
-    // Délai pour l'animation
-    setTimeout(() => {
-      console.log('✅ Mobile: Response generated');
-      addMessage(response);
-      
-      if (response.metadata?.orderData) {
-        updateOrderData(response.metadata.orderData);
-      }
-    }, 800);
 
-  } catch (err) {
-    console.error('❌ Mobile: Error in sendMessage:', err);
-    
-    setTimeout(() => {
-      const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
-      addMessage(errorMessage);
-    }, 500);
-  }
-}, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, createErrorResponse]);
+    try {
+      console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
+      
+      // ✅ NOUVEAU: Gérer l'ouverture du modal Stripe
+      if (content.startsWith('STRIPE_MODAL_OPEN:')) {
+        const amount = parseInt(content.split(':')[1]);
+        const orderId = `STRIPE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
+        setStripeModalData({ amount, orderId });
+        setStripeModalOpen(true);
+        return;
+      }
+      
+      // Ajouter le message utilisateur immédiatement
+      const userMessage: ChatMessageType = {
+        type: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          flags: {
+            isButtonChoice: true,
+            preventAIIntervention: true
+          }
+        }
+      };
+      
+      addMessage(userMessage);
+
+      let response: ChatMessageType;
+      
+      // ✅ CORRECTION MAJEURE: Utiliser directement OptimizedChatService comme sur desktop
+      try {
+        // Utilisation de l'API chat pour cohérence
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
+            productId: product.id,
+            currentStep: currentStep || 'initial',
+            orderData: orderData || {},
+            sessionId: sessionId || `${product.id}_${Date.now()}`,
+            storeId: storeId || 'default'
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          throw new Error(`Mobile API error ${apiResponse.status}`);
+        }
+
+        const aiResponse = await apiResponse.json();
+        console.log('✅ Mobile: API response received');
+
+        response = {
+          type: 'assistant',
+          content: aiResponse.message || "Je suis là pour vous aider !",
+          choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: aiResponse.nextStep || currentStep,
+            orderData: aiResponse.orderData,
+            flags: aiResponse.flags || {}
+          },
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (apiError) {
+        console.error('❌ Mobile: API call failed, falling back to direct service:', apiError);
+        
+        // ✅ FALLBACK: Utiliser directement OptimizedChatService
+        const optimizedService = OptimizedChatService.getInstance();
+        response = await optimizedService.processMessage(
+          sessionId || `${product.id}_${Date.now()}`,
+          content,
+          currentStep || 'initial',
+          product.id,
+          product.name
+        );
+      }
+      
+      // Délai pour l'animation
+      setTimeout(() => {
+        console.log('✅ Mobile: Response generated');
+        addMessage(response);
+        
+        if (response.metadata?.orderData) {
+          updateOrderData(response.metadata.orderData);
+        }
+      }, 800);
+
+    } catch (err) {
+      console.error('❌ Mobile: Error in sendMessage:', err);
+      
+      setTimeout(() => {
+        const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+        addMessage(errorMessage);
+      }, 500);
+    }
+  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, createErrorResponse]);
 
   // ✅ Gestion des choix avec protection
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -1143,7 +1157,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
           />
         </div>
 
-        {/* ✅ MODALS DE PAIEMENT */}
+        {/* ✅ MODALS DE PAIEMENT CORRIGÉS */}
         <BictorysPaymentModal
           isOpen={paymentModal?.isOpen || false}
           onClose={handleClosePaymentModal}
@@ -1158,9 +1172,69 @@ Voulez-vous réessayer ou contacter notre support ?`,
           }}
         />
 
+        {/* ✅ CORRECTION MAJEURE: Modal Stripe corrigé pour mobile */}
+        <StripePaymentModal
+          isOpen={stripeModalOpen}
+          onClose={() => {
+            setStripeModalOpen(false);
+            setStripeModalData(null);
+          }}
+          amount={stripeModalData?.amount}
+          orderId={stripeModalData?.orderId}
+          currency="fcfa"
+          onSuccess={(paymentIntentId) => {
+            console.log('✅ Mobile Stripe payment successful:', paymentIntentId);
+            setStripeModalOpen(false);
+            setStripeModalData(null);
+            
+            // ✅ NOUVEAU: Envoyer message de confirmation SEULEMENT après succès
+            const confirmationMessage: ChatMessageType = {
+              type: 'assistant',
+              content: `🎉 **Paiement Stripe confirmé !**
+
+✅ **Transaction réussie :** ${paymentIntentId}
+✅ **Votre commande est maintenant confirmée**
+
+**Détails de livraison :**
+📍 ${orderData?.address || 'Adresse confirmée'}, ${orderData?.city || 'Ville confirmée'}
+⏰ Livraison sous 24-48h ouvrables
+📞 Nous vous tiendrons informé(e) via WhatsApp
+
+🙏 **Merci pour votre confiance en VIENS ON S'CONNAÎT !**`,
+              choices: [
+                '⭐ Parfait, merci !',
+                '🛍️ Commander un autre jeu',
+                '📱 Télécharger l\'app mobile'
+              ],
+              assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+              metadata: {
+                nextStep: 'express_completed' as ConversationStep,
+                orderData: {
+                  paymentMethod: 'card',
+                  transactionId: paymentIntentId,
+                  status: 'confirmed'
+                },
+                flags: { 
+                  orderCompleted: true,
+                  paymentConfirmed: true,
+                  stripeVerified: true
+                }
+              },
+              timestamp: new Date().toISOString()
+            };
+            
+            addMessage(confirmationMessage);
+          }}
+          onError={(error) => {
+            console.error('❌ Mobile Stripe payment error:', error);
+            // ✅ Le modal gère déjà l'affichage de l'erreur
+          }}
+        />
+
+        {/* Legacy Stripe modal pour compatibilité */}
         {payment?.status === 'processing' && payment?.clientSecret && (
           <StripePaymentModal
-            isOpen={stripeModalOpen}
+            isOpen={true}
             onClose={() => setStripeModalOpen(false)}
             clientSecret={payment.clientSecret}
           />
