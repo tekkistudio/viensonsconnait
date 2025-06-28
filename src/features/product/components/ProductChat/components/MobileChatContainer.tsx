@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE STRIPE FLOW
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE HARMONISÉE
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -114,7 +114,7 @@ const VoiceEnabledInput: React.FC<{
         </motion.div>
       )}
 
-      {/* Champ de saisie style ancien design */}
+      {/* Champ de saisie */}
       <div className="relative flex items-center">
         <input
           type="text"
@@ -201,7 +201,8 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   });
   const [rating, setRating] = useState(product.stats?.satisfaction || 5);
 
-  // ✅ Service d'accueil corrigé
+  // ✅ Service optimisé et d'accueil
+  const optimizedService = OptimizedChatService.getInstance();
   const welcomeService = WelcomeMessageService.getInstance();
 
   // ✅ Utilisation sélective du store pour éviter les re-renders
@@ -237,7 +238,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   } = store;
 
-  // ✅ NOUVEAU : État du panier dérivé des messages et orderData
+  // ✅ État du panier dérivé des messages et orderData
   const [cartInfo, setCartInfo] = useState({
     hasItems: false,
     itemsCount: 0,
@@ -245,7 +246,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     productName: product.name
   });
 
-  // ✅ CORRECTION MAJEURE : Fonction de détection du panier pour mobile
+  // ✅ CORRECTION MAJEURE: Fonction de détection du panier pour mobile
   const detectCartFromMessages = useCallback(() => {
     console.log('🛒 [MOBILE] DÉTECTION PANIER:', { 
       orderData, 
@@ -283,6 +284,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
         return content.includes('C\'est noté ! Vous commandez') ||
                content.includes('exemplaire') ||
                content.includes('Prix total') ||
+               content.includes('ÉTAPE') ||
                (msg.metadata?.flags?.expressMode && msg.metadata?.flags?.quantitySelection);
       });
 
@@ -293,7 +295,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
         for (const msg of [...messages].reverse()) {
           const content = typeof msg.content === 'string' ? msg.content : String(msg.content || '');
           
-          if (content.includes('exemplaire')) {
+          if (content.includes('exemplaire') || content.includes('ÉTAPE')) {
             const qtyMatch = content.match(/(\d+)\s*exemplaire/);
             if (qtyMatch) quantity = parseInt(qtyMatch[1]);
             
@@ -343,7 +345,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   }, [detectCartFromMessages, cartInfo]);
 
-  // ✅ INITIALISATION CORRIGÉE avec message d'accueil correct
+  // ✅ INITIALISATION CORRIGÉE - HARMONISÉE AVEC DESKTOP
   useEffect(() => {
     if (!product?.id || initializationStarted || welcomeMessageSent) {
       return;
@@ -374,7 +376,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           initializeSession(product.id, storeId, newSessionId);
         }
         
-        // ✅ NOUVEAU : Séquence réaliste avec typing indicator et message CORRECT
+        // ✅ NOUVEAU: Séquence réaliste avec typing indicator et message HARMONISÉ
         setTimeout(() => {
           // Vérifier encore une fois qu'aucun message n'a été ajouté
           const currentState = useChatStore.getState();
@@ -385,12 +387,12 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
             setShowTyping(true);
             updateTypingStatus(true);
             
-            // ✅ ÉTAPE 2: Après 2 secondes, afficher le MESSAGE CORRECT
+            // ✅ ÉTAPE 2: Après 2 secondes, afficher le MESSAGE HARMONISÉ
             setTimeout(() => {
               setShowTyping(false);
               updateTypingStatus(false);
               
-              // ✅ UTILISER LE SERVICE CORRECT POUR MOBILE
+              // ✅ UTILISER LE SERVICE HARMONISÉ POUR MOBILE
               const welcomeMessage = welcomeService.generateMobileWelcomeMessage(
                 product.name,
                 sessionId,
@@ -398,7 +400,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                 product.price
               );
               
-              console.log('📝 Adding CORRECT welcome message to mobile chat');
+              console.log('📝 Adding HARMONIZED welcome message to mobile chat');
               addMessage(welcomeMessage);
               setWelcomeMessageSent(true);
             }, 2000); // ✅ 2 secondes de typing indicator
@@ -522,289 +524,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   }, [messages.length, showTyping]);
 
-  // ✅ GESTION INTELLIGENTE DES MESSAGES STANDARDS AVEC DONNÉES DB
-  const handleStandardMessages = useCallback(async (content: string): Promise<ChatMessageType> => {
-    console.log('📝 Processing standard message:', content);
-
-    // ✅ UTILISER LE SERVICE D'ACCUEIL POUR LES RÉPONSES STANDARD
-    if (welcomeService.isWelcomeResponse(content)) {
-      return await welcomeService.handleWelcomeButtonResponse(content, product.id, product.name);
-    }
-
-    // ✅ BOUTON : "Comment y jouer ?"
-    if (content.includes('Comment y jouer') || content.includes('Comment jouer')) {
-      try {
-        const { data: productData, error } = await supabase
-          .from('products')
-          .select('game_rules, name')
-          .eq('id', product.id)
-          .maybeSingle();
-
-        let gameRules = '';
-        
-        if (error || !productData || !productData.game_rules?.trim()) {
-          gameRules = `🎮 **Comment jouer au jeu ${product.name} :**
-
-📋 **Règles simples :**
-• Mélangez les cartes
-• Chaque joueur tire une carte à tour de rôle
-• Lisez la question/défi à voix haute
-• Répondez de manière authentique
-• Écoutez et échangez avec bienveillance
-
-⏰ **Durée :** 30-60 minutes
-👥 **Participants :** 2 personnes minimum
-✨ **Objectif :** Créer des conversations mémorables
-
-📞 **Pour les règles détaillées :**
-WhatsApp : +221 78 136 27 28`;
-        } else {
-          gameRules = `🎮 **Comment jouer au jeu ${productData.name} :**
-
-${productData.game_rules}
-
-🎯 **Prêt(e) à vivre cette expérience ?**`;
-        }
-
-        return {
-          type: 'assistant',
-          content: gameRules,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'C\'est pour qui ?',
-            'Quels sont les bénéfices ?',
-            'Voir les avis clients'
-          ],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'game_rules_shown' as ConversationStep,
-            flags: { gameRulesShown: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        console.error('❌ Error fetching game rules:', error);
-      }
-    }
-
-    // ✅ BOUTON : "C'est pour qui ?"
-    if (content.includes('C\'est pour qui') || content.includes('pour qui')) {
-      try {
-        const { data: productData, error } = await supabase
-          .from('products')
-          .select('target_audience, name')
-          .eq('id', product.id)
-          .maybeSingle();
-
-        let targetInfo = '';
-        
-        if (error || !productData || !productData.target_audience) {
-          targetInfo = `👥 **Le jeu ${product.name} est parfait pour :**
-
-💑 **Les couples** qui veulent renforcer leur complicité
-👨‍👩‍👧‍👦 **Les familles** qui cherchent à mieux se connaître
-👫 **Les amis** qui veulent approfondir leur amitié
-👔 **Les collègues** pour améliorer la cohésion d'équipe
-
-✨ **Âge recommandé :** À partir de 16 ans
-🎯 **Idéal pour :** Tous ceux qui veulent des relations plus authentiques`;
-        } else {
-          const audience = Array.isArray(productData.target_audience) 
-            ? productData.target_audience.join(', ')
-            : productData.target_audience;
-          
-          targetInfo = `👥 **Le jeu ${productData.name} est parfait pour :**
-
-${audience}
-
-✨ **Une expérience adaptée à tous ceux qui veulent des relations plus profondes et authentiques.**`;
-        }
-
-        return {
-          type: 'assistant',
-          content: targetInfo,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'Comment y jouer ?',
-            'Quels sont les bénéfices ?',
-            'Voir les témoignages'
-          ],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'target_audience_shown' as ConversationStep,
-            flags: { targetAudienceShown: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        console.error('❌ Error fetching target audience:', error);
-      }
-    }
-
-    // ✅ BOUTON : "Quels sont les bénéfices ?"
-    if (content.includes('Quels sont les bénéfices') || content.includes('bénéfices')) {
-      try {
-        const { data: productData, error } = await supabase
-          .from('products')
-          .select('benefits, name')
-          .eq('id', product.id)
-          .maybeSingle();
-
-        let benefits = '';
-        
-        if (error || !productData || !productData.benefits) {
-          benefits = `💝 **Les bénéfices du jeu ${product.name} :**
-
-🔥 **Renforce la complicité** entre vous et vos proches
-💬 **Facilite la communication** sur des sujets importants
-✨ **Crée des souvenirs mémorables** et des moments d'intimité
-🌟 **Développe l'empathie** et la compréhension mutuelle
-❤️ **Approfondit les relations** de manière naturelle et amusante
-
-🎯 **Résultat :** Des liens plus forts et une meilleure connaissance de l'autre`;
-        } else {
-          const benefitsList = Array.isArray(productData.benefits) 
-            ? productData.benefits.join('\n• ')
-            : productData.benefits;
-          
-          benefits = `💝 **Les bénéfices du jeu ${productData.name} :**
-
-• ${benefitsList}
-
-🎯 **Une expérience transformatrice pour vos relations !**`;
-        }
-
-        return {
-          type: 'assistant',
-          content: benefits,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'Comment y jouer ?',
-            'C\'est pour qui ?',
-            'Voir les témoignages'
-          ],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'benefits_shown' as ConversationStep,
-            flags: { benefitsShown: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        console.error('❌ Error fetching benefits:', error);
-      }
-    }
-
-    // ✅ BOUTON : "Quels sont les avis clients ?"
-    if (content.includes('avis clients') || content.includes('témoignages') || content.includes('avis')) {
-      try {
-        const { data: testimonials, error } = await supabase
-          .from('testimonials')
-          .select('*')
-          .eq('product_id', product.id)
-          .eq('is_approved', true)
-          .order('created_at', { ascending: false })
-          .limit(3);
-
-        let testimonialsContent = '';
-        
-        if (error || !testimonials || testimonials.length === 0) {
-          testimonialsContent = `⭐ **Ce que disent nos clients sur ${product.name} :**
-
-Nous collectons actuellement les premiers témoignages de nos clients.
-
-🔄 **En attendant, découvrez pourquoi nos jeux fonctionnent :**
-• Méthode testée et approuvée
-• Conception basée sur la psychologie des relations
-• Déjà des centaines de couples/familles transformés
-
-📞 **Questions ? Contactez-nous :**
-WhatsApp : +221 78 136 27 28`;
-        } else {
-          const testimonialTexts = testimonials.map(t => {
-            const stars = '⭐'.repeat(t.rating);
-            return `${stars} **${t.author_name || 'Client'}** ${t.author_location ? `(${t.author_location})` : ''}\n"${t.content}"`;
-          }).join('\n\n');
-          
-          testimonialsContent = `⭐ **Ce que disent nos clients sur ${product.name} :**
-
-${testimonialTexts}
-
-💬 **Et vous, prêt(e) à vivre cette expérience ?**`;
-        }
-
-        return {
-          type: 'assistant',
-          content: testimonialsContent,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'Comment y jouer ?',
-            'C\'est pour qui ?',
-            'Quels sont les bénéfices ?'
-          ],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: 'testimonials_shown' as ConversationStep,
-            flags: { testimonialsShown: true }
-          },
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        console.error('❌ Error fetching testimonials:', error);
-      }
-    }
-
-    // Réponse par défaut
-    return {
-      type: 'assistant',
-      content: `Merci pour votre message ! Comment puis-je vous aider davantage avec le jeu **${product.name}** ?`,
-      choices: [
-        'Je veux l\'acheter maintenant',
-        'J\'ai des questions à poser',
-        'Je veux en savoir plus'
-      ],
-      assistant: {
-        name: 'Rose',
-        title: 'Assistante d\'achat'
-      },
-      metadata: {
-        nextStep: 'initial_engagement' as ConversationStep
-      },
-      timestamp: new Date().toISOString()
-    };
-  }, [product.id, product.name, welcomeService]);
-
-  // ✅ Créer un message d'erreur
-  const createErrorResponse = useCallback((errorText: string): ChatMessageType => ({
-    type: 'assistant',
-    content: `😔 **${errorText}**
-
-Voulez-vous réessayer ou contacter notre support ?`,
-    choices: ['🔄 Réessayer', '📞 Contacter le support'],
-    assistant: {
-      name: 'Rose',
-      title: 'Assistante d\'achat'
-    },
-    metadata: {
-      nextStep: 'error_recovery' as ConversationStep,
-      flags: { hasError: true }
-    },
-    timestamp: new Date().toISOString()
-  }), []);
-
-  // ✅ CORRECTION MAJEURE: Envoi de message avec protection Stripe
+  // ✅ CORRECTION MAJEURE: Envoi de message HARMONISÉ AVEC DESKTOP
   const sendMessage = useCallback(async (content: string) => {
     if (isProcessing) {
       console.log('⏳ Already processing a message, ignoring');
@@ -814,7 +534,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
     try {
       console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
       
-      // ✅ NOUVEAU: Gérer l'ouverture du modal Stripe
+      // ✅ GESTION: Ouverture du modal Stripe
       if (content.startsWith('STRIPE_MODAL_OPEN:')) {
         const amount = parseInt(content.split(':')[1]);
         const orderId = `STRIPE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -841,9 +561,29 @@ Voulez-vous réessayer ou contacter notre support ?`,
 
       let response: ChatMessageType;
       
-      // ✅ CORRECTION MAJEURE: Utiliser directement OptimizedChatService comme sur desktop
+      // ✅ CORRECTION MAJEURE: Utiliser le service HARMONISÉ avec Desktop
       try {
-        // Utilisation de l'API chat pour cohérence
+        console.log('🤖 [MOBILE] Using HARMONIZED OptimizedChatService...');
+        
+        response = await optimizedService.processMessage(
+          sessionId || `${product.id}_${Date.now()}`,
+          content,
+          currentStep || 'initial',
+          product.id,
+          product.name
+        );
+        
+        console.log('✅ Mobile: Harmonized service response received:', {
+          type: response.type,
+          hasChoices: !!(response.choices && response.choices.length > 0),
+          nextStep: response.metadata?.nextStep,
+          flags: response.metadata?.flags
+        });
+
+      } catch (serviceError) {
+        console.error('❌ Mobile: Harmonized service failed, using API fallback:', serviceError);
+        
+        // ✅ FALLBACK: Utiliser API chat pour mobile
         const apiResponse = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -859,50 +599,42 @@ Voulez-vous réessayer ou contacter notre support ?`,
           }),
         });
 
-        if (!apiResponse.ok) {
-          throw new Error(`Mobile API error ${apiResponse.status}`);
+        if (apiResponse.ok) {
+          const aiResponse = await apiResponse.json();
+          console.log('✅ Mobile: API fallback response received');
+
+          response = {
+            type: 'assistant',
+            content: aiResponse.message || "Je suis là pour vous aider !",
+            choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
+            assistant: {
+              name: 'Rose',
+              title: 'Agent IA VIENS ON S\'CONNAÎT'
+            },
+            metadata: {
+              nextStep: aiResponse.nextStep || currentStep,
+              orderData: aiResponse.orderData,
+              flags: aiResponse.flags || {}
+            },
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          throw new Error('API fallback failed');
         }
-
-        const aiResponse = await apiResponse.json();
-        console.log('✅ Mobile: API response received');
-
-        response = {
-          type: 'assistant',
-          content: aiResponse.message || "Je suis là pour vous aider !",
-          choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
-          assistant: {
-            name: 'Rose',
-            title: 'Assistante d\'achat'
-          },
-          metadata: {
-            nextStep: aiResponse.nextStep || currentStep,
-            orderData: aiResponse.orderData,
-            flags: aiResponse.flags || {}
-          },
-          timestamp: new Date().toISOString()
-        };
-
-      } catch (apiError) {
-        console.error('❌ Mobile: API call failed, falling back to direct service:', apiError);
-        
-        // ✅ FALLBACK: Utiliser directement OptimizedChatService
-        const optimizedService = OptimizedChatService.getInstance();
-        response = await optimizedService.processMessage(
-          sessionId || `${product.id}_${Date.now()}`,
-          content,
-          currentStep || 'initial',
-          product.id,
-          product.name
-        );
       }
       
       // Délai pour l'animation
       setTimeout(() => {
-        console.log('✅ Mobile: Response generated');
+        console.log('✅ Mobile: Response generated and added');
         addMessage(response);
         
         if (response.metadata?.orderData) {
           updateOrderData(response.metadata.orderData);
+        }
+        
+        // Mettre à jour le step si nécessaire
+        if (response.metadata?.nextStep && store.setCurrentStep) {
+          store.setCurrentStep(response.metadata.nextStep);
         }
       }, 800);
 
@@ -910,11 +642,25 @@ Voulez-vous réessayer ou contacter notre support ?`,
       console.error('❌ Mobile: Error in sendMessage:', err);
       
       setTimeout(() => {
-        const errorMessage = createErrorResponse(`Une erreur est survenue: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+        const errorMessage: ChatMessageType = {
+          type: 'assistant',
+          content: `😔 **Une erreur s'est produite**
+
+${err instanceof Error ? err.message : 'Erreur inconnue'}
+
+Voulez-vous réessayer ?`,
+          choices: ['🔄 Réessayer', '💬 Poser une question', '🏠 Retour accueil'],
+          assistant: { name: 'Rose', title: 'Agent IA VIENS ON S\'CONNAÎT' },
+          metadata: {
+            nextStep: 'error_recovery' as ConversationStep,
+            flags: { hasError: true }
+          },
+          timestamp: new Date().toISOString()
+        };
         addMessage(errorMessage);
       }, 500);
     }
-  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, createErrorResponse]);
+  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, optimizedService, store]);
 
   // ✅ Gestion des choix avec protection
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -991,7 +737,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
       }}
     >
       <div className="fixed inset-0 bg-white z-50 flex flex-col touch-manipulation">
-        {/* ✅ HEADER STYLE ANCIEN - Plus épuré */}
+        {/* ✅ HEADER STYLE ÉPURÉ */}
         <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
           <div className="py-3 px-4 flex items-center gap-4">
             <button
@@ -1040,7 +786,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
             </div>
           </div>
 
-          {/* ✅ CORRECTION MAJEURE : BARRE DE COMMANDE MOBILE - Maintenant fonctionnelle */}
+          {/* ✅ CORRECTION MAJEURE: BARRE DE COMMANDE MOBILE - Maintenant fonctionnelle */}
           {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -1078,7 +824,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
           )}
         </div>
 
-        {/* ✅ ZONE DES MESSAGES - Style ancien épuré */}
+        {/* ✅ ZONE DES MESSAGES */}
         <div
           ref={chatRef}
           className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
@@ -1146,7 +892,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
           )}
         </div>
 
-        {/* ✅ ZONE DE SAISIE AVEC VOCAL - Style ancien + vocal */}
+        {/* ✅ ZONE DE SAISIE AVEC VOCAL */}
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t px-4 py-3">
           <VoiceEnabledInput
             value={inputMessage}
@@ -1206,7 +952,7 @@ Voulez-vous réessayer ou contacter notre support ?`,
                 '🛍️ Commander un autre jeu',
                 '📱 Télécharger l\'app mobile'
               ],
-              assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+              assistant: { name: 'Rose', title: 'Agent IA VIENS ON S\'CONNAÎT' },
               metadata: {
                 nextStep: 'express_completed' as ConversationStep,
                 orderData: {

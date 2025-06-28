@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE WAVE FLOW
+// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE WAVE MOBILE
 'use client';
 
 import React, { useState } from 'react';
@@ -100,7 +100,16 @@ const isPaymentButton = (choice: string): boolean => {
   );
 };
 
-// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec auto-retour
+// ✅ FONCTION CORRIGÉE: Détecter le type d'appareil
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
+// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec liens profonds mobile
 const handleWavePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
@@ -123,16 +132,37 @@ const handleWavePayment = async (
       return { success: false };
     }
     
-    // ✅ CORRECTION: Construire l'URL Wave avec le montant
-    const waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
+    // ✅ CORRECTION MAJEURE: Liens Wave spécifiques selon l'appareil
+    const isMobile = isMobileDevice();
     
-    console.log('🔗 Opening Wave payment URL:', waveUrl);
+    let waveUrl: string;
     
-    // ✅ Redirection selon le type d'appareil
-    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      // Mobile : Ouvrir dans la même fenêtre pour activer l'app Wave
-      window.location.href = waveUrl;
+    if (isMobile) {
+      // ✅ CORRECTION: Utiliser le lien profond Wave pour mobile
+      // Format: wave://pay?amount=XXXX&merchant=YYYY
+      const merchantId = 'M_OfAgT8X_IT6P'; // Votre ID marchand Wave
+      waveUrl = `wave://pay?amount=${amount}&merchant=${merchantId}`;
+      
+      console.log('📱 Mobile Wave deep link:', waveUrl);
+      
+      // ✅ Essayer d'ouvrir l'app Wave via le lien profond
+      const deepLinkAttempt = document.createElement('a');
+      deepLinkAttempt.href = waveUrl;
+      deepLinkAttempt.click();
+      
+      // ✅ FALLBACK: Si l'app ne s'ouvre pas dans 2 secondes, utiliser le lien web
+      setTimeout(() => {
+        console.log('📱 Deep link fallback - opening web version');
+        const webFallbackUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
+        window.open(webFallbackUrl, '_blank');
+      }, 2000);
+      
     } else {
+      // ✅ Desktop : Utiliser le lien web Wave
+      waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
+      
+      console.log('🖥️ Desktop Wave URL:', waveUrl);
+      
       // Desktop : Ouvrir dans un nouvel onglet
       const newWindow = window.open(waveUrl, '_blank', 'width=800,height=600');
       if (!newWindow) {
@@ -147,7 +177,7 @@ const handleWavePayment = async (
         console.log('🔄 Auto-triggering Wave payment return flow');
         onChoiceSelect('WAVE_PAYMENT_INITIATED');
       }
-    }, 3000); // ✅ 3 secondes pour laisser le temps à l'utilisateur de voir la redirection
+    }, isMobile ? 5000 : 3000); // Plus de temps sur mobile pour les liens profonds
     
     return { success: true, redirected: true };
     
@@ -192,11 +222,32 @@ const handleStripePayment = async (
   }
 };
 
-// ✅ NOUVEAU: Validation d'ID de transaction Wave
+// ✅ CORRECTION MAJEURE: Validation d'ID de transaction Wave AMÉLIORÉE
 const validateWaveTransactionId = (transactionId: string): boolean => {
-  // Les IDs Wave commencent par 'T' et font généralement 14-16 caractères
-  const waveIdPattern = /^T[A-Z0-9]{10,15}$/i;
-  return waveIdPattern.test(transactionId.trim().toUpperCase());
+  // ✅ CORRECTION: Pattern plus flexible pour les IDs Wave réels
+  const cleanId = transactionId.trim().toUpperCase();
+  
+  // Les IDs Wave peuvent avoir différents formats :
+  // - TJJ4D7OR04EPQAR4FD (format classique)
+  // - TJJXXXXXXXXXXXXXXX (15-17 caractères)
+  // - Parfois sans le T initial dans certains cas
+  
+  const wavePatterns = [
+    /^T[A-Z0-9]{10,20}$/i,           // Format classique avec T
+    /^[A-Z0-9]{12,20}$/i,            // Format sans T initial
+    /^TXN[A-Z0-9]{10,15}$/i,         // Format avec TXN
+    /^PAY[A-Z0-9]{10,15}$/i          // Format avec PAY
+  ];
+  
+  const isValid = wavePatterns.some(pattern => pattern.test(cleanId));
+  
+  console.log('🔍 Wave ID validation:', {
+    id: cleanId,
+    isValid,
+    length: cleanId.length
+  });
+  
+  return isValid;
 };
 
 // ✅ COMPOSANT PRINCIPAL
@@ -227,7 +278,7 @@ export default function ChatMessage({
   const handleChoiceClick = async (choice: string): Promise<void> => {
     if (processingPayment) return;
     
-    // ✅ CORRECTION: Gestion spécifique Wave avec auto-retour
+    // ✅ CORRECTION: Gestion spécifique Wave avec liens profonds mobile
     if (choice.toLowerCase().includes('wave')) {
       setProcessingPayment(choice);
       
@@ -235,7 +286,7 @@ export default function ChatMessage({
         const result = await handleWavePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Wave payment process initiated with auto-return');
+          console.log('✅ Wave payment process initiated with mobile deep links');
           // Le retour automatique est géré dans handleWavePayment
           return;
         }
@@ -415,7 +466,7 @@ export default function ChatMessage({
               />
             )}
 
-            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE AUTO-RETOUR */}
+            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE MOBILE DEEP LINKS */}
             {message.choices && message.choices.length > 0 && (
               <div className="grid gap-2">
                 {message.choices.map((choice, index) => {
@@ -448,7 +499,9 @@ export default function ChatMessage({
                       {isProcessingThis ? (
                         <>
                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Redirection...</span>
+                          <span>
+                            {isMobileDevice() && isWave ? 'Ouverture Wave...' : 'Redirection...'}
+                          </span>
                         </>
                       ) : (
                         <>

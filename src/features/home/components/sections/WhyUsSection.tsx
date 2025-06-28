@@ -13,7 +13,7 @@ const stats = [
     textColor: "text-brand-blue"
   },
   {
-    number: "+7 000",
+    number: "+5 000",
     label: "Personnes",
     sublabel: "dans le monde solidifient leurs liens grâce à nos jeux",
     icon: Heart,

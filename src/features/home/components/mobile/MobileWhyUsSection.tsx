@@ -95,7 +95,7 @@ export default function MobileWhyUsSection() {
           className="text-center mt-12"
         >
           <p className="text-theme-secondary text-sm mb-6">
-            Plus de 7 000 personnes nous font déjà confiance
+            Plus de 5 000 personnes nous font déjà confiance
           </p>
           <div className="flex justify-center">
             <button 

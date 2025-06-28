@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE BOUTONS DESKTOP
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE DESKTOP
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -206,7 +206,7 @@ const ChatContainer = ({
     }
   }, [isVoiceSupported, recognition, isListening, isProcessing]);
 
-  // ✅ INITIALISATION CORRIGÉE DU CHAT avec message d'accueil DESKTOP - VERSION SIMPLIFIÉE
+  // ✅ INITIALISATION CORRIGÉE - HARMONISÉE AVEC MOBILE
   useEffect(() => {
     if (!product?.id || initializationLock) {
       return;
@@ -214,17 +214,15 @@ const ChatContainer = ({
 
     const initializeChat = async () => {
       try {
-        console.log('🚀 [DESKTOP] Starting SIMPLIFIED chat initialization:', { 
+        console.log('🖥️ [DESKTOP] Starting chat initialization:', { 
           productId: product.id, 
           storeId, 
-          messagesCount: messages.length,
-          flags: flags?.isInitialized
+          messagesCount: messages.length
         });
         
-        // Verrouiller l'initialisation pour éviter les doublons
         setInitializationLock(true);
         
-        // ✅ CORRECTION: Condition simplifiée - uniquement vérifier les messages
+        // ✅ CORRECTION: Vérifier les messages existants AVANT d'ajouter
         if (messages.length > 0) {
           console.log('📝 [DESKTOP] Messages already exist, skipping initialization');
           setIsInitialized(true);
@@ -232,18 +230,18 @@ const ChatContainer = ({
           return;
         }
 
-        // ✅ ÉTAPE 1: Créer la session immédiatement
+        // ✅ Créer la session
         const newSessionId = `desktop_${product.id}_${Date.now()}`;
         console.log('🆕 [DESKTOP] Creating session:', newSessionId);
 
-        // ✅ ÉTAPE 2: Initialiser le store
+        // ✅ Initialiser le store
         if (initializeSession) {
           initializeSession(product.id, storeId, newSessionId);
           console.log('✅ [DESKTOP] Store initialized');
         }
 
-        // ✅ ÉTAPE 3: Ajouter le message d'accueil IMMÉDIATEMENT
-        console.log('➕ [DESKTOP] Adding welcome message immediately...');
+        // ✅ AJOUTER LE MESSAGE D'ACCUEIL (desktop version SANS boutons)
+        console.log('➕ [DESKTOP] Adding welcome message...');
         
         const welcomeMessage = welcomeService.generateDesktopWelcomeMessage(
           product.name,
@@ -253,14 +251,12 @@ const ChatContainer = ({
           productData.reviewCount
         );
         
-        // ✅ CORRECTION CRITIQUE: Ajouter le message sans délai
         addMessage(welcomeMessage);
         setWelcomeMessageAdded(true);
         setIsInitialized(true);
         
         console.log('✅ [DESKTOP] Welcome message added successfully');
         
-        // Marquer comme initialisé dans le store
         if (store.updateFlags) {
           store.updateFlags({ isInitialized: true });
         }
@@ -273,18 +269,8 @@ const ChatContainer = ({
       }
     };
 
-    // ✅ CORRECTION: Exécuter immédiatement sans délai
     initializeChat();
-  }, [product.id, storeId, initializationLock, messages.length]);
-
-  // ✅ NOUVEAU: Effect séparé pour surveiller l'ajout du message d'accueil
-  useEffect(() => {
-    if (!welcomeMessageAdded && messages.length > 0) {
-      console.log('✅ [DESKTOP] Messages detected, marking as initialized');
-      setWelcomeMessageAdded(true);
-      setIsInitialized(true);
-    }
-  }, [messages.length, welcomeMessageAdded]);
+  }, [product.id, storeId, initializationLock, messages.length, welcomeService, addMessage, initializeSession, store]);
 
   // Auto-scroll optimisé
   useEffect(() => {
@@ -300,7 +286,7 @@ const ChatContainer = ({
     }
   }, [messages, showTyping]);
 
-  // ✅ GESTION DES MESSAGES avec le service optimisé CORRIGÉ
+  // ✅ GESTION DES MESSAGES - CORRIGÉE POUR DESKTOP
   const sendMessage = useCallback(async (content: string) => {
     try {
       console.log('📤 [DESKTOP] Starting sendMessage:', {
@@ -311,7 +297,7 @@ const ChatContainer = ({
         productName: product.name
       });
       
-      // ✅ NOUVEAU: Gérer l'ouverture du modal Stripe
+      // ✅ GESTION DU MODAL STRIPE
       if (content.startsWith('STRIPE_MODAL_OPEN:')) {
         const amount = parseInt(content.split(':')[1]);
         const orderId = `STRIPE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -326,7 +312,7 @@ const ChatContainer = ({
         throw new Error('Données manquantes pour l\'envoi du message');
       }
       
-      // Ajouter le message utilisateur immédiatement
+      // Ajouter le message utilisateur
       const userMessage: ChatMessageType = {
         type: 'user',
         content,
@@ -336,7 +322,7 @@ const ChatContainer = ({
       console.log('📝 [DESKTOP] Adding user message');
       addMessage(userMessage);
       
-      // Délai pour l'affichage utilisateur
+      // Délai pour UX
       await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log('⚙️ [DESKTOP] Calling OptimizedChatService.processMessage');
@@ -453,6 +439,40 @@ Voulez-vous réessayer ?`,
     });
   }, [setPaymentModal]);
 
+  // ✅ CORRECTION MAJEURE: Fonction pour détecter les boutons d'interface AMÉLIORÉE
+  const shouldShowInterfaceButtons = useCallback((message: ChatMessageType, index: number): boolean => {
+    // ✅ CORRECTION 1: Ne JAMAIS afficher si mobile
+    if (isMobile) return false;
+    
+    // ✅ CORRECTION 2: Seulement pour le dernier message
+    if (index !== messages.length - 1) return false;
+    
+    // ✅ CORRECTION 3: Seulement pour les messages assistant
+    if (message.type !== 'assistant') return false;
+    
+    // ✅ CORRECTION 4: NE JAMAIS afficher si le message a déjà des choix
+    if (message.choices && message.choices.length > 0) {
+      console.log('🚫 [DESKTOP] Message has choices, NOT showing interface buttons');
+      return false;
+    }
+    
+    // ✅ CORRECTION 5: Seulement pour les messages d'accueil spécifiques SANS choix
+    const isDesktopWelcome = Boolean(
+      message.metadata?.flags?.isWelcome && 
+      message.metadata?.flags?.desktopMode &&
+      (!message.choices || message.choices.length === 0)
+    );
+    
+    console.log('🔍 [DESKTOP] Interface buttons check:', {
+      isWelcome: Boolean(message.metadata?.flags?.isWelcome),
+      isDesktop: Boolean(message.metadata?.flags?.desktopMode),
+      hasChoices: !!(message.choices && message.choices.length > 0),
+      shouldShow: isDesktopWelcome
+    });
+    
+    return isDesktopWelcome;
+  }, [isMobile, messages.length]);
+
   // ✅ RENDU CONDITIONNEL pour éviter l'affichage prématuré
   if (!isInitialized && !initializationLock) {
     return (
@@ -498,20 +518,9 @@ Voulez-vous réessayer ?`,
       >
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => {
-            // ✅ CORRECTION MAJEURE: Déterminer s'il faut afficher les choix ou les boutons d'interface
-            const isLastMessage = index === messages.length - 1;
-            const isWelcomeMessage = message.metadata?.flags?.isWelcome || message.metadata?.flags?.useInterfaceButtons;
-            const shouldShowInterfaceButtons = 
-              !isMobile && 
-              isLastMessage && 
-              message.type === 'assistant' && 
-              isWelcomeMessage;
+            // ✅ CORRECTION MAJEURE: Logique d'affichage des boutons CORRIGÉE
+            const showInterfaceButtons = shouldShowInterfaceButtons(message, index);
             
-            const shouldShowMessageChoices = 
-              message.choices && 
-              message.choices.length > 0 && 
-              !shouldShowInterfaceButtons;
-
             return (
               <motion.div
                 key={`${message.timestamp}-${index}`}
@@ -520,19 +529,23 @@ Voulez-vous réessayer ?`,
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChatMessage message={message} />
+                <ChatMessage 
+                  message={message} 
+                  onChoiceSelect={handleChoiceSelect}
+                />
                 
                 {/* ✅ CORRECTION: Afficher les choix SEULEMENT si pas de boutons d'interface */}
-                {shouldShowMessageChoices && (
+                {message.choices && message.choices.length > 0 && !showInterfaceButtons && (
                   <div className="mt-3">
                     <ChatChoices
-                      choices={message.choices!} // L'assertion ! car on sait que choices existe
+                      choices={message.choices}
                       onChoiceSelect={handleChoiceSelect}
                       disabled={isProcessing}
                     />
                   </div>
                 )}
                 
+                {/* Sélecteur de quantité */}
                 {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
                   <div className="mt-3">
                     <QuantitySelector
@@ -544,6 +557,41 @@ Voulez-vous réessayer ?`,
                       }}
                       maxQuantity={message.metadata?.maxQuantity || 10}
                     />
+                  </div>
+                )}
+
+                {/* ✅ CORRECTION MAJEURE: BOUTONS D'INTERFACE DESKTOP - AFFICHAGE CONDITIONNEL STRICT */}
+                {showInterfaceButtons && (
+                  <div className="mt-4 space-y-3">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="grid grid-cols-1 gap-3"
+                    >
+                      <button
+                        onClick={() => handleChoiceSelect('Je veux l\'acheter maintenant')}
+                        disabled={isProcessing}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Je veux l'acheter maintenant
+                      </button>
+                      
+                      <button
+                        onClick={() => handleChoiceSelect('J\'ai des questions à poser')}
+                        disabled={isProcessing}
+                        className="w-full px-4 py-3 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        J'ai des questions à poser
+                      </button>
+                      
+                      <button
+                        onClick={() => handleChoiceSelect('Je veux en savoir plus')}
+                        disabled={isProcessing}
+                        className="w-full px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Je veux en savoir plus
+                      </button>
+                    </motion.div>
                   </div>
                 )}
               </motion.div>
@@ -561,45 +609,6 @@ Voulez-vous réessayer ?`,
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* ✅ BOUTONS D'INTERFACE DESKTOP CORRIGÉS - Mêmes boutons que mobile */}
-        {!isMobile && 
-         messages.length > 0 && 
-         messages[messages.length - 1]?.type === 'assistant' && 
-         (messages[messages.length - 1]?.metadata?.flags?.isWelcome || 
-          messages[messages.length - 1]?.metadata?.flags?.useInterfaceButtons) && (
-          <div className="mt-4 space-y-3">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 gap-3"
-            >
-              <button
-                onClick={() => handleChoiceSelect('Je veux l\'acheter maintenant')}
-                disabled={isProcessing}
-                className="w-full px-4 py-3 bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Je veux l'acheter maintenant
-              </button>
-              
-              <button
-                onClick={() => handleChoiceSelect('J\'ai des questions à poser')}
-                disabled={isProcessing}
-                className="w-full px-4 py-3 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                J'ai des questions à poser
-              </button>
-              
-              <button
-                onClick={() => handleChoiceSelect('Je veux en savoir plus')}
-                disabled={isProcessing}
-                className="w-full px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Je veux en savoir plus
-              </button>
-            </motion.div>
-          </div>
-        )}
       </div>
 
       {/* ZONE SAISIE avec reconnaissance vocale */}
@@ -676,7 +685,7 @@ Voulez-vous réessayer ?`,
         }}
       />
       
-      {/* ✅ NOUVEAU: Modal Stripe intégré */}
+      {/* ✅ Modal Stripe intégré */}
       <StripePaymentModal
         isOpen={stripeModalOpen}
         onClose={() => {
@@ -693,7 +702,6 @@ Voulez-vous réessayer ?`,
         }}
         onError={(error) => {
           console.error('❌ Stripe payment error:', error);
-          // Le modal gère déjà l'affichage de l'erreur
         }}
       />
       
