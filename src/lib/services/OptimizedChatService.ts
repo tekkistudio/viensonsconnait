@@ -404,40 +404,40 @@ Nos clients qui achètent ce jeu prennent souvent aussi :`,
     let content = '';
     
     if (messageLower.includes('prix') || messageLower.includes('coût') || messageLower.includes('cher')) {
-      content = `Le **${productName}** coûte 14,000 FCFA avec livraison gratuite à Dakar ! 💰
+      content = `Le jeu **${productName}** coûte 14,000 FCFA avec livraison gratuite à Dakar ! 💰
 
-C'est un investissement dans la qualité de vos relations. Que pensez-vous de ce prix ?`;
+C'est un investissement dans la qualité de vos relations.`;
     }
     else if (messageLower.includes('livraison') || messageLower.includes('livrer')) {
-      content = `Pour la livraison du **${productName}**, nous livrons partout au Sénégal ! 🚚
+      content = `Pour la livraison du jeu **${productName}**, nous livrons partout au Sénégal ! 🚚
 
 ✅ **Gratuit à Dakar** (24h)  
-✅ **2,500 FCFA** ailleurs (48-72h)
+✅ **2,500 FCFA** dans les autres villes (48-72h)
 
 Dans quelle ville souhaitez-vous qu'on vous livre ?`;
     }
     else if (messageLower.includes('couple') || messageLower.includes('marié') || messageLower.includes('fiancé')) {
-      content = `Excellente question ! Le **${productName}** est parfait pour les couples qui veulent renforcer leur complicité à travers des conversations authentiques. 💕
+      content = `Excellente question ! Le jeu **${productName}** est parfait pour les couples qui veulent renforcer leur complicité à travers des conversations authentiques. 💕
 
 Depuis combien de temps êtes-vous ensemble ?`;
     }
     else if (messageLower.includes('famille') || messageLower.includes('enfant') || messageLower.includes('parent')) {
-      content = `Le **${productName}** est parfait pour renforcer les liens familiaux ! 👨‍👩‍👧‍👦
+      content = `Le jeu **${productName}** est parfait pour renforcer les liens familiaux ! 👨‍👩‍👧‍👦
 
-Il favorise le dialogue entre générations et crée des moments de complicité authentiques. Les questions sont adaptées pour tous les âges.
+Il favorise le dialogue entre générations et crée des moments de complicité authentiques. Les questions sont adaptées pour les enfants de +12 ans.
 
 Combien de personnes êtes-vous dans la famille ?`;
     }
     else if (messageLower.includes('règles') || messageLower.includes('jouer') || messageLower.includes('comment')) {
-      content = `C'est très simple ! Le **${productName}** contient 150 cartes à piocher pour créer des conversations profondes et amusantes. 🎮
+      content = `C'est très simple ! Le jeu **${productName}** contient 150 cartes de questions à se poser pour créer des conversations profondes et amusantes. 🎮
 
 Voulez-vous que je vous explique les règles détaillées ?`;
     }
     else {
       // Réponse générique intelligente
-      content = `Excellente question sur le **${productName}** ! 
+      content = `Excellente question sur le jeu **${productName}** ! 
 
-Ce jeu a déjà aidé des milliers de couples et familles à créer des liens plus forts au Sénégal et en Afrique. Que voulez-vous savoir de plus précis ?`;
+Ce jeu a déjà aidé des milliers de personnes à créer des liens plus forts au Sénégal et en Afrique. Que voulez-vous savoir de plus précis ?`;
     }
 
     return {
@@ -572,11 +572,9 @@ Ce jeu a déjà aidé des milliers de couples et familles à créer des liens pl
 
       return {
         type: 'assistant' as const,
-        content: `🛒 **Parfait ! Commençons votre commande**
+        content: `🎉 Super choix ! Je vais prendre votre commande pour le jeu ${fullProductName} 
 
-${fullProductName} - Excellent choix ! 🎉
-
-Combien d'exemplaires voulez-vous ?`,
+Combien d'exemplaires souhaitez-vous acheter ?`,
         choices: [
           '1 exemplaire',
           '2 exemplaires',
@@ -698,11 +696,11 @@ Combien d'exemplaires voulez-vous ?`,
 
 Vous êtes redirigé vers l'App Store pour télécharger VIENS ON S'CONNAÎT !
 
-✨ **Avec l'app mobile :**
-🎮 Accès à tous nos jeux
-💕 Mode couple & famille
-🎯 Défis personnalisés
-✨ Contenu exclusif`,
+**Avec l'app mobile :**
+✨ Emportez tous nos jeux dans votre poche
+✨ Jouez partout, même sans connexion Internet
+✨ Ecoutez vos questions en français
+✨ Notre IA vous explique les questions compliquées`,
         choices: [
           '🏠 Retour à l\'accueil',
           '🛍️ Commander un jeu physique'
@@ -726,8 +724,8 @@ Vous êtes redirigé vers l'App Store pour télécharger VIENS ON S'CONNAÎT !
 Je viens d'ouvrir l'App Store dans un nouvel onglet ! 
 
 ✨ **Avec l'app mobile :**
-🎮 Tous nos jeux de cartes
-💕 Mode couple, famille, amis
+🎮 Tous nos jeux dans votre poche
+💕 Couple, famille, amis, collègues
 📱 Disponible partout
 
 **Lien :** ${appStoreUrl}`,
@@ -841,11 +839,13 @@ Je viens d'ouvrir l'App Store dans un nouvel onglet !
 
     return {
       type: 'assistant',
-      content: `✅ **${quantity} exemplaire${quantity > 1 ? 's' : ''} - ${totalAmount.toLocaleString()} FCFA**
+      content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+      
+      Cela fera **${totalAmount.toLocaleString()} FCFA**
 
-Parfait ! J'ai besoin de votre numéro de téléphone pour la livraison 📱
+Sur quel numéro doit-on vous joindre pour la livraison ?
 
-*Format : +221 77 123 45 67*`,
+Ex : *+221 77 123 45 67*`,
       choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -858,9 +858,6 @@ Parfait ! J'ai besoin de votre numéro de téléphone pour la livraison 📱
       timestamp: new Date().toISOString()
     };
   }
-
-  // Les autres méthodes du flow express restent identiques...
-  // (Je les garde identiques pour éviter un fichier trop long, mais avec "le jeu" ajouté là où nécessaire)
 
   private async handlePhoneStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
     const cleanPhone = message.replace(/\s/g, '');
@@ -895,11 +892,9 @@ Parfait ! J'ai besoin de votre numéro de téléphone pour la livraison 📱
 
       return {
         type: 'assistant',
-        content: `👋 **Ravi de vous revoir ${existingCustomer.first_name} !**
+        content: `👋 Heureuse de vous revoir, **${existingCustomer.first_name} !**
 
-📍 **Adresse habituelle :** ${existingCustomer.address}, ${existingCustomer.city}
-
-Livraison à la même adresse ?`,
+Doit-on vous livrer à la même adresse :** ${existingCustomer.address}, ${existingCustomer.city}**, ou souhaitez-vous changer d'adresse ?`,
         choices: [
           'Oui, même adresse',
           'Changer d\'adresse'
@@ -919,9 +914,11 @@ Livraison à la même adresse ?`,
         type: 'assistant',
         content: `📱 **${formattedPhone} enregistré**
 
-Bienvenue ! 🎉 Quel est votre nom complet ?
+Ah! C'est votre première fois ici ! Bienvenue 🎉 
 
-*Exemple : Aminata Diallo*`,
+Quel est votre nom complet ?
+
+Ex : *Aminata Diallo*`,
         choices: [],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
@@ -950,12 +947,12 @@ Bienvenue ! 🎉 Quel est votre nom complet ?
 
     return {
       type: 'assistant',
-      content: `👤 **Enchanté ${orderState.data.firstName} !**
+      content: `Enchantée, **${orderState.data.firstName} !**
 
-Votre adresse de livraison ?
+A quelle adresse doit-on vous livrer ?
 
 *Format : Quartier/Rue, Ville*
-*Exemple : Mermoz, Dakar*`,
+*Ex : Mermoz, Dakar*`,
       choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -972,16 +969,13 @@ Votre adresse de livraison ?
       this.orderStates.set(sessionId, orderState);
       await this.saveOrderStateToDatabase(sessionId, orderState);
 
-      const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
-
       return {
         type: 'assistant',
-        content: `✅ **Livraison confirmée**
+        content: `✅ C'est parfait !
 
-📍 ${orderState.data.address}, ${orderState.data.city}
-💰 **Total : ${totalAmount.toLocaleString()} FCFA**
+Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
-Comment souhaitez-vous payer ?`,
+Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
           '📱 Wave (recommandé)',
           '💳 Carte bancaire', 
@@ -1015,12 +1009,11 @@ Comment souhaitez-vous payer ?`,
 
       return {
         type: 'assistant',
-        content: `✅ **Adresse enregistrée**
+        content: `✅ C'est parfait !
 
-📍 ${orderState.data.address}, ${orderState.data.city}
-💰 **Total : ${totalAmount.toLocaleString()} FCFA**
+Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
-Comment souhaitez-vous payer ?`,
+Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
           '📱 Wave (recommandé)',
           '💳 Carte bancaire', 
@@ -1073,7 +1066,7 @@ Comment souhaitez-vous payer ?`,
 
     return {
       type: 'assistant',
-      content: `🎉 **Commande confirmée !**
+      content: `🎉 **Votre commande est confirmée !**
 
 **N° :** #${orderResult.orderId}
 
@@ -1212,7 +1205,7 @@ Votre **${orderState.data.productName}** sera livré rapidement.
       type: 'assistant',
       content: `✅ **Retour du paiement Wave**
 
-Donnez-moi votre **ID de Transaction Wave** pour confirmer.
+Donnez-moi votre **ID de Transaction Wave** pour confirmer le paiement.
 
 💡 **Comment le trouver :**
 1. Ouvrez Wave
@@ -1252,12 +1245,12 @@ Donnez-moi votre **ID de Transaction Wave** pour confirmer.
 
       return {
         type: 'assistant',
-        content: `🎉 **Paiement Wave confirmé !**
+        content: `🎉 **Votre paiement Wave est confirmé !**
 
 ✅ **Transaction :** ${cleanTransactionId}
 ✅ **Commande confirmée**
 
-**Livraison sous 24-48h**
+**Nous vous livrerons sous 24-48h**
 Merci pour votre confiance ! 🙏`,
         choices: [
           '⭐ Parfait, merci !',
@@ -1281,13 +1274,13 @@ Merci pour votre confiance ! 🙏`,
     if (message.includes('comment y jouer')) {
       return {
         type: 'assistant',
-        content: `🎮 **Comment jouer au ${productName} :**
+        content: `🎮 **Comment jouer au jeu ${productName} :**
 
 **C'est très simple :**
 1️⃣ Mélangez les 150 cartes
-2️⃣ Tirez une carte chacun votre tour
+2️⃣ Tirez une carte chacun à votre tour
 3️⃣ Lisez la question à voix haute
-4️⃣ Répondez sincèrement
+4️⃣ Répondez sincèrement et écoutez la réponse de l'autre
 5️⃣ Échangez sur vos réponses
 
 🎯 **Objectif :** Créer des conversations authentiques !`,
@@ -1307,7 +1300,7 @@ Merci pour votre confiance ! 🙏`,
 
     return {
       type: 'assistant',
-      content: `Je suis là pour vous aider avec le ${productName} !
+      content: `Je suis là pour vous aider avec le jeu ${productName} !
 
 Que souhaitez-vous savoir ?`,
       choices: [
@@ -1331,7 +1324,7 @@ Que souhaitez-vous savoir ?`,
         type: 'assistant',
         content: `😊 **Avec grand plaisir !**
 
-C'était un plaisir de vous accompagner. J'espère que vous allez adorer le **${productName}** ! 💕
+C'était un plaisir de vous accompagner. J'espère que vous allez adorer le jeu **${productName}** ! 💕
 
 Y a-t-il autre chose que je puisse faire pour vous ?`,
         choices: [
@@ -1351,7 +1344,7 @@ Y a-t-il autre chose que je puisse faire pour vous ?`,
       type: 'assistant',
       content: `😊 **Je suis là pour vous aider !**
 
-Comment puis-je vous accompagner avec le **${productName}** ?`,
+Comment puis-je vous accompagner avec le jeu **${productName}** ?`,
       choices: [
         'Je veux l\'acheter maintenant',
         'J\'ai des questions',
