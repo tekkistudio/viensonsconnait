@@ -1,4 +1,4 @@
-// src/lib/services/OptimizedChatService.ts - VERSION AVEC DÉTECTION D'INTENTION D'ACHAT
+// src/lib/services/OptimizedChatService.ts - VERSION ENTIÈREMENT CORRIGÉE POUR L'IA
 
 import { supabase } from '@/lib/supabase';
 import type { 
@@ -10,8 +10,6 @@ import type {
 } from '@/types/chat';
 import { WelcomeMessageService } from './WelcomeMessageService';
 import { KnowledgeBaseService } from './KnowledgeBaseService';
-import { PurchaseIntentDetector } from './PurchaseIntentDetector';
-import { v4 as uuidv4 } from 'uuid';
 
 // Types pour le flow express
 interface ExpressOrderState {
@@ -38,23 +36,13 @@ interface ExpressOrderState {
   updatedAt: string;
 }
 
-// ✅ INTERFACE POUR L'HISTORIQUE DE CONVERSATION
-interface ConversationMessage {
-  message: string;
-  timestamp: string;
-  type: 'user' | 'assistant';
-}
-
 export class OptimizedChatService {
   private static instance: OptimizedChatService;
   private orderStates = new Map<string, ExpressOrderState>();
-  private conversationHistories = new Map<string, ConversationMessage[]>();
   private welcomeService = WelcomeMessageService.getInstance();
-  private knowledgeService = KnowledgeBaseService.getInstance();
-  private intentDetector = PurchaseIntentDetector.getInstance();
 
   private constructor() {
-    console.log('🔧 OptimizedChatService v10.0 initialized - WITH PURCHASE INTENT DETECTION');
+    console.log('🔧 OptimizedChatService v9.0 initialized - FULLY CORRECTED WITH PRIORITY AI');
   }
 
   public static getInstance(): OptimizedChatService {
@@ -64,7 +52,7 @@ export class OptimizedChatService {
     return this.instance;
   }
 
-  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - AVEC DÉTECTION D'INTENTION D'ACHAT
+  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - PRIORITÉ IA GPT-4o
   public async processMessage(
     sessionId: string,
     message: string,
@@ -73,7 +61,7 @@ export class OptimizedChatService {
     productName: string
   ): Promise<ChatMessage> {
     try {
-      console.log('🔍 ProcessMessage called with INTENT DETECTION:', {
+      console.log('🔍 ProcessMessage called with AI PRIORITY:', {
         sessionId: sessionId?.substring(0, 20) + '...',
         message: message?.substring(0, 50) + '...',
         currentStep,
@@ -86,19 +74,10 @@ export class OptimizedChatService {
         throw new Error('Paramètres manquants');
       }
 
-      // ✅ ENREGISTRER LE MESSAGE DANS L'HISTORIQUE
-      this.addToConversationHistory(sessionId, message, 'user');
-
       // ✅ Toujours essayer de récupérer l'état depuis la base
       await this.loadOrderStateFromDatabase(sessionId);
 
-      // ✅ NOUVELLE PRIORITÉ: DÉTECTER L'INTENTION D'ACHAT IMMÉDIATE
-      if (this.intentDetector.isImmediatePurchaseDecision(message)) {
-        console.log('🛒 IMMEDIATE PURCHASE DECISION DETECTED');
-        return await this.startExpressPurchase(sessionId, productId, productName);
-      }
-
-      // ✅ PRIORITÉ 1: "Je veux l'acheter maintenant" (explicite)
+      // ✅ PRIORITÉ 1: "Je veux l'acheter maintenant"
       if (this.isExpressPurchaseTrigger(message)) {
         console.log('🛒 Express purchase detected');
         return await this.startExpressPurchase(sessionId, productId, productName);
@@ -140,10 +119,10 @@ export class OptimizedChatService {
         return await this.handleUpsellRequest(productId);
       }
 
-      // ✅ NOUVELLE PRIORITÉ 8: ANALYSE D'INTENTION AVANCÉE pour messages libres
+      // ✅ NOUVELLE PRIORITÉ 8: MESSAGES LIBRES → IA GPT-4o EN PRIORITÉ
       if (!this.isSpecialMessage(message)) {
-        console.log('🎯 FREE TEXT MESSAGE - ANALYZING PURCHASE INTENT');
-        return await this.handleFreeTextWithIntentAnalysis(message, productId, productName, sessionId);
+        console.log('🤖 FREE TEXT MESSAGE - USING AI PRIORITY');
+        return await this.handleFreeTextWithAIPriority(message, productId, productName, sessionId);
       }
 
       // ✅ PRIORITÉ 9: Gérer les questions prédéfinies
@@ -158,9 +137,9 @@ export class OptimizedChatService {
         return await this.handleGenericButton(message, productId, productName);
       }
 
-      // ✅ FALLBACK: Messages libres → IA avec analyse d'intention
-      console.log('🤖 Fallback: Processing with AI + Intent Analysis');
-      return await this.handleFreeTextWithIntentAnalysis(message, productId, productName, sessionId);
+      // ✅ FALLBACK: Messages libres → IA
+      console.log('🤖 Fallback: Processing with AI');
+      return await this.handleFreeTextWithAIPriority(message, productId, productName, sessionId);
 
     } catch (error) {
       console.error('❌ Error in processMessage:', error);
@@ -168,462 +147,318 @@ export class OptimizedChatService {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gestion des messages libres avec analyse d'intention
-  private async handleFreeTextWithIntentAnalysis(
+  // ✅ NOUVELLE MÉTHODE PRIORITÉ IA - GPT-4o EN PREMIER
+  private async handleFreeTextWithAIPriority(
     message: string,
     productId: string,
     productName: string,
     sessionId: string
   ): Promise<ChatMessage> {
     try {
-      console.log('🧠 Processing with INTENT ANALYSIS + AI:', message.substring(0, 50));
+      console.log('🧠 Processing with AI PRIORITY:', message.substring(0, 50));
 
-      // ✅ ÉTAPE 1: ANALYSER L'INTENTION D'ACHAT
-      const conversationHistory = this.getConversationHistory(sessionId);
-      const intentAnalysis = this.intentDetector.analyzePurchaseIntent(
-        message, 
-        conversationHistory.map(h => h.message),
-        {
-          messageCount: conversationHistory.length,
-          timeSpent: this.calculateConversationDuration(conversationHistory)
-        }
-      );
-
-      console.log('🎯 Intent analysis result:', {
-        score: intentAnalysis.score,
-        confidence: intentAnalysis.confidence,
-        recommendation: intentAnalysis.recommendation
-      });
-
-      // ✅ ÉTAPE 2: DÉCISION BASÉE SUR L'INTENTION
-      if (intentAnalysis.recommendation === 'trigger_purchase') {
-        console.log('🚀 TRIGGERING PURCHASE based on intent analysis');
-        const intentResponse = this.intentDetector.generateIntentBasedResponse(
-          intentAnalysis, 
-          productName, 
-          message
-        );
+      // ✅ ÉTAPE 1: Essayer d'abord l'IA GPT-4o
+      try {
+        const aiResponse = await this.getGPT4oResponse(message, productId, productName, sessionId);
         
-        if (intentResponse.shouldTriggerPurchase) {
-          // Déclencher le flow d'achat
-          return await this.startExpressPurchase(sessionId, productId, productName);
+        if (aiResponse && aiResponse.trim()) {
+          console.log('✅ GPT-4o response successful');
+          
+          return {
+            type: 'assistant',
+            content: aiResponse,
+            choices: [
+              'Je veux l\'acheter maintenant',
+              'J\'ai d\'autres questions',
+              'Comment y jouer ?',
+              'Voir les témoignages'
+            ],
+            assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+            metadata: {
+              nextStep: 'ai_response' as ConversationStep,
+              flags: { 
+                aiResponseUsed: true,
+                gptModel: 'gpt-4o',
+                confidence: 0.9
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
         }
+      } catch (aiError) {
+        console.warn('⚠️ GPT-4o failed, trying knowledge base:', aiError);
       }
 
-      // ✅ ÉTAPE 3: GÉNÉRER RÉPONSE AVEC IA + ORIENTATION COMMERCIALE
-      const aiResponse = await this.getCommercialAIResponse(
-        message, 
-        productId, 
-        productName, 
-        sessionId,
-        intentAnalysis
-      );
-
-      if (aiResponse && aiResponse.trim()) {
-        console.log('✅ Commercial AI response successful');
-
-        // ✅ GÉNÉRER CHOIX ADAPTÉS À L'INTENTION
-        const smartChoices = this.generateIntentBasedChoices(intentAnalysis, productName);
-
-        const response: ChatMessage = {
-          type: 'assistant',
-          content: aiResponse,
-          choices: smartChoices,
-          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-          metadata: {
-            nextStep: this.determineNextStepFromIntent(intentAnalysis),
-            flags: { 
-              aiResponseUsed: true,
-              intentAnalyzed: true,
-              intentScore: intentAnalysis.score,
-              commercialOriented: true,
-              vouvoiement: true
-            }
-          },
-          timestamp: new Date().toISOString()
-        };
-
-        // ✅ ENREGISTRER LA RÉPONSE DANS L'HISTORIQUE
-        this.addToConversationHistory(sessionId, aiResponse, 'assistant');
-        
-        return response;
-      }
-
-      // ✅ ÉTAPE 4: Fallback vers la base de connaissances
-      const searchResults = await this.knowledgeService.searchKnowledge(message, productId);
+      // ✅ ÉTAPE 2: Fallback vers la base de connaissances (seuil abaissé)
+      const knowledgeService = KnowledgeBaseService.getInstance();
+      const searchResults = await knowledgeService.searchKnowledge(message, productId);
       
       if (searchResults.length > 0 && searchResults[0].relevanceScore > 0.6) {
         const bestMatch = searchResults[0];
-        const formattedResponse = this.knowledgeService.formatResponse(bestMatch, `le jeu ${productName}`);
+        const formattedResponse = knowledgeService.formatResponse(bestMatch, `le jeu ${productName}`);
         
-        console.log('✅ Using KB response with commercial orientation');
+        console.log('✅ Using KB response as fallback:', formattedResponse.confidence);
         
         return {
           type: 'assistant',
-          content: this.addCommercialOrientation(formattedResponse.content, intentAnalysis),
-          choices: this.generateIntentBasedChoices(intentAnalysis, productName),
+          content: formattedResponse.content,
+          choices: formattedResponse.suggestions,
           assistant: { name: 'Rose', title: 'Assistante d\'achat' },
           metadata: {
-            nextStep: this.determineNextStepFromIntent(intentAnalysis),
+            nextStep: this.determineNextStepFromCategory(bestMatch.item.category),
             flags: { 
               knowledgeBaseUsed: true,
-              intentAnalyzed: true,
-              commercialOriented: true,
-              vouvoiement: true
+              confidence: formattedResponse.confidence,
+              aiFallback: true
             }
           },
           timestamp: new Date().toISOString()
         };
       }
 
-      // ✅ ÉTAPE 5: Fallback intelligent commercial
-      console.log('🤖 Using commercial intelligent fallback');
-      return this.createCommercialFallback(message, productName, intentAnalysis);
+      // ✅ ÉTAPE 3: Fallback intelligent contextuel
+      console.log('🤖 Using intelligent contextual fallback');
+      return this.createIntelligentFallback(message, `le jeu ${productName}`);
 
     } catch (error) {
-      console.error('❌ Error in intent analysis processing:', error);
-      return this.createCommercialFallback(message, productName, { 
-        score: 0, 
-        confidence: 'low', 
-        signals: [], 
-        recommendation: 'continue_conversation',
-        suggestedResponse: ''
-      });
+      console.error('❌ Error in AI priority processing:', error);
+      return this.createIntelligentFallback(message, `le jeu ${productName}`);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Réponse IA commerciale orientée vente
-  private async getCommercialAIResponse(
+  // ✅ NOUVELLE MÉTHODE: Réponse GPT-4o directe et optimisée
+  private async getGPT4oResponse(
     message: string,
     productId: string,
     productName: string,
-    sessionId: string,
-    intentAnalysis: any
+    sessionId: string
   ): Promise<string> {
     try {
-      console.log('🚀 Calling Commercial AI with sales orientation');
+      console.log('🚀 Calling GPT-4o via API route with forceAI');
 
-      // ✅ RÉCUPÉRER INFOS PRODUIT POUR CONTEXTE
-      let productInfo: any = {};
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('description, price, target_audience, game_rules, benefits')
-          .eq('id', productId)
-          .single();
-
-        if (!error && data) {
-          productInfo = data;
-        }
-      } catch (dbError) {
-        console.warn('⚠️ Could not fetch product info:', dbError);
-      }
-
-      // ✅ PROMPT COMMERCIAL ORIENTÉ VENTE + VOUVOIEMENT
-      const commercialPrompt = this.buildCommercialPrompt(
-        productInfo, 
-        productName, 
-        intentAnalysis,
-        message
-      );
-
-      // ✅ Appel API avec orientation commerciale
+      // ✅ Appel API avec forceAI activé
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: commercialPrompt,
+          message: message,
           productId: productId,
           productName: productName,
-          currentStep: 'commercial_ai_response',
+          currentStep: 'ai_response',
           orderData: { session_id: sessionId },
           sessionId: sessionId,
           storeId: 'vosc_default',
-          forceAI: true
+          forceAI: true // ✅ FORCE l'utilisation de l'IA
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Commercial AI response received');
+        console.log('✅ GPT-4o API response received:', data.success);
         
         if (data.success && data.message) {
-          return this.ensureVouvoiement(data.message);
+          return data.message;
         }
       } else {
-        console.error('❌ Commercial AI error:', response.status, response.statusText);
+        console.error('❌ GPT-4o API error:', response.status, response.statusText);
       }
 
-      throw new Error('Commercial AI call failed');
+      // Si l'API échoue, utiliser le fallback intelligent
+      throw new Error('API call failed');
 
     } catch (error) {
-      console.error('❌ Commercial AI call error:', error);
+      console.error('❌ GPT-4o API call error:', error);
       throw error;
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Construction du prompt commercial
-  private buildCommercialPrompt(
-    productInfo: any, 
-    productName: string, 
-    intentAnalysis: any,
-    userMessage: string
-  ): string {
-    const intentContext = `
-ANALYSE D'INTENTION:
-- Score d'achat: ${intentAnalysis.score}/100
-- Confiance: ${intentAnalysis.confidence}
-- Recommandation: ${intentAnalysis.recommendation}
-- Signaux détectés: ${intentAnalysis.signals.join(', ')}
-`;
+  // ✅ AMÉLIORATION: Upsell avec vraies données Supabase
+  private async handleUpsellRequest(currentProductId: string): Promise<ChatMessage> {
+    try {
+      console.log('🛍️ Handling upsell request with REAL DATA for product:', currentProductId);
 
-    const orientationCommerciale = intentAnalysis.score > 60 
-      ? "PRIORITÉ: Pousser vers l'achat avec urgence douce"
-      : intentAnalysis.score > 30
-        ? "PRIORITÉ: Renforcer l'intérêt et lever les objections"
-        : "PRIORITÉ: Créer de l'intérêt et qualifier le besoin";
+      // ✅ RÉCUPÉRER LES VRAIES DONNÉES depuis Supabase
+      const { data: relatedProducts, error } = await supabase
+        .from('products')
+        .select(`
+          id, 
+          name, 
+          price, 
+          images, 
+          description,
+          stats,
+          rating
+        `)
+        .eq('status', 'active')
+        .neq('id', currentProductId)
+        .limit(3);
 
-    return `Tu es Rose, l'assistante commerciale experte de VIENS ON S'CONNAÎT au Sénégal.
+      if (error || !relatedProducts || relatedProducts.length === 0) {
+        return {
+          type: 'assistant',
+          content: `🛍️ **Nos autres jeux seront bientôt disponibles !**
 
-CONTEXTE MARQUE:
-VIENS ON S'CONNAÎT est la marque leader de jeux de cartes relationnels en Afrique, créée au Sénégal. Nos jeux renforcent les liens humains à travers des conversations authentiques.
+En attendant, téléchargez notre app mobile pour découvrir tous nos jeux :`,
+          choices: [
+            '📱 Télécharger l\'app mobile',
+            '✅ Merci, c\'est tout'
+          ],
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+          metadata: {
+            nextStep: 'app_recommendation' as ConversationStep
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
 
-PRODUIT ACTUEL:
-- Nom: le jeu ${productName}
-- Prix: ${productInfo.price || '14,000'} FCFA (livraison gratuite à Dakar)
-- Description: ${productInfo.description || 'Jeu de 150 cartes pour renforcer les relations'}
-- Public: ${productInfo.target_audience || 'Couples, familles, amis'}
-- Bénéfices: ${productInfo.benefits || 'Conversations authentiques, liens renforcés'}
+      // ✅ RÉCUPÉRER LES VRAIES STATISTIQUES pour chaque produit
+      const formattedProducts = await Promise.all(
+        relatedProducts.map(async (product) => {
+          // Récupérer le nombre réel d'avis/témoignages
+          const { data: testimonials } = await supabase
+            .from('testimonials')
+            .select('rating')
+            .eq('product_id', product.id);
 
-MESSAGE CLIENT: "${userMessage}"
+          const reviewsCount = testimonials?.length || 0;
+          const averageRating = testimonials && testimonials.length > 0 
+            ? testimonials.reduce((sum, t) => sum + t.rating, 0) / testimonials.length
+            : (product.rating || 5);
 
-${intentContext}
+          // Récupérer les vraies ventes
+          const { data: orders } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('product_id', product.id)
+            .eq('status', 'confirmed');
 
-${orientationCommerciale}
+          const salesCount = orders?.length || 0;
 
-MISSION COMMERCIALE:
-1. Répondre de manière chaleureuse et professionnelle avec VOUVOIEMENT EXCLUSIF
-2. Mettre l'accent sur les BÉNÉFICES ÉMOTIONNELS et relationnels
-3. Créer un sentiment d'URGENCE douce (stock limité, demande forte)
-4. Utiliser la PREUVE SOCIALE (autres clients satisfaits au Sénégal)
-5. Terminer par une question qui ORIENTE VERS L'ACHAT
+          return {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            images: product.images || [],
+            reason: `Complément parfait au jeu ${currentProductId}`,
+            urgency: 'medium' as const,
+            stats: {
+              sold: salesCount,
+              satisfaction: Math.round(averageRating * 10) / 10,
+              reviews: reviewsCount
+            }
+          };
+        })
+      );
 
-STYLE DE RÉPONSE SELON L'INTENTION:
-${intentAnalysis.score > 60 ? `
-- Renforcer la décision déjà prise
-- Créer de l'urgence ("Beaucoup de demandes aujourd'hui")
-- Proposer la commande directement
-- Question finale: "Souhaitez-vous commander maintenant ?"
-` : intentAnalysis.score > 30 ? `
-- Lever les dernières hésitations
-- Montrer la valeur unique du produit
-- Rassurer sur la qualité et la satisfaction
-- Question finale: "Qu'est-ce qui vous ferait pencher définitivement ?"
-` : `
-- Créer de l'intérêt et du désir
-- Expliquer les bénéfices concrets
-- Qualifier le besoin du client
-- Question finale: orientée découverte mais avec option achat
-`}
+      return {
+        type: 'assistant',
+        content: `🛍️ **Nos autres jeux populaires :**
 
-RÈGLES STRICTES:
-- VOUVOIEMENT OBLIGATOIRE (vous, votre, êtes, avez)
-- JAMAIS de tutoiement (tu, ton, es, as)
-- Maximum 4 phrases + question finale
-- Émojis avec parcimonie (1-2 maximum)
-- Ton chaleureux mais professionnel africain
-- Toujours finir par une question d'engagement
+Nos clients qui achètent ce jeu prennent souvent aussi :`,
+        choices: [], // Pas de choices car on utilise les cartes produits
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'upsell_display' as ConversationStep,
+          recommendedProducts: formattedProducts,
+          flags: { 
+            showRecommendations: true,
+            upsellMode: true,
+            realDataUsed: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
 
-Réponds UNIQUEMENT avec le texte de la réponse, pas de format JSON.`;
+    } catch (error) {
+      console.error('❌ Error handling upsell request:', error);
+      return this.createErrorMessage('Impossible de charger les autres jeux.');
+    }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Assurer le vouvoiement
-  private ensureVouvoiement(text: string): string {
-    let correctedText = text;
-
-    // Corrections automatiques tu → vous
-    const corrections = [
-      { from: /\btu\b/gi, to: 'vous' },
-      { from: /\bton\b/gi, to: 'votre' },
-      { from: /\bta\b/gi, to: 'votre' },
-      { from: /\btes\b/gi, to: 'vos' },
-      { from: /\btoi\b/gi, to: 'vous' },
-      { from: /\btu es\b/gi, to: 'vous êtes' },
-      { from: /\btu as\b/gi, to: 'vous avez' },
-      { from: /\btu peux\b/gi, to: 'vous pouvez' },
-      { from: /\btu veux\b/gi, to: 'vous voulez' },
-      { from: /\btu fais\b/gi, to: 'vous faites' },
-      { from: /\btu dis\b/gi, to: 'vous dites' }
-    ];
-
-    corrections.forEach(correction => {
-      correctedText = correctedText.replace(correction.from, correction.to);
-    });
-
-    return correctedText;
+  // ✅ HELPER: Déterminer l'étape suivante depuis la catégorie
+  private determineNextStepFromCategory(category: string): ConversationStep {
+    const categoryMap: Record<string, ConversationStep> = {
+      'produit': 'product_info_shown',
+      'prix': 'price_explained', 
+      'livraison': 'delivery_info_shown',
+      'paiement': 'payment_method',
+      'jeu': 'game_rules_shown',
+      'regles': 'game_rules_shown',
+      'benefices': 'benefits_shown',
+      'app': 'app_promotion',
+      'testimonials': 'testimonials_shown',
+      'couple': 'target_audience_shown',
+      'famille': 'target_audience_shown'
+    };
+    
+    return categoryMap[category] || 'knowledge_response';
   }
 
-  // ✅ NOUVELLE MÉTHODE: Générer des choix basés sur l'intention
-  private generateIntentBasedChoices(intentAnalysis: any, productName: string): string[] {
-    if (intentAnalysis.score >= 70) {
-      // Intention forte → choix orientés achat
-      return [
-        'Je veux l\'acheter maintenant',
-        'Combien coûte la livraison ?',
-        'Quand sera-t-il livré ?',
-        'J\'ai une dernière question'
-      ];
-    }
-    
-    if (intentAnalysis.score >= 40) {
-      // Intention moyenne → choix de décision
-      return [
-        'Je veux l\'acheter maintenant',
-        'Comment y jouer exactement ?',
-        'C\'est pour qui précisément ?',
-        'J\'ai d\'autres questions'
-      ];
-    }
-    
-    // Intention faible → choix informatifs avec achat en option
-    return [
-      'Comment y jouer ?',
-      'C\'est pour qui ?',
-      'Voir les témoignages',
-      'Je veux l\'acheter maintenant'
-    ];
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Déterminer la prochaine étape basée sur l'intention
-  private determineNextStepFromIntent(intentAnalysis: any): ConversationStep {
-    if (intentAnalysis.score >= 70) {
-      return 'high_intent_detected';
-    }
-    
-    if (intentAnalysis.score >= 40) {
-      return 'medium_intent_detected';
-    }
-    
-    return 'ai_response';
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Ajouter orientation commerciale au contenu
-  private addCommercialOrientation(content: string, intentAnalysis: any): string {
-    if (intentAnalysis.score >= 50) {
-      return content + "\n\n**Souhaitez-vous passer commande maintenant ou avez-vous d'autres questions ?**";
-    }
-    
-    if (intentAnalysis.score >= 25) {
-      return content + "\n\n**Cela répond-il à vos attentes ? Qu'est-ce qui vous ferait pencher pour ce jeu ?**";
-    }
-    
-    return content + "\n\n**Que souhaitez-vous savoir d'autre sur ce jeu ?**";
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Fallback commercial intelligent
-  private createCommercialFallback(message: string, productName: string, intentAnalysis: any): ChatMessage {
+  // ✅ Fallback intelligent simple
+  private createIntelligentFallback(message: string, productName: string): ChatMessage {
     const messageLower = message.toLowerCase();
 
+    // Analyse intelligente du type de question
     let content = '';
-    let choices: string[] = [];
     
-    // Analyse commerciale du type de question
     if (messageLower.includes('prix') || messageLower.includes('coût') || messageLower.includes('cher')) {
-      content = `Le **${productName}** coûte 14,000 FCFA avec **livraison gratuite à Dakar** ! 💰
+      content = `Le **${productName}** coûte 14,000 FCFA avec livraison gratuite à Dakar ! 💰
 
-C'est un investissement dans la qualité de vos relations qui vous rapportera pendant des années. Nos clients nous disent que c'est le meilleur achat qu'ils aient fait pour leur couple/famille.
-
-**Voulez-vous le commander maintenant ou avez-vous d'autres questions sur le prix ?**`;
-      
-      choices = [
-        'Je veux l\'acheter maintenant',
-        'Combien coûte la livraison ailleurs ?',
-        'Y a-t-il des promotions ?',
-        'J\'ai d\'autres questions'
-      ];
+C'est un investissement dans la qualité de vos relations. Que pensez-vous de ce prix ?`;
     }
     else if (messageLower.includes('livraison') || messageLower.includes('livrer')) {
-      content = `Pour la livraison du **${productName}**, nous couvrons tout le Sénégal ! 🚚
+      content = `Pour la livraison du **${productName}**, nous livrons partout au Sénégal ! 🚚
 
-✅ **Gratuit à Dakar** (livraison en 24h)  
-✅ **2,500 FCFA ailleurs** (48-72h ouvrables)
-✅ **Suivi en temps réel** par WhatsApp
+✅ **Gratuit à Dakar** (24h)  
+✅ **2,500 FCFA** ailleurs (48-72h)
 
-Nos clients apprécient particulièrement la rapidité de nos livraisons.
+Dans quelle ville souhaitez-vous qu'on vous livre ?`;
+    }
+    else if (messageLower.includes('couple') || messageLower.includes('marié') || messageLower.includes('fiancé')) {
+      content = `Excellente question ! Le **${productName}** est parfait pour les couples qui veulent renforcer leur complicité à travers des conversations authentiques. 💕
 
-**Dans quelle ville souhaitez-vous recevoir votre jeu ?**`;
-      
-      choices = [
-        'Je veux l\'acheter maintenant',
-        'Livraison à Dakar',
-        'Livraison en région',
-        'J\'ai d\'autres questions'
-      ];
+Depuis combien de temps êtes-vous ensemble ?`;
+    }
+    else if (messageLower.includes('famille') || messageLower.includes('enfant') || messageLower.includes('parent')) {
+      content = `Le **${productName}** est parfait pour renforcer les liens familiaux ! 👨‍👩‍👧‍👦
+
+Il favorise le dialogue entre générations et crée des moments de complicité authentiques. Les questions sont adaptées pour tous les âges.
+
+Combien de personnes êtes-vous dans la famille ?`;
+    }
+    else if (messageLower.includes('règles') || messageLower.includes('jouer') || messageLower.includes('comment')) {
+      content = `C'est très simple ! Le **${productName}** contient 150 cartes à piocher pour créer des conversations profondes et amusantes. 🎮
+
+Voulez-vous que je vous explique les règles détaillées ?`;
     }
     else {
-      // Réponse générique commerciale
+      // Réponse générique intelligente
       content = `Excellente question sur le **${productName}** ! 
 
-Ce jeu a déjà transformé la vie de nombreux couples et familles au Sénégal. Nos clients nous disent régulièrement qu'ils regrettent de ne pas l'avoir acheté plus tôt.
-
-**Que puis-je vous expliquer pour vous aider à prendre votre décision ?**`;
-      
-      choices = this.generateIntentBasedChoices(intentAnalysis, productName);
+Ce jeu a déjà aidé des milliers de couples et familles à créer des liens plus forts au Sénégal et en Afrique. Que voulez-vous savoir de plus précis ?`;
     }
 
     return {
       type: 'assistant',
       content: content,
-      choices: choices,
+      choices: [
+        'Je veux l\'acheter maintenant',
+        'Comment y jouer ?',
+        'J\'ai d\'autres questions',
+        'Voir les témoignages'
+      ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
-        nextStep: 'commercial_fallback' as ConversationStep,
-        flags: { 
-          commercialFallback: true,
-          vouvoiement: true,
-          intentScore: intentAnalysis.score
-        }
+        nextStep: 'intelligent_fallback' as ConversationStep,
+        flags: { intelligentFallback: true }
       },
       timestamp: new Date().toISOString()
     };
   }
 
-  // ✅ MÉTHODES UTILITAIRES POUR L'HISTORIQUE DE CONVERSATION
-
-  private addToConversationHistory(sessionId: string, message: string, type: 'user' | 'assistant'): void {
-    if (!this.conversationHistories.has(sessionId)) {
-      this.conversationHistories.set(sessionId, []);
-    }
-    
-    const history = this.conversationHistories.get(sessionId)!;
-    history.push({
-      message,
-      timestamp: new Date().toISOString(),
-      type
-    });
-    
-    // Garder seulement les 20 derniers messages pour performance
-    if (history.length > 20) {
-      history.splice(0, history.length - 20);
-    }
-  }
-
-  private getConversationHistory(sessionId: string): ConversationMessage[] {
-    return this.conversationHistories.get(sessionId) || [];
-  }
-
-  private calculateConversationDuration(history: ConversationMessage[]): number {
-    if (history.length < 2) return 0;
-    
-    const start = new Date(history[0].timestamp).getTime();
-    const end = new Date(history[history.length - 1].timestamp).getTime();
-    
-    return Math.floor((end - start) / 1000); // en secondes
-  }
-
-  // ✅ TOUTES LES AUTRES MÉTHODES EXISTANTES (maintenues)
+  // ✅ TOUTES LES AUTRES MÉTHODES (restent identiques mais avec "le jeu" ajouté)
   
   private async loadOrderStateFromDatabase(sessionId: string): Promise<void> {
     try {
@@ -681,9 +516,7 @@ Ce jeu a déjà transformé la vie de nombreux couples et familles au Sénégal.
       'acheter maintenant',
       'commander maintenant',
       'Je veux l\'acheter',
-      '⚡ Commander rapidement',
-      'je le veux',
-      'je le prends'
+      '⚡ Commander rapidement'
     ];
     
     return triggers.some(trigger => 
@@ -739,11 +572,11 @@ Ce jeu a déjà transformé la vie de nombreux couples et familles au Sénégal.
 
       return {
         type: 'assistant' as const,
-        content: `🛒 **Parfait ! Procédons à votre commande**
+        content: `🛒 **Parfait ! Commençons votre commande**
 
 ${fullProductName} - Excellent choix ! 🎉
 
-**Combien d'exemplaires souhaitez-vous ?**`,
+Combien d'exemplaires voulez-vous ?`,
         choices: [
           '1 exemplaire',
           '2 exemplaires',
@@ -759,8 +592,7 @@ ${fullProductName} - Excellent choix ! 🎉
           productId: productId,
           flags: { 
             expressMode: true,
-            quantitySelection: true,
-            vouvoiement: true
+            quantitySelection: true
           }
         },
         timestamp: new Date().toISOString()
@@ -772,9 +604,7 @@ ${fullProductName} - Excellent choix ! 🎉
     }
   }
 
-  // ✅ Continuer avec toutes les autres méthodes existantes...
-  // (Je garde les méthodes existantes pour la compatibilité)
-
+  // ✅ Fonctions utilitaires identiques
   private isSpecialMessage(message: string): boolean {
     const specialTriggers = [
       'je veux l\'acheter',
@@ -880,7 +710,7 @@ Vous êtes redirigé vers l'App Store pour télécharger VIENS ON S'CONNAÎT !
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'app_download_mobile' as ConversationStep,
-          flags: { appDownloadTriggered: true, vouvoiement: true }
+          flags: { appDownloadTriggered: true }
         },
         timestamp: new Date().toISOString()
       };
@@ -908,118 +738,469 @@ Je viens d'ouvrir l'App Store dans un nouvel onglet !
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'app_download_desktop' as ConversationStep,
-          flags: { appDownloadTriggered: true, vouvoiement: true }
+          flags: { appDownloadTriggered: true }
         },
         timestamp: new Date().toISOString()
       };
     }
   }
 
-  // ✅ Amélioration de l'upsell avec orientation commerciale
-  private async handleUpsellRequest(currentProductId: string): Promise<ChatMessage> {
+  // ✅ GESTION DU FLOW EXPRESS avec "le jeu"
+  private async handleExpressFlowInternal(
+    sessionId: string,
+    message: string,
+    currentStep: ConversationStep,
+    productId: string,
+    productName: string
+  ): Promise<ChatMessage> {
     try {
-      console.log('🛍️ Handling upsell request with COMMERCIAL DATA for product:', currentProductId);
-
-      const { data: relatedProducts, error } = await supabase
-        .from('products')
-        .select(`
-          id, 
-          name, 
-          price, 
-          images, 
-          description,
-          stats,
-          rating
-        `)
-        .eq('status', 'active')
-        .neq('id', currentProductId)
-        .limit(3);
-
-      if (error || !relatedProducts || relatedProducts.length === 0) {
-        return {
-          type: 'assistant',
-          content: `🛍️ **Nos autres jeux seront bientôt disponibles !**
-
-En attendant, téléchargez notre app mobile pour découvrir tous nos jeux exclusifs :`,
-          choices: [
-            '📱 Télécharger l\'app mobile',
-            '✅ Merci, c\'est parfait'
-          ],
-          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-          metadata: {
-            nextStep: 'app_recommendation' as ConversationStep,
-            flags: { vouvoiement: true }
+      await this.loadOrderStateFromDatabase(sessionId);
+      
+      let orderState = this.orderStates.get(sessionId);
+      
+      if (!orderState && currentStep === 'express_quantity') {
+        const product = await this.getProductData(productId);
+        orderState = {
+          step: 'quantity',
+          data: {
+            productId,
+            productName: `le jeu ${productName}`,
+            unitPrice: product.price,
+            quantity: 1
           },
-          timestamp: new Date().toISOString()
+          flags: {
+            isExistingCustomer: false,
+            needsNameCollection: true,
+            needsAddressCollection: true
+          },
+          sessionId: sessionId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
+        this.orderStates.set(sessionId, orderState);
+        await this.saveOrderStateToDatabase(sessionId, orderState);
       }
 
-      // Formatage commercial des produits
-      const formattedProducts = await Promise.all(
-        relatedProducts.map(async (product) => {
-          const { data: testimonials } = await supabase
-            .from('testimonials')
-            .select('rating')
-            .eq('product_id', product.id);
+      if (!orderState) {
+        return this.createErrorMessage('Session expirée. Veuillez recommencer.');
+      }
 
-          const reviewsCount = testimonials?.length || 0;
-          const averageRating = testimonials && testimonials.length > 0 
-            ? testimonials.reduce((sum, t) => sum + t.rating, 0) / testimonials.length
-            : (product.rating || 5);
+      switch (orderState.step) {
+        case 'quantity':
+          return await this.handleQuantityStep(sessionId, message, orderState);
+        case 'phone':
+          return await this.handlePhoneStep(sessionId, message, orderState);
+        case 'name':
+          return await this.handleNameStep(sessionId, message, orderState);
+        case 'address':
+          return await this.handleAddressStep(sessionId, message, orderState);
+        case 'payment':
+          return await this.handlePaymentStep(sessionId, message, orderState);
+        case 'confirmation':
+          return await this.handleConfirmationStep(sessionId, message, orderState);
+        default:
+          return this.createErrorMessage('Étape inconnue');
+      }
 
-          const { data: orders } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('product_id', product.id)
-            .eq('status', 'confirmed');
+    } catch (error) {
+      console.error('❌ Error in express flow:', error);
+      return this.createErrorMessage('Erreur dans le processus de commande');
+    }
+  }
 
-          const salesCount = orders?.length || 0;
+  // ✅ TOUTES LES AUTRES MÉTHODES EXPRESS (identiques mais avec "le jeu")
+  
+  private async handleQuantityStep(
+    sessionId: string,
+    message: string,
+    orderState: ExpressOrderState
+  ): Promise<ChatMessage> {
+    let quantity = 1;
 
-          return {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            images: product.images || [],
-            reason: `Complément parfait - très demandé en ce moment`,
-            urgency: 'medium' as const,
-            stats: {
-              sold: salesCount,
-              satisfaction: Math.round(averageRating * 10) / 10,
-              reviews: reviewsCount
-            }
-          };
-        })
-      );
+    if (message.includes('1 exemplaire')) quantity = 1;
+    else if (message.includes('2 exemplaires')) quantity = 2;
+    else if (message.includes('3 exemplaires')) quantity = 3;
+    else {
+      const numMatch = message.match(/(\d+)/);
+      if (numMatch) {
+        quantity = parseInt(numMatch[1]);
+        if (quantity < 1 || quantity > 10) {
+          return this.createErrorMessage('Quantité entre 1 et 10 seulement.');
+        }
+      }
+    }
+
+    orderState.data.quantity = quantity;
+    orderState.step = 'phone';
+    orderState.updatedAt = new Date().toISOString();
+    
+    this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
+
+    const totalAmount = orderState.data.unitPrice * quantity;
+
+    return {
+      type: 'assistant',
+      content: `✅ **${quantity} exemplaire${quantity > 1 ? 's' : ''} - ${totalAmount.toLocaleString()} FCFA**
+
+Parfait ! J'ai besoin de votre numéro de téléphone pour la livraison 📱
+
+*Format : +221 77 123 45 67*`,
+      choices: [],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'express_phone' as ConversationStep,
+        orderData: {
+          quantity: quantity,
+          totalAmount: totalAmount
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // Les autres méthodes du flow express restent identiques...
+  // (Je les garde identiques pour éviter un fichier trop long, mais avec "le jeu" ajouté là où nécessaire)
+
+  private async handlePhoneStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
+    const cleanPhone = message.replace(/\s/g, '');
+    if (cleanPhone.length < 8) {
+      return this.createErrorMessage('Numéro trop court. Format : +221 77 123 45 67');
+    }
+
+    let formattedPhone = cleanPhone;
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = '+221' + formattedPhone;
+    }
+    
+    orderState.data.phone = formattedPhone;
+    orderState.updatedAt = new Date().toISOString();
+
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('first_name, last_name, city, address')
+      .eq('phone', formattedPhone)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      orderState.data.firstName = existingCustomer.first_name;
+      orderState.data.lastName = existingCustomer.last_name;
+      orderState.data.city = existingCustomer.city;
+      orderState.data.address = existingCustomer.address;
+      orderState.flags.isExistingCustomer = true;
+      orderState.step = 'address';
+      
+      this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
       return {
         type: 'assistant',
-        content: `🛍️ **Nos autres jeux populaires :**
+        content: `👋 **Ravi de vous revoir ${existingCustomer.first_name} !**
 
-Nos clients qui achètent ce jeu prennent souvent aussi :
+📍 **Adresse habituelle :** ${existingCustomer.address}, ${existingCustomer.city}
 
-💡 **Conseil :** Beaucoup de nos clients groupent leurs commandes pour optimiser la livraison !`,
-        choices: ['🔄 Retour aux options'], 
+Livraison à la même adresse ?`,
+        choices: [
+          'Oui, même adresse',
+          'Changer d\'adresse'
+        ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
-          nextStep: 'upsell_display' as ConversationStep,
-          recommendedProducts: formattedProducts,
-          flags: { 
-            showRecommendations: true,
-            upsellMode: true,
-            realDataUsed: true,
-            vouvoiement: true
-          }
+          nextStep: 'express_address_confirmation' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
+    } else {
+      orderState.step = 'name';
+      this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
 
-    } catch (error) {
-      console.error('❌ Error handling upsell request:', error);
-      return this.createErrorMessage('Impossible de charger les autres jeux.');
+      return {
+        type: 'assistant',
+        content: `📱 **${formattedPhone} enregistré**
+
+Bienvenue ! 🎉 Quel est votre nom complet ?
+
+*Exemple : Aminata Diallo*`,
+        choices: [],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_name' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
-  // ✅ Autres méthodes utilitaires
+  private async handleNameStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
+    const name = message.trim();
+    const parts = name.split(/\s+/);
+    
+    if (parts.length < 2) {
+      return this.createErrorMessage('Nom complet SVP. Exemple : Aminata Diallo');
+    }
+
+    orderState.data.firstName = parts[0];
+    orderState.data.lastName = parts.slice(1).join(' ');
+    orderState.step = 'address';
+    orderState.updatedAt = new Date().toISOString();
+    
+    this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
+
+    return {
+      type: 'assistant',
+      content: `👤 **Enchanté ${orderState.data.firstName} !**
+
+Votre adresse de livraison ?
+
+*Format : Quartier/Rue, Ville*
+*Exemple : Mermoz, Dakar*`,
+      choices: [],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'express_address' as ConversationStep
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private async handleAddressStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
+    if (message.toLowerCase().includes('oui') && orderState.flags.isExistingCustomer) {
+      orderState.step = 'payment';
+      orderState.updatedAt = new Date().toISOString();
+      this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
+
+      const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
+
+      return {
+        type: 'assistant',
+        content: `✅ **Livraison confirmée**
+
+📍 ${orderState.data.address}, ${orderState.data.city}
+💰 **Total : ${totalAmount.toLocaleString()} FCFA**
+
+Comment souhaitez-vous payer ?`,
+        choices: [
+          '📱 Wave (recommandé)',
+          '💳 Carte bancaire', 
+          '💵 Paiement à la livraison'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_payment' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (message.trim().length > 5) {
+      const addressParts = message.split(',').map(part => part.trim());
+      
+      if (addressParts.length >= 2) {
+        orderState.data.address = addressParts[0];
+        orderState.data.city = addressParts[1];
+      } else {
+        orderState.data.address = message.trim();
+        orderState.data.city = 'Dakar';
+      }
+
+      orderState.step = 'payment';
+      orderState.updatedAt = new Date().toISOString();
+      this.orderStates.set(sessionId, orderState);
+      await this.saveOrderStateToDatabase(sessionId, orderState);
+
+      const totalAmount = orderState.data.unitPrice * orderState.data.quantity;
+
+      return {
+        type: 'assistant',
+        content: `✅ **Adresse enregistrée**
+
+📍 ${orderState.data.address}, ${orderState.data.city}
+💰 **Total : ${totalAmount.toLocaleString()} FCFA**
+
+Comment souhaitez-vous payer ?`,
+        choices: [
+          '📱 Wave (recommandé)',
+          '💳 Carte bancaire', 
+          '💵 Paiement à la livraison'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'express_payment' as ConversationStep
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return this.createErrorMessage('Adresse trop courte. Format : Quartier, Ville');
+  }
+
+  private async handlePaymentStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
+    let paymentMethod: PaymentProvider;
+
+    if (message.toLowerCase().includes('wave')) {
+      paymentMethod = 'wave';
+    } else if (message.toLowerCase().includes('carte')) {
+      paymentMethod = 'card';
+    } else if (message.toLowerCase().includes('livraison')) {
+      paymentMethod = 'cash_on_delivery';
+    } else {
+      return this.createErrorMessage('Choisissez un mode de paiement valide');
+    }
+
+    orderState.data.paymentMethod = paymentMethod;
+    orderState.step = 'confirmation';
+    orderState.updatedAt = new Date().toISOString();
+    this.orderStates.set(sessionId, orderState);
+    await this.saveOrderStateToDatabase(sessionId, orderState);
+
+    const orderResult = await this.createOrder(sessionId, orderState);
+    
+    if (!orderResult.success) {
+      return this.createErrorMessage(orderResult.error || 'Erreur création commande');
+    }
+
+    let paymentInstructions = '';
+    if (paymentMethod === 'wave') {
+      paymentInstructions = `📱 **Wave** : Cliquez sur le bouton Wave ci-dessous`;
+    } else if (paymentMethod === 'card') {
+      paymentInstructions = `💳 **Carte bancaire** : Redirection vers paiement sécurisé`;
+    } else {
+      paymentInstructions = `💵 **À la livraison** : Préparez le montant exact`;
+    }
+
+    return {
+      type: 'assistant',
+      content: `🎉 **Commande confirmée !**
+
+**N° :** #${orderResult.orderId}
+
+${paymentInstructions}
+
+**Livraison :**
+📍 ${orderState.data.address}, ${orderState.data.city}
+⏰ 24-48h ouvrables
+
+Merci pour votre confiance ! ✨`,
+      choices: paymentMethod === 'wave' ? ['🌊 Payer avec Wave'] : 
+               paymentMethod === 'card' ? ['💳 Payer par carte'] : 
+               ['⭐ Parfait, merci !', '🛍️ Commander un autre jeu'],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'express_completed' as ConversationStep,
+        orderData: {
+          orderId: orderResult.orderId,
+          paymentMethod: paymentMethod
+        },
+        paymentAmount: orderState.data.unitPrice * orderState.data.quantity,
+        flags: { 
+          orderCompleted: true,
+          [paymentMethod === 'wave' ? 'wavePayment' : 
+           paymentMethod === 'card' ? 'stripePayment' : 'cashPayment']: true
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private async handleConfirmationStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
+    this.orderStates.delete(sessionId);
+    
+    if (message.includes('Commander un autre jeu')) {
+      return await this.handleUpsellRequest(orderState.data.productId);
+    }
+
+    if (message.includes('Télécharger l\'app')) {
+      return await this.handleAppDownload();
+    }
+
+    return {
+      type: 'assistant',
+      content: `✅ **Merci pour votre confiance !**
+
+Votre **${orderState.data.productName}** sera livré rapidement.
+
+À très bientôt ! 💕`,
+      choices: [
+        '🛍️ Commander un autre jeu',
+        '📱 Télécharger l\'app mobile',
+        '⭐ Merci Rose !'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'post_purchase' as ConversationStep
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // ✅ MÉTHODES UTILITAIRES
+  
+  private async createOrder(sessionId: string, orderState: ExpressOrderState): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    try {
+      const timestamp = Date.now();
+      const numericOrderId = parseInt(`${timestamp}${Math.floor(Math.random() * 1000)}`);
+      
+      const orderData = {
+        id: numericOrderId,
+        session_id: sessionId,
+        product_id: orderState.data.productId,
+        first_name: orderState.data.firstName || 'Client',
+        last_name: orderState.data.lastName || '',
+        phone: orderState.data.phone || '',
+        city: orderState.data.city || '',
+        address: orderState.data.address || '',
+        payment_method: orderState.data.paymentMethod || 'cash_on_delivery',
+        status: 'pending',
+        payment_status: 'pending',
+        total_amount: Number(orderState.data.unitPrice * orderState.data.quantity),
+        delivery_cost: 0,
+        order_details: JSON.stringify([{
+          product_id: orderState.data.productId,
+          product_name: orderState.data.productName,
+          quantity: Number(orderState.data.quantity),
+          unit_price: Number(orderState.data.unitPrice),
+          total_price: Number(orderState.data.unitPrice * orderState.data.quantity)
+        }]),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, orderId: numericOrderId.toString() };
+
+    } catch (error) {
+      console.error('❌ Error creating order:', error);
+      return { success: false, error: 'Erreur création commande' };
+    }
+  }
+
+  private async getProductData(productId: string): Promise<{ price: number }> {
+    try {
+      const { data: product } = await supabase
+        .from('products')
+        .select('price')
+        .eq('id', productId)
+        .single();
+
+      return { price: product?.price || 14000 };
+    } catch (error) {
+      return { price: 14000 };
+    }
+  }
+
   private isWaveTransactionId(message: string): boolean {
     const cleanMessage = message.trim().toUpperCase();
     const waveIdPattern = /^T[A-Z0-9]{8,20}$/;
@@ -1031,7 +1212,7 @@ Nos clients qui achètent ce jeu prennent souvent aussi :
       type: 'assistant',
       content: `✅ **Retour du paiement Wave**
 
-Donnez-moi votre **ID de Transaction Wave** pour confirmer votre paiement.
+Donnez-moi votre **ID de Transaction Wave** pour confirmer.
 
 💡 **Comment le trouver :**
 1. Ouvrez Wave
@@ -1042,8 +1223,7 @@ Donnez-moi votre **ID de Transaction Wave** pour confirmer votre paiement.
       choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
-        nextStep: 'wave_transaction_verification' as ConversationStep,
-        flags: { vouvoiement: true }
+        nextStep: 'wave_transaction_verification' as ConversationStep
       },
       timestamp: new Date().toISOString()
     };
@@ -1087,7 +1267,7 @@ Merci pour votre confiance ! 🙏`,
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'express_completed' as ConversationStep,
-          flags: { orderCompleted: true, waveVerified: true, vouvoiement: true }
+          flags: { orderCompleted: true, waveVerified: true }
         },
         timestamp: new Date().toISOString()
       };
@@ -1103,16 +1283,14 @@ Merci pour votre confiance ! 🙏`,
         type: 'assistant',
         content: `🎮 **Comment jouer au ${productName} :**
 
-**C'est très simple et amusant :**
-1️⃣ Mélangez les 150 cartes soigneusement conçues
+**C'est très simple :**
+1️⃣ Mélangez les 150 cartes
 2️⃣ Tirez une carte chacun votre tour
 3️⃣ Lisez la question à voix haute
-4️⃣ Répondez sincèrement et sans jugement
-5️⃣ Échangez librement sur vos réponses
+4️⃣ Répondez sincèrement
+5️⃣ Échangez sur vos réponses
 
-🎯 **L'objectif :** Créer des conversations authentiques qui renforcent vos liens !
-
-**Êtes-vous prêt(e) à découvrir de nouvelles facettes de vos proches ?**`,
+🎯 **Objectif :** Créer des conversations authentiques !`,
         choices: [
           'Je veux l\'acheter maintenant',
           'C\'est pour qui ?',
@@ -1121,8 +1299,7 @@ Merci pour votre confiance ! 🙏`,
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'game_rules_shown' as ConversationStep,
-          productId: productId,
-          flags: { gameRulesShown: true, vouvoiement: true }
+          productId: productId
         },
         timestamp: new Date().toISOString()
       };
@@ -1140,8 +1317,7 @@ Que souhaitez-vous savoir ?`,
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
-        nextStep: 'question_mode' as ConversationStep,
-        flags: { vouvoiement: true }
+        nextStep: 'question_mode' as ConversationStep
       },
       timestamp: new Date().toISOString()
     };
@@ -1165,8 +1341,7 @@ Y a-t-il autre chose que je puisse faire pour vous ?`,
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
-          nextStep: 'satisfaction_confirmed' as ConversationStep,
-          flags: { vouvoiement: true }
+          nextStep: 'satisfaction_confirmed' as ConversationStep
         },
         timestamp: new Date().toISOString()
       };
@@ -1184,8 +1359,7 @@ Comment puis-je vous accompagner avec le **${productName}** ?`,
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
-        nextStep: 'generic_help' as ConversationStep,
-        flags: { vouvoiement: true }
+        nextStep: 'generic_help' as ConversationStep
       },
       timestamp: new Date().toISOString()
     };
@@ -1196,27 +1370,15 @@ Comment puis-je vous accompagner avec le **${productName}** ?`,
       type: 'assistant',
       content: `😔 **${errorText}**
 
-Souhaitez-vous réessayer ?`,
+Voulez-vous réessayer ?`,
       choices: ['🔄 Réessayer', '📞 Support'],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
         nextStep: 'error_recovery' as ConversationStep,
-        flags: { hasError: true, vouvoiement: true }
+        flags: { hasError: true }
       },
       timestamp: new Date().toISOString()
     };
-  }
-
-  // ✅ Gestion du flow express (simplifié pour l'espace)
-  private async handleExpressFlowInternal(
-    sessionId: string,
-    message: string,
-    currentStep: ConversationStep,
-    productId: string,
-    productName: string
-  ): Promise<ChatMessage> {
-    // Implementation du flow express existant...
-    return this.createErrorMessage('Flow express en cours de traitement');
   }
 
   // ✅ MÉTHODES PUBLIQUES pour compatibilité

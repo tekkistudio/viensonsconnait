@@ -1,9 +1,8 @@
-// src/app/api/chat/route.ts - VERSION COMMERCIALE ORIENTÉE VENTE AVEC VOUVOIEMENT
+// src/app/api/chat/route.ts - VERSION ENTIÈREMENT CORRIGÉE AVEC PRIORITÉ IA GPT-4o
 
 import { NextRequest, NextResponse } from "next/server";
 import { OptimizedChatService } from "@/lib/services/OptimizedChatService";
 import { AIManager } from "@/lib/services/AIManager";
-import { PurchaseIntentDetector } from "@/lib/services/PurchaseIntentDetector";
 import OpenAI from "openai";
 import type { ConversationStep } from '@/types/chat';
 
@@ -24,8 +23,7 @@ interface ChatRequest {
   orderData?: any;
   sessionId: string;
   storeId: string;
-  forceAI?: boolean;
-  intentAnalysis?: any; // Nouvelle propriété pour l'analyse d'intention
+  forceAI?: boolean; // ✅ FLAG POUR FORCER L'IA
 }
 
 interface ChatResponse {
@@ -37,7 +35,6 @@ interface ChatResponse {
   orderData?: any;
   flags?: any;
   error?: string;
-  intentScore?: number; // Nouveau: score d'intention
 }
 
 // ✅ INITIALISATION OPENAI
@@ -48,7 +45,7 @@ function initializeOpenAI() {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
-    console.log('✅ OpenAI initialized with GPT-4o for COMMERCIAL RESPONSES');
+    console.log('✅ OpenAI initialized with GPT-4o for direct API calls');
   } else {
     console.warn('⚠️ OPENAI_API_KEY not found in environment');
   }
@@ -62,10 +59,10 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-// ✅ ENDPOINT PRINCIPAL COMMERCIAL ORIENTÉ VENTE
+// ✅ ENDPOINT PRINCIPAL CORRIGÉ AVEC PRIORITÉ IA GPT-4o
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 Commercial Chat API called - SALES ORIENTED VERSION');
+    console.log('🚀 Chat API called - PRIORITY AI GPT-4o VERSION');
     
     // Parser la requête avec gestion d'erreur
     let body;
@@ -103,15 +100,14 @@ export async function POST(request: NextRequest) {
       orderData: body.orderData || {},
       sessionId: body.sessionId || `session_${Date.now()}`,
       storeId: body.storeId || 'default',
-      forceAI: body.forceAI || false,
-      intentAnalysis: body.intentAnalysis
+      forceAI: body.forceAI || false
     };
 
     // ✅ VÉRIFICATIONS RENFORCÉES
     if (!chatRequest.message.trim()) {
       return NextResponse.json({
         success: false,
-        message: '🤔 **Que souhaitez-vous me dire ?**\n\nJe suis là pour vous aider avec nos jeux !',
+        message: '🤔 **Que souhaitez-vous me dire ?**\n\nJe suis là pour vous aider !',
         choices: [
           'Je veux acheter un jeu',
           'J\'ai des questions',
@@ -143,25 +139,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ✅ ANALYSE D'INTENTION D'ACHAT EN PRIORITÉ
-    const intentDetector = PurchaseIntentDetector.getInstance();
-    let intentAnalysis;
-    
-    if (!chatRequest.intentAnalysis) {
-      console.log('🎯 Analyzing purchase intent...');
-      intentAnalysis = intentDetector.analyzePurchaseIntent(chatRequest.message);
-      console.log('📊 Intent analysis result:', {
-        score: intentAnalysis.score,
-        confidence: intentAnalysis.confidence,
-        recommendation: intentAnalysis.recommendation
-      });
-    } else {
-      intentAnalysis = chatRequest.intentAnalysis;
-    }
-
-    // ✅ PRIORITÉ 1: FORCER L'IA COMMERCIALE DIRECTEMENT
-    if (chatRequest.forceAI || intentAnalysis.score > 0) {
-      console.log('🤖 Commercial AI response FORCED or Intent detected - using GPT-4o DIRECTLY');
+    // ✅ PRIORITÉ 1: FORCER L'IA GPT-4o DIRECTEMENT
+    if (chatRequest.forceAI) {
+      console.log('🤖 AI response FORCED by client request - using GPT-4o DIRECTLY');
       
       try {
         // ✅ Récupérer le nom du produit depuis la base si nécessaire
@@ -171,56 +151,73 @@ export async function POST(request: NextRequest) {
           const { supabase } = await import('@/lib/supabase');
           const { data: product, error: productError } = await supabase
             .from('products')
-            .select('name, description, price, target_audience, game_rules, benefits')
+            .select('name')
             .eq('id', chatRequest.productId)
             .single();
           
           if (!productError && product?.name) {
             productName = product.name;
-            
-            // ✅ APPEL DIRECT GPT-4o AVEC PROMPT COMMERCIAL AVANCÉ
-            const commercialResponse = await getCommercialGPT4oResponse(
-              chatRequest.message,
-              chatRequest.productId,
-              productName,
-              chatRequest.sessionId,
-              intentAnalysis,
-              product // Données produit complètes
-            );
-
-            if (commercialResponse) {
-              const response: ChatResponse = {
-                success: true,
-                message: commercialResponse.content,
-                choices: commercialResponse.choices,
-                nextStep: commercialResponse.nextStep,
-                type: 'assistant',
-                intentScore: intentAnalysis.score,
-                flags: { 
-                  commercialAI: true,
-                  aiUsed: true,
-                  gptModel: 'gpt-4o',
-                  confidence: 0.9,
-                  vouvoiement: true,
-                  salesOriented: true,
-                  intentAnalyzed: true,
-                  intentScore: intentAnalysis.score
-                }
-              };
-
-              console.log('✅ Commercial GPT-4o response generated successfully');
-              return NextResponse.json(response, { headers: corsHeaders });
-            }
           }
         }
 
+        // ✅ APPEL DIRECT GPT-4o AVEC PROMPT OPTIMISÉ
+        const gptResponse = await getDirectGPT4oResponse(
+          chatRequest.message,
+          chatRequest.productId,
+          productName,
+          chatRequest.sessionId
+        );
+
+        if (gptResponse) {
+          const forcedResponse: ChatResponse = {
+            success: true,
+            message: gptResponse,
+            choices: [
+              'Je veux l\'acheter maintenant',
+              'J\'ai d\'autres questions',
+              'Comment y jouer ?',
+              'Voir les témoignages'
+            ],
+            nextStep: 'ai_response' as ConversationStep,
+            type: 'assistant',
+            flags: { 
+              aiForced: true,
+              aiUsed: true,
+              gptModel: 'gpt-4o',
+              confidence: 0.9
+            }
+          };
+
+          console.log('✅ Direct GPT-4o response generated successfully');
+          return NextResponse.json(forcedResponse, { headers: corsHeaders });
+        }
+
       } catch (aiError) {
-        console.error('❌ Commercial GPT-4o error:', aiError);
+        console.error('❌ Direct GPT-4o error:', aiError);
+        
+        // Fallback intelligent
+        return NextResponse.json({
+          success: true,
+          message: `Je comprends votre question sur le **jeu ${chatRequest.productName || 'VIENS ON S\'CONNAÎT'}**.
+
+Nos jeux de cartes sont conçus pour créer des conversations authentiques et renforcer les liens humains. Chaque jeu contient 150 cartes soigneusement sélectionnées.
+
+Que souhaitez-vous savoir précisément ?`,
+          choices: [
+            'Comment y jouer ?',
+            'C\'est pour qui ?',
+            'Je veux l\'acheter maintenant',
+            'J\'ai d\'autres questions'
+          ],
+          nextStep: 'ai_fallback' as ConversationStep,
+          type: 'assistant',
+          flags: { aiFallback: true }
+        }, { headers: corsHeaders });
       }
     }
 
-    // ✅ PRIORITÉ 2: TRAITEMENT AVEC LE SERVICE OPTIMISÉ COMMERCIAL
-    console.log('💬 Processing with Commercial OptimizedChatService...');
+    // ✅ PRIORITÉ 2: TRAITEMENT NORMAL AVEC LE SERVICE OPTIMISÉ
+    console.log('💬 Processing with OptimizedChatService (AI PRIORITY enabled)...');
     
     const chatService = OptimizedChatService.getInstance();
     
@@ -247,7 +244,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // ✅ APPEL DU SERVICE OPTIMISÉ COMMERCIAL
+    // ✅ APPEL DU SERVICE OPTIMISÉ avec gestion d'erreur complète
     let response;
     try {
       response = await chatService.processMessage(
@@ -258,7 +255,7 @@ export async function POST(request: NextRequest) {
         productName
       );
       
-      console.log('✅ Commercial service response received successfully:', {
+      console.log('✅ Service response received successfully:', {
         type: response.type,
         hasChoices: (response.choices?.length || 0) > 0,
         nextStep: response.metadata?.nextStep,
@@ -266,34 +263,31 @@ export async function POST(request: NextRequest) {
       });
       
     } catch (serviceError) {
-      console.error('❌ Commercial OptimizedChatService error:', serviceError);
+      console.error('❌ OptimizedChatService error:', serviceError);
       
-      // Créer une réponse de fallback commerciale
+      // Créer une réponse de fallback
       response = {
         type: 'assistant' as const,
         content: `😔 **Une petite erreur s'est produite**
 
 Ne vous inquiétez pas, essayons autrement !
 
-En attendant, sachez que le **jeu ${productName}** a déjà aidé de nombreux couples et familles au Sénégal à renforcer leurs liens.
-
-**Comment puis-je vous aider à découvrir ce jeu ?**`,
+**Erreur :** ${serviceError instanceof Error ? serviceError.message : 'Erreur inconnue'}`,
         choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'C\'est pour qui ?',
-          '📞 Contacter le support'
+          '🔄 Réessayer',
+          '📞 Contacter le support',
+          '🏠 Retour à l\'accueil'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'service_error' as ConversationStep,
-          flags: { hasError: true, serviceError: true, vouvoiement: true, commercialFallback: true }
+          flags: { hasError: true, serviceError: true }
         },
         timestamp: new Date().toISOString()
       };
     }
 
-    // ✅ CONVERTIR LA RÉPONSE AU FORMAT COMMERCIAL
+    // ✅ CONVERTIR LA RÉPONSE AU FORMAT ATTENDU
     const chatResponse: ChatResponse = {
       success: true,
       message: typeof response.content === 'string' ? response.content : String(response.content),
@@ -301,38 +295,33 @@ En attendant, sachez que le **jeu ${productName}** a déjà aidé de nombreux co
       nextStep: (response.metadata?.nextStep as ConversationStep) || chatRequest.currentStep,
       type: 'assistant',
       orderData: response.metadata?.orderData,
-      flags: {
-        ...response.metadata?.flags,
-        vouvoiement: true,
-        commercialOriented: true
-      },
-      intentScore: intentAnalysis.score
+      flags: response.metadata?.flags
     };
 
-    console.log('✅ Commercial chat response generated successfully');
+    console.log('✅ Chat response generated successfully');
     return NextResponse.json(chatResponse, { headers: corsHeaders });
 
   } catch (error) {
-    console.error('❌ CRITICAL Commercial Chat API Error:', {
+    console.error('❌ CRITICAL Chat API Error:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
     
     return NextResponse.json({
       success: false,
-      message: `🔧 **Service temporairement indisponible**
+      message: `🔧 **Maintenance en cours**
 
 Nous rencontrons un petit problème technique. Nos équipes travaillent à le résoudre.
 
-**En attendant, contactez-nous directement :**
-- **WhatsApp :** +221 78 136 27 28
-- **Email :** contact@viensonsconnait.com
+**En attendant :**
+- Essayez de rafraîchir la page
+- Ou contactez-nous directement
 
-**Merci pour votre patience !**`,
+**WhatsApp :** +221 78 136 27 28`,
       choices: [
+        '🔄 Rafraîchir la page',
         '📱 WhatsApp Support',
-        '🔄 Réessayer',
-        '🏠 Retour accueil'
+        '🔙 Recommencer'
       ],
       nextStep: 'critical_error' as ConversationStep,
       type: 'assistant',
@@ -344,19 +333,13 @@ Nous rencontrons un petit problème technique. Nos équipes travaillent à le r�
   }
 }
 
-// ✅ NOUVELLE FONCTION: Appel direct GPT-4o commercial optimisé
-async function getCommercialGPT4oResponse(
+// ✅ NOUVELLE FONCTION: Appel direct GPT-4o optimisé
+async function getDirectGPT4oResponse(
   message: string,
   productId: string,
   productName: string,
-  sessionId: string,
-  intentAnalysis: any,
-  productData?: any
-): Promise<{
-  content: string;
-  choices: string[];
-  nextStep: ConversationStep;
-} | null> {
+  sessionId: string
+): Promise<string | null> {
   try {
     if (!openai) {
       initializeOpenAI();
@@ -365,265 +348,85 @@ async function getCommercialGPT4oResponse(
       }
     }
 
-    console.log('🤖 Making COMMERCIAL GPT-4o call for:', message.substring(0, 50));
+    console.log('🤖 Making direct GPT-4o call for:', message.substring(0, 50));
 
-    // ✅ PROMPT SYSTÈME COMMERCIAL ULTRA-OPTIMISÉ
-    const commercialSystemPrompt = buildAdvancedCommercialPrompt(
-      productData, 
-      productName, 
-      intentAnalysis
-    );
+    // ✅ RÉCUPÉRER INFOS PRODUIT POUR CONTEXTE
+    let productInfo: any = {};
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data, error } = await supabase
+        .from('products')
+        .select('description, price, target_audience, game_rules, benefits')
+        .eq('id', productId)
+        .single();
 
-    // ✅ MESSAGE UTILISATEUR AVEC CONTEXTE
-    const userPrompt = `MESSAGE CLIENT: "${message}"
+      if (!error && data) {
+        productInfo = data;
+      }
+    } catch (dbError) {
+      console.warn('⚠️ Could not fetch product info:', dbError);
+    }
 
-ANALYSE D'INTENTION:
-- Score d'achat: ${intentAnalysis.score}/100
-- Confiance: ${intentAnalysis.confidence}
-- Recommandation: ${intentAnalysis.recommendation}
-- Signaux détectés: ${intentAnalysis.signals.join(', ')}
+    // ✅ PROMPT SYSTÈME OPTIMISÉ POUR VIENS ON S'CONNAÎT
+    const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, spécialisée dans les jeux de cartes relationnels au Sénégal.
 
-INSTRUCTION: Réponds selon les directives commerciales avec VOUVOIEMENT STRICT.`;
+CONTEXTE MARQUE:
+VIENS ON S'CONNAÎT (VOC) est une marque de jeux de cartes (physiques + numériques) qui facilitent des conversations authentiques pour renforcer les liens humains : couples, amis, familles, collègues.
 
-    // ✅ APPEL GPT-4o AVEC PROMPT COMMERCIAL
+PRODUIT ACTUEL:
+- Nom: le jeu ${productName}
+- Prix: ${productInfo.price || '14,000'} FCFA
+- Description: ${productInfo.description || 'Jeu de 150 cartes pour renforcer les relations'}
+- Cible: ${productInfo.target_audience || 'Adultes 18+'}
+
+CARACTÉRISTIQUES COMMUNES:
+- 150 cartes (questions, activités, défis)
+- Format premium, impression locale responsable
+- Durée: 15 min à 2h+
+- Livraison gratuite à Dakar, 2500 FCFA ailleurs au Sénégal
+
+MISSION: Répondre aux questions avec chaleur, expertise et orientation commerciale.
+STYLE: Amicale, professionnelle, typiquement sénégalaise, orientée conversion.
+STRUCTURE: Réponse claire + question d'engagement.
+
+RÈGLES IMPORTANTES:
+1. Toujours mentionner "le jeu" avant le nom du produit
+2. Mettre l'accent sur les bénéfices relationnels
+3. Adapter le ton au contexte sénégalais/africain
+4. Finir par une question pour engager davantage
+5. Proposer l'achat ou l'app mobile quand pertinent
+6. Maximum 3 phrases + question d'engagement
+7. Utiliser des émojis appropriés mais avec parcimonie
+
+Réponds directement en texte (pas JSON), de manière naturelle et engageante.`;
+
+    // ✅ APPEL GPT-4o
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: commercialSystemPrompt },
-        { role: "user", content: userPrompt }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
       ],
       temperature: 0.7,
-      max_tokens: 400,
-      response_format: { type: "json_object" }
+      max_tokens: 300
     });
 
-    const result = completion.choices[0]?.message?.content;
+    const response = completion.choices[0]?.message?.content;
     
-    if (result && result.trim()) {
-      try {
-        const parsed = JSON.parse(result);
-        
-        // ✅ VALIDATION ET CORRECTION DU VOUVOIEMENT
-        const correctedMessage = ensureVouvoiement(parsed.message || parsed.response || "");
-        const correctedChoices = (parsed.choices || []).map((choice: string) => ensureVouvoiement(choice));
-        
-        console.log('✅ Commercial GPT-4o response parsed successfully');
-        
-        return {
-          content: correctedMessage,
-          choices: correctedChoices.length > 0 ? correctedChoices : generateDefaultCommercialChoices(intentAnalysis),
-          nextStep: parsed.nextStep || determineCommercialNextStep(intentAnalysis)
-        };
-        
-      } catch (parseError) {
-        console.error('❌ Failed to parse GPT-4o JSON response:', parseError);
-        // Fallback: traiter comme texte simple
-        const correctedText = ensureVouvoiement(result);
-        return {
-          content: correctedText,
-          choices: generateDefaultCommercialChoices(intentAnalysis),
-          nextStep: determineCommercialNextStep(intentAnalysis)
-        };
-      }
+    if (response && response.trim()) {
+      console.log('✅ Direct GPT-4o response generated successfully');
+      return response.trim();
     }
 
     throw new Error('Empty GPT-4o response');
 
   } catch (error) {
-    console.error('❌ Commercial GPT-4o error:', error);
+    console.error('❌ Direct GPT-4o error:', error);
     return null;
   }
 }
 
-// ✅ PROMPT SYSTÈME COMMERCIAL AVANCÉ
-function buildAdvancedCommercialPrompt(
-  productData: any,
-  productName: string,
-  intentAnalysis: any
-): string {
-  const intentGuidance = intentAnalysis.score > 70 
-    ? "URGENCE COMMERCIALE: Le client est prêt à acheter. Focalise sur la FINALISATION de la vente."
-    : intentAnalysis.score > 40
-      ? "OPPORTUNITÉ COMMERCIALE: Le client hésite. Lève les OBJECTIONS et crée de l'URGENCE douce."
-      : "PHASE DÉCOUVERTE: Le client s'informe. Crée de l'INTÉRÊT et qualifie le BESOIN.";
-
-  return `Tu es Rose, l'assistante commerciale EXPERTE de VIENS ON S'CONNAÎT, la marque N°1 de jeux de cartes relationnels au Sénégal et en Afrique.
-
-🎯 MISSION COMMERCIALE: Convertir le visiteur en CLIENT SATISFAIT.
-
-CONTEXTE MARQUE:
-VIENS ON S'CONNAÎT est la marque de référence pour renforcer les relations humaines à travers des jeux de cartes innovants. Créée au Sénégal, elle conquiert l'Afrique avec des produits de qualité premium.
-
-PRODUIT FOCUS:
-- Nom: le jeu ${productName}
-- Prix: ${productData?.price || '14,000'} FCFA (Livraison GRATUITE à Dakar)
-- Description: ${productData?.description || 'Jeu révolutionnaire de 150 cartes pour transformer vos relations'}
-- Public: ${productData?.target_audience || 'Couples, familles, amis soucieux de leurs relations'}
-- Bénéfices clés: ${productData?.benefits || 'Conversations authentiques, liens renforcés, complicité retrouvée'}
-- Règles: ${productData?.game_rules ? productData.game_rules.substring(0, 200) : 'Simple à jouer, puissant dans ses effets'}
-
-${intentGuidance}
-
-🔥 TECHNIQUES DE VENTE À APPLIQUER:
-
-SELON L'INTENTION DÉTECTÉE (Score: ${intentAnalysis.score}/100):
-
-${intentAnalysis.score > 70 ? `
-✅ CLOSING TECHNIQUE (Score ${intentAnalysis.score}/100):
-- Renforcer la décision prise
-- Créer urgence: "Forte demande aujourd'hui"
-- Rassurer: "Choix parfait pour votre situation"
-- Question finale: "Souhaitez-vous finaliser votre commande maintenant ?"
-- Éviter de donner d'autres options qui distraient
-` : intentAnalysis.score > 40 ? `
-⚡ PERSUASION TECHNIQUE (Score ${intentAnalysis.score}/100):
-- Lever les dernières hésitations
-- Utiliser la preuve sociale: "Nos clients au Sénégal adorent"
-- Créer FOMO: "Beaucoup de commandes cette semaine"
-- Rassurer sur qualité et livraison
-- Question finale: "Qu'est-ce qui vous ferait pencher définitivement ?"
-` : `
-💡 DÉCOUVERTE TECHNIQUE (Score ${intentAnalysis.score}/100):
-- Qualifier le besoin précis
-- Montrer bénéfices émotionnels
-- Créer connexion personnelle: "Dans votre cas..."
-- Éduquer sur l'unicité du produit
-- Question finale: inclure option achat + découverte
-`}
-
-RÈGLES DE COMMUNICATION STRICTES:
-1. 🗣️ VOUVOIEMENT OBLIGATOIRE: vous, votre, êtes, avez (JAMAIS tu, ton, es, as)
-2. 📱 ANCRAGE LOCAL: "au Sénégal", "chez nous en Afrique", "livraison gratuite à Dakar"
-3. ⭐ PREUVE SOCIALE: "nos clients", "beaucoup de familles", "très demandé"
-4. 💰 VALEUR: "investissement dans vos relations", "rapport qualité-prix exceptionnel"
-5. ⏰ URGENCE DOUCE: "forte demande", "stock limité", "offre actuelle"
-6. 🎯 PERSONNALISATION: "dans votre cas", "pour votre situation", "selon vos besoins"
-
-STRUCTURE RÉPONSE OPTIMALE:
-1. Phrase d'accueil chaleureuse (1 ligne)
-2. Réponse à la question/préoccupation (2-3 lignes max)
-3. Bénéfice émotionnel spécifique (1 ligne)
-4. Élément de réassurance/preuve sociale (1 ligne)
-5. Question d'engagement orientée achat (1 ligne)
-
-EXEMPLES DE PHRASES POWER:
-- "Vous avez raison de vous poser cette question..."
-- "C'est exactement pourquoi nos clients au Sénégal adorent ce jeu..."
-- "Dans votre situation, ce jeu va transformer..."
-- "Beaucoup de couples nous disent qu'ils regrettent de ne pas l'avoir acheté plus tôt..."
-- "Avec la forte demande cette semaine..."
-
-ÉMOJIS: Maximum 2 par réponse, choisis stratégiquement.
-
-FORMAT RÉPONSE: JSON strict
-{
-  "message": "Votre réponse commerciale avec VOUVOIEMENT",
-  "choices": [
-    "Je veux l'acheter maintenant",
-    "Choix orienté commercial 2",
-    "Choix orienté commercial 3",
-    "J'ai d'autres questions"
-  ],
-  "nextStep": "étape_commerciale_appropriée"
-}
-
-⚠️ INTERDIT: Tutoiement, phrases trop longues, choix qui distraient de l'achat, hésitation dans le ton.
-
-OBJECTIF: Transformer ce visiteur en CLIENT HEUREUX qui recommandera à ses proches.`;
-}
-
-// ✅ FONCTION: Assurer le vouvoiement strict
-function ensureVouvoiement(text: string): string {
-  if (!text) return text;
-  
-  let correctedText = text;
-
-  // Corrections automatiques COMPLÈTES
-  const corrections = [
-    // Pronoms personnels
-    { from: /\btu\b/gi, to: 'vous' },
-    { from: /\btoi\b/gi, to: 'vous' },
-    
-    // Déterminants possessifs
-    { from: /\bton\b/gi, to: 'votre' },
-    { from: /\bta\b/gi, to: 'votre' },
-    { from: /\btes\b/gi, to: 'vos' },
-    
-    // Verbes courants
-    { from: /\btu es\b/gi, to: 'vous êtes' },
-    { from: /\btu as\b/gi, to: 'vous avez' },
-    { from: /\btu peux\b/gi, to: 'vous pouvez' },
-    { from: /\btu veux\b/gi, to: 'vous voulez' },
-    { from: /\btu fais\b/gi, to: 'vous faites' },
-    { from: /\btu dis\b/gi, to: 'vous dites' },
-    { from: /\btu sais\b/gi, to: 'vous savez' },
-    { from: /\btu vois\b/gi, to: 'vous voyez' },
-    { from: /\btu cherches\b/gi, to: 'vous cherchez' },
-    { from: /\btu achètes\b/gi, to: 'vous achetez' },
-    { from: /\btu commandes\b/gi, to: 'vous commandez' },
-    
-    // Formes contractées
-    { from: /\bt'es\b/gi, to: 'vous êtes' },
-    { from: /\bt'as\b/gi, to: 'vous avez' },
-    
-    // Impératifs (plus complexe, quelques cas courants)
-    { from: /\bprends\b/gi, to: 'prenez' },
-    { from: /\bfais\b/gi, to: 'faites' },
-    { from: /\bviens\b/gi, to: 'venez' },
-    { from: /\bdis-moi\b/gi, to: 'dites-moi' },
-    { from: /\bregarde\b/gi, to: 'regardez' },
-    { from: /\bécoute\b/gi, to: 'écoutez' }
-  ];
-
-  corrections.forEach(correction => {
-    correctedText = correctedText.replace(correction.from, correction.to);
-  });
-
-  return correctedText;
-}
-
-// ✅ FONCTION: Générer choix commerciaux par défaut
-function generateDefaultCommercialChoices(intentAnalysis: any): string[] {
-  if (intentAnalysis.score >= 70) {
-    return [
-      'Je veux l\'acheter maintenant',
-      'Combien coûte la livraison ?',
-      'Quand sera-t-il livré ?',
-      'J\'ai une dernière question'
-    ];
-  }
-  
-  if (intentAnalysis.score >= 40) {
-    return [
-      'Je veux l\'acheter maintenant',
-      'Comment y jouer exactement ?',
-      'C\'est pour qui précisément ?',
-      'Voir les témoignages'
-    ];
-  }
-  
-  return [
-    'Comment y jouer ?',
-    'C\'est pour qui ?',
-    'Combien ça coûte ?',
-    'Je veux l\'acheter maintenant'
-  ];
-}
-
-// ✅ FONCTION: Déterminer l'étape commerciale suivante
-function determineCommercialNextStep(intentAnalysis: any): ConversationStep {
-  if (intentAnalysis.score >= 70) {
-    return 'high_purchase_intent';
-  }
-  
-  if (intentAnalysis.score >= 40) {
-    return 'medium_purchase_intent';
-  }
-  
-  return 'commercial_discovery';
-}
-
-// ✅ MÉTHODE GET POUR VÉRIFIER L'ÉTAT DE L'API COMMERCIALE
+// ✅ MÉTHODE GET POUR VÉRIFIER L'ÉTAT DE L'API
 export async function GET() {
   try {
     // Test rapide de la base de données
@@ -640,57 +443,45 @@ export async function GET() {
     const openaiStatus = process.env.OPENAI_API_KEY ? 'configured' : 'not_configured';
 
     return NextResponse.json({
-      message: 'VIENS ON S\'CONNAÎT Commercial Chat API is running! 🌹💼',
-      version: '6.0.0 - COMMERCIAL SALES-ORIENTED VERSION',
+      message: 'VIENS ON S\'CONNAÎT Chat API is running! 🌹',
+      version: '5.0.0 - PRIORITY AI GPT-4o VERSION',
       status: 'healthy',
       database: dbStatus,
       openai: openaiStatus,
       timestamp: new Date().toISOString(),
       endpoints: {
-        POST: '/api/chat - Send commercial chat message (SALES ORIENTED)',
+        POST: '/api/chat - Send chat message (with AI PRIORITY support)',
         OPTIONS: '/api/chat - CORS preflight',
         GET: '/api/chat - Health check'
       },
       features: [
-        'COMMERCIAL AI GPT-4o with sales psychology',
-        'Purchase intent detection and analysis',
-        'Vouvoiement enforcement system',
-        'Advanced commercial prompts',
-        'Sales-oriented conversation flow',
-        'Senegalese market adaptation',
+        'PRIORITY AI GPT-4o for free text responses',
+        'Direct GPT-4o calls with optimized prompts',
+        'Enhanced conversation experience',
         'Real-time product data integration',
-        'Commercial fallback responses',
-        'Intent-based choice generation',
-        'Revenue optimization focus'
+        'Fixed welcome message handling',
+        'Corrected upsell recommendations with real data',
+        'Mobile cart bar display',
+        'Enhanced error recovery',
+        'Real-time chat support'
       ],
-      salesFeatures: [
-        'Purchase intent scoring (0-100)',
-        'Commercial conversation phases',
-        'Objection handling automation',
-        'Urgency creation techniques',
-        'Social proof integration',
-        'Local market positioning',
-        'Value proposition emphasis',
-        'Closing technique automation',
-        'Customer journey optimization',
-        'Conversion rate maximization'
-      ],
-      improvements: [
-        'Systematic vouvoiement for African market',
-        'Intent-driven response generation',
-        'Commercial psychology application',
-        'Sales funnel automation',
-        'Customer qualification process',
-        'Revenue-focused interactions',
-        'Conversion optimization',
-        'Professional sales approach'
+      fixes: [
+        'AI PRIORITY: GPT-4o responses for all free text',
+        'Direct OpenAI integration with optimized prompts',
+        'Enhanced AI Manager integration',
+        'Fixed forceAI parameter support',
+        'Improved fallback responses',
+        'Better error handling for AI requests',
+        'Fixed "le jeu" prefix for all product names',
+        'Corrected upsell data from Supabase',
+        'Enhanced conversation fluidity'
       ]
     }, {
       headers: corsHeaders
     });
   } catch (error) {
     return NextResponse.json({
-      message: 'Commercial API Health Check Failed',
+      message: 'API Health Check Failed',
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Unknown error'
     }, {
