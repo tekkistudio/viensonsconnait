@@ -1,4 +1,4 @@
-// src/lib/services/WelcomeMessageService.ts - VERSION CORRIGÉE
+// src/lib/services/WelcomeMessageService.ts - VERSION INTELLIGENTE AVEC IA
 
 import type { ChatMessage, ConversationStep } from '@/types/chat';
 import { supabase } from '@/lib/supabase';
@@ -23,13 +23,13 @@ export class WelcomeMessageService {
     productPrice?: number,
     reviewCount?: number
   ): ChatMessage {
-    console.log('🖥️ Generating DESKTOP welcome message for:', { productName, sessionId, productId });
+    console.log('🖥️ Generating DESKTOP welcome message for:', { productName: `le jeu ${productName}`, sessionId, productId });
     
     return {
       type: 'assistant',
-      content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
+      content: `👋 **Bonjour ! Je suis Rose, votre Assistante d'achat.**
 
-Je vois que vous vous intéressez à notre jeu **${productName}**. C'est excellent ✨
+Je vois que vous vous intéressez à notre **jeu ${productName}**. C'est excellent ✨
 
 Comment puis-je vous aider ?`,
       // ❌ PAS DE CHOICES ICI - Ils seront gérés par l'interface desktop
@@ -63,13 +63,13 @@ Comment puis-je vous aider ?`,
     productId: string,
     productPrice?: number
   ): ChatMessage {
-    console.log('📱 Generating MOBILE welcome message for:', { productName, sessionId, productId });
+    console.log('📱 Generating MOBILE welcome message for:', { productName: `le jeu ${productName}`, sessionId, productId });
     
     return {
       type: 'assistant',
-      content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
+      content: `👋 **Bonjour ! Je suis Rose, votre Assistante d'achat.**
 
-Je vois que vous vous intéressez à notre jeu **${productName}**. C'est excellent ✨
+Je vois que vous vous intéressez à notre **jeu ${productName}**. C'est excellent ✨
 
 Comment puis-je vous aider ?`,
       // ✅ CHOICES POUR MOBILE - Affichés dans le chat
@@ -108,7 +108,7 @@ Comment puis-je vous aider ?`,
     productPrice?: number,
     isMobile: boolean = false
   ): ChatMessage {
-    console.log('🌹 Generating welcome message for:', { productName, sessionId, productId, isMobile });
+    console.log('🌹 Generating welcome message for:', { productName: `le jeu ${productName}`, sessionId, productId, isMobile });
     
     if (isMobile) {
       return this.generateMobileWelcomeMessage(productName, sessionId, productId, productPrice);
@@ -116,71 +116,38 @@ Comment puis-je vous aider ?`,
       return this.generateDesktopWelcomeMessage(productName, sessionId, productId, productPrice);
     }
   }
-
-  /**
-   * ✅ GÈRE LES RÉPONSES AUX BOUTONS D'ACCUEIL
-   */
+  
+  // ✅ GÈRE LES RÉPONSES AUX BOUTONS D'ACCUEIL AVEC IA INTELLIGENTE
   public async handleWelcomeButtonResponse(
     choice: string,
     productId: string,
     productName: string
   ): Promise<ChatMessage> {
     
-    console.log('🌹 Handling welcome button response:', { choice, productId, productName });
+    console.log('🌹 Handling welcome button response:', { choice, productId, productName: `le jeu ${productName}` });
 
-    // ✅ CORRECTION: Ne plus traiter "Je veux l'acheter maintenant" ici
-    // Cette logique est maintenant gérée directement dans OptimizedChatService
-    
-    // ✅ 1. "J'ai des questions à poser" → Mode questions libres
+    // ✅ 1. "J'ai des questions à poser" → Mode questions libres activé
     if (choice.includes('questions à poser') || choice.includes('questions')) {
       return {
         type: 'assistant',
-        content: `🤔 **Parfait ! Posez-moi toutes vos questions.**
+        content: `🤔 **Parfait ! Je suis là pour répondre à toutes vos questions.**
 
-Je connais **${productName}** sur le bout des doigts et je peux vous renseigner sur :
+Vous pouvez me poser librement tout ce que vous souhaitez savoir au sujet du **jeu ${productName}**, de la marque VIENS ON S'CONNAÎT, de l'application mobile, ou même de nos autres jeux.
 
-• **Comment y jouer** et les règles
-• **Pour qui** c'est adapté
-• **Les bénéfices** concrets
-• **La livraison** et les délais
-• **Tout ce que vous voulez savoir !**
+**Quelques exemples :**
+- "Comment y jouer exactement ?"
+- "Ce jeu est-il adapté à mon couple ?"
+- "Combien de temps dure une partie ?"
+- "Comment fonctionne la livraison ?"
+- "Quels sont les autres jeux disponibles ?"
 
-Quelle est votre première question ?`,
+**Qu'aimeriez-vous savoir ?** 💭
+
+*Vous pouvez taper votre question ou utiliser le micro 🎤*`,
         choices: [
           'Comment y jouer ?',
-          'C\'est pour qui ?',
-          'Quels sont les bénéfices ?'
-        ],
-        assistant: {
-          name: 'Rose',
-          title: 'Assistante d\'achat'
-        },
-        metadata: {
-          nextStep: 'question_mode' as ConversationStep,
-          productId: productId,
-          flags: { 
-            questionMode: true,
-            openToQuestions: true
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    // ✅ 2. "Je veux en savoir plus" → Description depuis la DB
-    if (choice.includes('savoir plus') || choice.includes('en savoir plus')) {
-      const productDescription = await this.getProductDescription(productId);
-      
-      return {
-        type: 'assistant',
-        content: `✨ **Découvrons ${productName} ensemble**
-
-${productDescription}
-
-Que voulez-vous découvrir en premier ?`,
-        choices: [
-          'Comment y jouer ?',
-          'C\'est pour qui ?',
+          'C\'est pour qui exactement ?',
+          'Combien coûte la livraison ?',
           'Je veux l\'acheter maintenant'
         ],
         assistant: {
@@ -188,15 +155,86 @@ Que voulez-vous découvrir en premier ?`,
           title: 'Assistante d\'achat'
         },
         metadata: {
-          nextStep: 'product_discovery' as ConversationStep,
+          nextStep: 'free_text_mode' as ConversationStep,
           productId: productId,
           flags: { 
-            discoveryMode: true,
-            detailedInfo: true
+            freeTextEnabled: true,
+            questionMode: true,
+            openToQuestions: true,
+            aiPriorityEnabled: true // ✅ Active la priorité IA pour ce mode
           }
         },
         timestamp: new Date().toISOString()
       };
+    }
+
+    // ✅ 2. "Je veux en savoir plus" → Description INTELLIGENTE avec IA
+    if (choice.includes('savoir plus') || choice.includes('en savoir plus')) {
+      try {
+        console.log('📋 Fetching product data for AI reformulation:', productId);
+        
+        // ✅ RÉCUPÉRER TOUTES LES DONNÉES du produit
+        const { data: productInfo, error } = await supabase
+          .from('products')
+          .select('description, game_rules, target_audience, benefits, price')
+          .eq('id', productId)
+          .single();
+
+        if (error) {
+          console.error('❌ Error fetching product info:', error);
+          return this.createGenericProductInfo(productName, productId);
+        }
+
+        // ✅ REFORMULATION INTELLIGENTE avec l'IA
+        const intelligentDescription = await this.reformulateProductInfo(
+          productInfo, 
+          productName
+        );
+        
+        return {
+          type: 'assistant',
+          content: intelligentDescription,
+          choices: [
+            'Comment y jouer ?',
+            'C\'est pour qui ?',
+            'Je veux l\'acheter maintenant',
+            'Voir les témoignages'
+          ],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'product_discovery' as ConversationStep,
+            productId: productId,
+            flags: { 
+              discoveryMode: true,
+              aiReformulated: true,
+              detailedInfo: true,
+              showGameRules: !!productInfo.game_rules,
+              showTargetAudience: !!productInfo.target_audience
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (error) {
+        console.error('❌ AI reformulation error:', error);
+        return this.createGenericProductInfo(productName, productId);
+      }
+    }
+
+    // ✅ 3. Gestion des questions spécifiques INTELLIGENTES
+    if (choice.includes('Comment y jouer')) {
+      return await this.handleGameRulesRequestWithAI(productId, productName);
+    }
+
+    if (choice.includes('C\'est pour qui')) {
+      return await this.handleTargetAudienceRequestWithAI(productId, productName);
+    }
+
+    if (choice.includes('Voir les témoignages')) {
+      return await this.handleTestimonialsRequestWithAI(productId, productName);
     }
 
     // ✅ Choix non reconnu - Rediriger
@@ -204,7 +242,7 @@ Que voulez-vous découvrir en premier ?`,
       type: 'assistant',
       content: `😅 **Je n'ai pas bien compris votre choix.**
 
-Pouvez-vous me dire ce qui vous intéresse le plus ?`,
+Pouvez-vous me dire ce qui vous intéresse le plus au sujet du **jeu ${productName}** ?`,
       choices: [
         'Je veux l\'acheter maintenant',
         'J\'ai des questions à poser',
@@ -225,28 +263,537 @@ Pouvez-vous me dire ce qui vous intéresse le plus ?`,
     };
   }
 
-  /**
-   * ✅ RÉCUPÈRE LA DESCRIPTION PRODUIT DEPUIS LA BASE DE DONNÉES
-   */
-  private async getProductDescription(productId: string): Promise<string> {
+  // ✅ NOUVELLE MÉTHODE: Reformulation intelligente avec IA
+  private async reformulateProductInfo(
+    productInfo: any, 
+    productName: string
+  ): Promise<string> {
     try {
-      const { data, error } = await supabase
+      console.log('🤖 Reformulating product info with AI for:', productName);
+      
+      // ✅ Créer un prompt spécialisé pour la reformulation
+      const reformulationPrompt = `Tu es Rose, l'assistante commerciale de VIENS ON S'CONNAÎT. 
+
+DONNÉES PRODUIT:
+- Nom: le jeu ${productName}
+- Description: ${productInfo.description || 'Jeu de 150 cartes pour renforcer les relations'}
+- Public cible: ${productInfo.target_audience || 'Couples, familles, amis'}
+- Prix: ${productInfo.price || '14,000'} FCFA
+- Bénéfices: ${productInfo.benefits || 'Conversations authentiques, liens renforcés'}
+
+MISSION: Présente ce jeu de manière chaleureuse et persuasive en MAXIMUM 4 phrases courtes. 
+- Utilise le VOUVOIEMENT exclusivement
+- Mets l'accent sur les BÉNÉFICES relationnels
+- Termine par une question qui pousse vers l'ACHAT
+- Utilise des émojis appropriés mais avec parcimonie
+- Évite les questions qui distraient de l'achat
+
+Réponds UNIQUEMENT avec le texte reformulé, pas de format JSON.`;
+
+      // ✅ Appel à l'API interne
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: reformulationPrompt,
+          productId: productInfo.id || 'generic',
+          currentStep: 'ai_reformulation',
+          sessionId: Date.now().toString(),
+          storeId: 'vosc_default',
+          forceAI: true // ✅ Forcer l'utilisation de l'IA
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const reformulatedText = data.message || data.content;
+        
+        if (reformulatedText && reformulatedText.length > 50) {
+          console.log('✅ AI reformulation successful');
+          return `✨ **Découvrons le jeu ${productName} ensemble**\n\n${reformulatedText}`;
+        }
+      }
+
+      throw new Error('AI reformulation failed');
+
+    } catch (error) {
+      console.error('❌ AI reformulation error:', error);
+      // Fallback avec description améliorée
+      return `✨ **Découvrons le jeu ${productName} ensemble**
+
+Ce jeu de 150 cartes est conçu pour transformer vos conversations ordinaires en moments profonds et authentiques. Il vous permet de créer des liens plus forts avec vos proches, une question à la fois.
+
+**Pourquoi nos clients l'adorent-ils ?**
+🔸 Conversations plus profondes dès la première partie
+🔸 Moments de complicité garantis
+🔸 Adapté à votre situation spécifique
+
+**Souhaitez-vous le commander maintenant ou avez-vous des questions ?**`;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion intelligente des règles du jeu
+  private async handleGameRulesRequestWithAI(productId: string, productName: string): Promise<ChatMessage> {
+    try {
+      const { data: productInfo, error } = await supabase
         .from('products')
-        .select('description, name')
+        .select('game_rules, target_audience')
         .eq('id', productId)
         .single();
 
-      if (error || !data) {
-        console.error('❌ Error fetching product description:', error);
-        return 'Un jeu de cartes révolutionnaire qui transforme vos conversations ordinaires en moments profonds et authentiques.';
+      if (error || !productInfo?.game_rules) {
+        // Règles génériques intelligentes
+        return {
+          type: 'assistant',
+          content: `🎮 **Comment jouer au jeu ${productName} :**
+
+**C'est très simple et amusant :**
+1️⃣ Mélangez les 150 cartes soigneusement conçues
+2️⃣ Tirez une carte chacun votre tour
+3️⃣ Lisez la question à voix haute
+4️⃣ Répondez sincèrement et sans jugement
+5️⃣ Échangez librement sur vos réponses
+
+🎯 **L'objectif :** Créer des conversations authentiques qui renforcent vos liens !
+⏰ **Durée :** De 15 minutes (express) à 2h+ (marathon)
+
+**Êtes-vous prêt(e) à découvrir de nouvelles facettes de vos proches ?**`,
+          choices: [
+            'Je veux l\'acheter maintenant',
+            'C\'est pour qui exactement ?',
+            'Voir les témoignages',
+            'J\'ai d\'autres questions'
+          ],
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+          metadata: {
+            nextStep: 'game_rules_shown' as ConversationStep,
+            productId: productId,
+            flags: { gameRulesShown: true, pushToSale: true }
+          },
+          timestamp: new Date().toISOString()
+        };
       }
 
-      return data.description || `${data.name} est un jeu de cartes conçu pour renforcer les liens humains à travers des conversations significatives.`;
-      
+      // ✅ Reformuler les vraies règles avec l'IA
+      const reformulatedRules = await this.reformulateGameRules(productInfo.game_rules, productName);
+
+      return {
+        type: 'assistant',
+        content: reformulatedRules,
+        choices: [
+          'Je veux l\'acheter maintenant',
+          'C\'est pour qui exactement ?',
+          'Voir les témoignages',
+          'J\'ai d\'autres questions'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'game_rules_shown' as ConversationStep,
+          productId: productId,
+          flags: { gameRulesShown: true, aiReformulated: true, pushToSale: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+
     } catch (error) {
-      console.error('❌ Database error:', error);
-      return 'Un jeu de cartes révolutionnaire qui transforme vos conversations ordinaires en moments profonds et authentiques.';
+      console.error('❌ Error fetching game rules:', error);
+      return this.createGenericGameRules(productName, productId);
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Reformulation des règles avec IA
+  private async reformulateGameRules(originalRules: string, productName: string): Promise<string> {
+    try {
+      const rulesPrompt = `Tu es Rose, l'assistante commerciale de VIENS ON S'CONNAÎT.
+
+RÈGLES ORIGINALES: ${originalRules}
+
+MISSION: Reformule ces règles de manière chaleureuse et engageante pour le jeu ${productName}.
+- Utilise le VOUVOIEMENT exclusivement
+- Rends les règles attrayantes et simples
+- Ajoute des émojis appropriés
+- Termine par une question qui pousse vers l'ACHAT
+- Maximum 5 phrases + question finale
+- Évite les questions qui distraient de l'achat
+
+Réponds UNIQUEMENT avec le texte reformulé.`;
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: rulesPrompt,
+          productId: 'rules_reformulation',
+          currentStep: 'ai_reformulation',
+          sessionId: Date.now().toString(),
+          storeId: 'vosc_default',
+          forceAI: true
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const reformulated = data.message || data.content;
+        
+        if (reformulated && reformulated.length > 50) {
+          return `🎮 **Comment jouer au jeu ${productName} :**\n\n${reformulated}`;
+        }
+      }
+
+      throw new Error('Rules reformulation failed');
+
+    } catch (error) {
+      console.error('❌ Rules reformulation error:', error);
+      return `🎮 **Comment jouer au jeu ${productName} :**\n\n${originalRules}\n\n**Prêt(e) à commencer cette belle aventure ?**`;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion intelligente du public cible
+  private async handleTargetAudienceRequestWithAI(productId: string, productName: string): Promise<ChatMessage> {
+    try {
+      const { data: productInfo, error } = await supabase
+        .from('products')
+        .select('target_audience, benefits')
+        .eq('id', productId)
+        .single();
+
+      if (error || !productInfo?.target_audience) {
+        return this.createGenericTargetAudience(productName, productId);
+      }
+
+      // ✅ Reformulation intelligente du public cible
+      const reformulatedAudience = await this.reformulateTargetAudience(
+        productInfo.target_audience, 
+        productName,
+        productInfo.benefits
+      );
+
+      return {
+        type: 'assistant',
+        content: reformulatedAudience,
+        choices: [
+          'Je veux l\'acheter maintenant',
+          'Comment y jouer ?',
+          'Voir les témoignages',
+          'J\'ai d\'autres questions'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'target_audience_shown' as ConversationStep,
+          productId: productId,
+          flags: { targetAudienceShown: true, aiReformulated: true, pushToSale: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error handling target audience:', error);
+      return this.createGenericTargetAudience(productName, productId);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Reformulation du public cible
+  private async reformulateTargetAudience(
+    originalAudience: string, 
+    productName: string, 
+    benefits: string
+  ): Promise<string> {
+    try {
+      const audiencePrompt = `Tu es Rose, l'assistante commerciale de VIENS ON S'CONNAÎT.
+
+PUBLIC CIBLE ORIGINAL: ${originalAudience}
+BÉNÉFICES: ${benefits || 'Conversations authentiques, liens renforcés'}
+
+MISSION: Reformule de manière persuasive pour qui le jeu ${productName} est parfait.
+- Utilise le VOUVOIEMENT exclusivement
+- Rends cela personnel et engageant
+- Ajoute des émojis appropriés
+- Termine par une question qui pousse vers l'ACHAT
+- Maximum 4 phrases + question finale
+- Mets l'accent sur les BÉNÉFICES
+
+Réponds UNIQUEMENT avec le texte reformulé.`;
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: audiencePrompt,
+          productId: 'audience_reformulation',
+          currentStep: 'ai_reformulation',
+          sessionId: Date.now().toString(),
+          storeId: 'vosc_default',
+          forceAI: true
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const reformulated = data.message || data.content;
+        
+        if (reformulated && reformulated.length > 50) {
+          return `👥 **Le jeu ${productName} est parfait pour :**\n\n${reformulated}`;
+        }
+      }
+
+      throw new Error('Audience reformulation failed');
+
+    } catch (error) {
+      console.error('❌ Audience reformulation error:', error);
+      return `👥 **Le jeu ${productName} est conçu pour :**\n\n${originalAudience}\n\n**Cela correspond-il à votre situation ?**`;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion intelligente des témoignages
+  private async handleTestimonialsRequestWithAI(productId: string, productName: string): Promise<ChatMessage> {
+    try {
+      const { data: testimonials, error } = await supabase
+        .from('testimonials')
+        .select('customer_name, content, rating, author_location')
+        .eq('product_id', productId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (error || !testimonials || testimonials.length === 0) {
+        return {
+          type: 'assistant',
+          content: `⭐ **Témoignages pour le jeu ${productName} :**
+
+Nos premiers témoignages arrivent bientôt ! En attendant, je peux vous dire que ce jeu a déjà conquis de nombreux couples et familles au Sénégal et en Afrique.
+
+**Les retours que nous recevons soulignent :**
+🔸 Des conversations plus profondes dès la première partie
+🔸 Une meilleure compréhension mutuelle  
+🔸 Des moments de complicité renforcés
+
+**Souhaitez-vous être parmi les premiers à témoigner de votre expérience ?**`,
+          choices: [
+            'Je veux l\'acheter maintenant',
+            'Comment y jouer ?',
+            'C\'est pour qui ?',
+            'J\'ai d\'autres questions'
+          ],
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+          metadata: {
+            nextStep: 'testimonials_empty' as ConversationStep,
+            productId: productId,
+            flags: { testimonialsEmpty: true, pushToSale: true }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // ✅ Reformulation intelligente des témoignages
+      const reformulatedTestimonials = await this.reformulateTestimonials(testimonials, productName);
+
+      return {
+        type: 'assistant',
+        content: reformulatedTestimonials,
+        choices: [
+          'Je veux l\'acheter maintenant',
+          'Comment y jouer ?',
+          'C\'est pour qui ?',
+          'J\'ai d\'autres questions'
+        ],
+        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+        metadata: {
+          nextStep: 'testimonials_shown' as ConversationStep,
+          productId: productId,
+          flags: { testimonialsShown: true, socialProofShown: true, pushToSale: true }
+        },
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching testimonials:', error);
+      return this.createGenericTestimonials(productName, productId);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Reformulation des témoignages
+  private async reformulateTestimonials(testimonials: any[], productName: string): Promise<string> {
+    try {
+      const testimonialsText = testimonials.map(t => 
+        `${t.customer_name} (${t.rating}/5 ⭐) ${t.author_location ? `- ${t.author_location}` : ''}: "${t.content}"`
+      ).join('\n');
+
+      const testimonialsPrompt = `Tu es Rose, l'assistante commerciale de VIENS ON S'CONNAÎT.
+
+TÉMOIGNAGES BRUTS:
+${testimonialsText}
+
+MISSION: Présente ces témoignages de manière engageante pour le jeu ${productName}.
+- Utilise le VOUVOIEMENT exclusivement
+- Mets en valeur les bénéfices mentionnés
+- Ajoute une introduction chaleureuse
+- Termine par une question qui pousse vers l'ACHAT
+- Maximum 6 lignes + témoignages + question finale
+- Garde les témoignages authentiques mais améliore la présentation
+
+Réponds UNIQUEMENT avec le texte reformulé.`;
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: testimonialsPrompt,
+          productId: 'testimonials_reformulation',
+          currentStep: 'ai_reformulation',
+          sessionId: Date.now().toString(),
+          storeId: 'vosc_default',
+          forceAI: true
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const reformulated = data.message || data.content;
+        
+        if (reformulated && reformulated.length > 100) {
+          return `⭐ **Témoignages pour le jeu ${productName} :**\n\n${reformulated}`;
+        }
+      }
+
+      throw new Error('Testimonials reformulation failed');
+
+    } catch (error) {
+      console.error('❌ Testimonials reformulation error:', error);
+      // Fallback avec témoignages bruts mais bien présentés
+      const testimonialsText = testimonials.map(t => 
+        `**${t.customer_name}** (${t.rating}/5 ⭐)${t.author_location ? ` - ${t.author_location}` : ''}\n"${t.content}"`
+      ).join('\n\n');
+
+      return `⭐ **Témoignages pour le jeu ${productName} :**
+
+Voici ce que nos clients disent de leur expérience :
+
+${testimonialsText}
+
+**Ces témoignages vous donnent-ils envie d'essayer à votre tour ?**`;
+    }
+  }
+
+  // ✅ MÉTHODES DE FALLBACK AMÉLIORÉES avec orientation vente
+
+  private createGenericProductInfo(productName: string, productId: string): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `✨ **Le jeu ${productName}**
+
+Un jeu de cartes révolutionnaire qui transforme vos conversations ordinaires en moments profonds et authentiques. Chaque partie crée des liens plus forts entre les joueurs.
+
+**Pourquoi nos clients l'adorent-ils ?**
+🔸 150 cartes soigneusement conçues pour votre situation
+🔸 Conversations profondes et bienveillantes garanties
+🔸 Résultats visibles dès la première partie
+🔸 Adapté à tous les âges et toutes les relations
+
+**Souhaitez-vous le commander maintenant ou avez-vous d'autres questions ?**`,
+      choices: [
+        'Je veux l\'acheter maintenant',
+        'Comment y jouer ?',
+        'C\'est pour qui ?',
+        'J\'ai d\'autres questions'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'product_discovery' as ConversationStep,
+        productId: productId,
+        flags: { genericFallback: true, pushToSale: true }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private createGenericGameRules(productName: string, productId: string): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `🎮 **Comment jouer au jeu ${productName} :**
+
+**C'est très simple et amusant :**
+1️⃣ Mélangez les 150 cartes soigneusement conçues
+2️⃣ Tirez une carte chacun votre tour
+3️⃣ Lisez la question à voix haute
+4️⃣ Répondez sincèrement et sans jugement
+5️⃣ Échangez librement sur vos réponses
+
+🎯 **L'objectif :** Créer des conversations authentiques qui renforcent vos liens !
+⏰ **Durée :** De 15 minutes (express) à 2h+ (marathon)
+
+**Êtes-vous prêt(e) à découvrir de nouvelles facettes de vos proches ?**`,
+      choices: [
+        'Je veux l\'acheter maintenant',
+        'C\'est pour qui ?',
+        'J\'ai d\'autres questions'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'game_rules_shown' as ConversationStep,
+        productId: productId,
+        flags: { gameRulesGeneric: true, pushToSale: true }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private createGenericTargetAudience(productName: string, productId: string): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `👥 **Le jeu ${productName} est parfait pour :**
+
+❤️ **Les couples** qui veulent approfondir leur complicité
+👨‍👩‍👧‍👦 **Les familles** pour créer des liens intergénérationnels forts  
+👫 **Les amis** qui souhaitent aller au-delà des conversations superficielles
+💼 **Les collègues** pour améliorer la cohésion d'équipe
+
+✨ **Peu importe votre âge ou votre situation**, ce jeu s'adapte parfaitement à vous !
+
+**Cela correspond-il à ce que vous recherchez ?**`,
+      choices: [
+        'Je veux l\'acheter maintenant',
+        'Comment y jouer ?',
+        'J\'ai d\'autres questions'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'target_audience_shown' as ConversationStep,
+        productId: productId,
+        flags: { targetAudienceGeneric: true, pushToSale: true }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private createGenericTestimonials(productName: string, productId: string): ChatMessage {
+    return {
+      type: 'assistant',
+      content: `⭐ **Témoignages pour le jeu ${productName} :**
+
+Nos clients adorent ce jeu ! Il a déjà aidé de nombreux couples et familles à créer des liens plus forts au Sénégal et en Afrique.
+
+**Les retours que nous recevons le plus souvent :**
+🔸 "Nous nous découvrons encore après tant d'années ensemble"
+🔸 "Les enfants participent avec plaisir aux conversations"
+🔸 "Nos soirées entre amis ont pris une nouvelle dimension"
+
+**Souhaitez-vous rejoindre cette communauté de personnes qui cultivent leurs relations ?**`,
+      choices: [
+        'Je veux l\'acheter maintenant',
+        'Comment y jouer ?',
+        'C\'est pour qui ?',
+        'J\'ai d\'autres questions'
+      ],
+      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
+      metadata: {
+        nextStep: 'testimonials_generic' as ConversationStep,
+        productId: productId,
+        flags: { testimonialsGeneric: true, pushToSale: true }
+      },
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
@@ -275,7 +822,7 @@ Pouvez-vous me dire ce qui vous intéresse le plus ?`,
       type: 'assistant',
       content: `😊 **Pas de souci ! Recommençons.**
 
-Je suis Rose, votre assistante pour **${productName}**.
+Je suis Rose, votre assistante pour le **jeu ${productName}**.
 
 Comment puis-je vous aider aujourd'hui ?`,
       choices: [

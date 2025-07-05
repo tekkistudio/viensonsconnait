@@ -1,4 +1,5 @@
-// src/features/product/components/ProductChat/components/ChatHeader.tsx - VERSION SIMPLIFIÉE
+// src/features/product/components/ProductChat/components/ChatHeader.tsx - VERSION CORRIGÉE AVEC "LE JEU"
+
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ShoppingBag, Star, ArrowLeft, X } from 'lucide-react';
@@ -54,9 +55,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const { convertPrice } = useCountryStore();
   
-  // Dérivation des props: Nouveau format prioritaire
+  // ✅ CORRECTION: Dérivation des props avec "le jeu" systematique
   const finalProductId = product?.id || legacyProductId || '';
-  const finalTitle = product?.name || legacyTitle || 'Le Jeu Pour les Couples';
+  const rawProductName = product?.name || legacyTitle || 'Le Jeu Pour les Couples';
+  
+  // ✅ NOUVELLE LOGIQUE: S'assurer que "le jeu" est toujours présent
+  const finalTitle = rawProductName.toLowerCase().startsWith('le jeu') 
+    ? rawProductName 
+    : `Le Jeu ${rawProductName}`;
+    
   const finalPrice = product?.price || (legacyPrice ? parseInt(legacyPrice.replace(/[^0-9]/g, '')) : 14000);
   const finalOldPrice = product?.originalPrice || (legacyOldPrice ? parseInt(legacyOldPrice.replace(/[^0-9]/g, '')) : undefined);
   const finalRating = product?.rating || legacyRating || 5;
@@ -223,7 +230,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const formattedPrice = convertPrice(finalPrice).formatted;
   const formattedOldPrice = finalOldPrice ? convertPrice(finalOldPrice).formatted : undefined;
 
-  // ✅ VERSION DESKTOP SIMPLIFIÉE (SANS la section Rose)
+  // ✅ VERSION DESKTOP SIMPLIFIÉE (AVEC "le jeu" corrigé)
   if (isDesktop) {
     return (
       <div className="bg-white border-b border-gray-200 rounded-t-lg">
@@ -254,7 +261,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             {/* Infos produit */}
             <div>
               <h2 className="text-lg font-bold text-gray-900 leading-tight">
-                Le Jeu {finalTitle}
+                {finalTitle}
               </h2>
               <div className="flex items-center space-x-2 mt-1">
                 {/* Étoiles + nombre d'avis */}
@@ -337,7 +344,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   }
 
-  // ✅ VERSION MOBILE SIMPLIFIÉE
+  // ✅ VERSION MOBILE SIMPLIFIÉE (AVEC "le jeu" corrigé)
   return (
     <div className="bg-white border-b">
       {/* En-tête principal mobile */}
@@ -376,7 +383,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           
           {/* Titre du produit */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-[#132D5D] truncate">Le Jeu {finalTitle}</h1>
+            <h1 className="text-lg font-bold text-[#132D5D] truncate">{finalTitle}</h1>
           </div>
 
           {/* Bouton fermer mobile */}

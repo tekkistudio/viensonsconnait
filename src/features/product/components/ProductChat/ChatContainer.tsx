@@ -1,4 +1,5 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE DESKTOP
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE DOUBLONS
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -98,6 +99,7 @@ const ChatContainer = ({
   
   // États pour éviter les doublons
   const [initializationLock, setInitializationLock] = useState(false);
+  const [messageIdCache, setMessageIdCache] = useState<Set<string>>(new Set());
 
   // CONVERSION: Product vers ProductData
   const productData = convertProductToProductData(product);
@@ -151,7 +153,7 @@ const ChatContainer = ({
     if (orderData.quantity && orderData.quantity > 0) {
       const newCartItems = [{
         productId: product.id,
-        productName: product.name,
+        productName: `le jeu ${product.name}`,
         quantity: orderData.quantity,
         unitPrice: product.price,
         totalPrice: orderData.quantity * product.price
@@ -206,9 +208,22 @@ const ChatContainer = ({
     }
   }, [isVoiceSupported, recognition, isListening, isProcessing]);
 
-  // ✅ INITIALISATION CORRIGÉE - HARMONISÉE AVEC MOBILE
+  // ✅ FONCTION POUR GÉNÉRER UN ID UNIQUE DE MESSAGE
+  const generateMessageId = useCallback((message: ChatMessageType): string => {
+    const content = typeof message.content === 'string' ? message.content : String(message.content);
+    const preview = content.substring(0, 30).replace(/\s+/g, '_');
+    return `${message.type}_${preview}_${message.timestamp}`;
+  }, []);
+
+  // ✅ INITIALISATION CORRIGÉE - ANTI-DOUBLONS RENFORCÉE
   useEffect(() => {
-    if (!product?.id || initializationLock) {
+    if (!product?.id || initializationLock || welcomeMessageAdded) {
+      console.log('🚫 [DESKTOP] Skipping initialization:', { 
+        hasProduct: !!product?.id, 
+        initializationLock, 
+        welcomeMessageAdded,
+        messagesCount: messages.length
+      });
       return;
     }
 
@@ -222,7 +237,7 @@ const ChatContainer = ({
         
         setInitializationLock(true);
         
-        // ✅ CORRECTION: Vérifier les messages existants AVANT d'ajouter
+        // ✅ DOUBLE VÉRIFICATION: Messages existants
         if (messages.length > 0) {
           console.log('📝 [DESKTOP] Messages already exist, skipping initialization');
           setIsInitialized(true);
@@ -240,37 +255,55 @@ const ChatContainer = ({
           console.log('✅ [DESKTOP] Store initialized');
         }
 
-        // ✅ AJOUTER LE MESSAGE D'ACCUEIL (desktop version SANS boutons)
-        console.log('➕ [DESKTOP] Adding welcome message...');
-        
-        const welcomeMessage = welcomeService.generateDesktopWelcomeMessage(
-          product.name,
-          newSessionId,
-          product.id,
-          product.price,
-          productData.reviewCount
-        );
-        
-        addMessage(welcomeMessage);
-        setWelcomeMessageAdded(true);
-        setIsInitialized(true);
-        
-        console.log('✅ [DESKTOP] Welcome message added successfully');
-        
-        if (store.updateFlags) {
-          store.updateFlags({ isInitialized: true });
-        }
+        // ✅ DÉLAI AVANT D'AJOUTER LE MESSAGE pour éviter les races conditions
+        setTimeout(() => {
+          // ✅ TRIPLE VÉRIFICATION avant d'ajouter le message
+          const currentMessages = useChatStore.getState().messages;
+          if (currentMessages.length === 0 && !welcomeMessageAdded) {
+            console.log('➕ [DESKTOP] Adding welcome message...');
+            
+            const welcomeMessage = welcomeService.generateDesktopWelcomeMessage(
+              product.name,
+              newSessionId,
+              product.id,
+              product.price,
+              productData.reviewCount
+            );
+            
+            // ✅ GÉNÉRER ET VÉRIFIER L'ID UNIQUE
+            const messageId = generateMessageId(welcomeMessage);
+            if (!messageIdCache.has(messageId)) {
+              setMessageIdCache(prev => new Set(prev).add(messageId));
+              addMessage(welcomeMessage);
+              setWelcomeMessageAdded(true);
+              console.log('✅ [DESKTOP] Welcome message added successfully');
+            } else {
+              console.log('🚫 [DESKTOP] Welcome message already in cache');
+            }
+            
+          } else {
+            console.log('⚠️ [DESKTOP] Messages exist or welcome already added, skipping');
+            setWelcomeMessageAdded(true);
+          }
+          
+          setIsInitialized(true);
+          
+          if (store.updateFlags) {
+            store.updateFlags({ isInitialized: true });
+          }
+        }, 300); // Délai pour éviter les races conditions
         
       } catch (err) {
         console.error('❌ [DESKTOP] Error initializing chat:', err);
         setIsInitialized(true);
         setWelcomeMessageAdded(true);
-        setInitializationLock(false);
+      } finally {
+        setTimeout(() => setInitializationLock(false), 1000);
       }
     };
 
     initializeChat();
-  }, [product.id, storeId, initializationLock, messages.length, welcomeService, addMessage, initializeSession, store]);
+  }, [product.id, storeId, initializationLock, welcomeMessageAdded, messages.length, welcomeService, addMessage, initializeSession, store, generateMessageId, messageIdCache]);
 
   // Auto-scroll optimisé
   useEffect(() => {
@@ -294,7 +327,7 @@ const ChatContainer = ({
         sessionId,
         currentStep,
         productId: product.id,
-        productName: product.name
+        productName: `le jeu ${product.name}`
       });
       
       // ✅ GESTION DU MODAL STRIPE
@@ -319,6 +352,14 @@ const ChatContainer = ({
         timestamp: new Date().toISOString()
       };
       
+      // ✅ VÉRIFIER L'UNICITÉ DU MESSAGE UTILISATEUR
+      const userMessageId = generateMessageId(userMessage);
+      if (messageIdCache.has(userMessageId)) {
+        console.log('🚫 [DESKTOP] User message already in cache, ignoring');
+        return;
+      }
+      
+      setMessageIdCache(prev => new Set(prev).add(userMessageId));
       console.log('📝 [DESKTOP] Adding user message');
       addMessage(userMessage);
       
@@ -327,7 +368,7 @@ const ChatContainer = ({
 
       console.log('⚙️ [DESKTOP] Calling OptimizedChatService.processMessage');
       
-      // ✅ UTILISER LE SERVICE CORRIGÉ
+      // ✅ UTILISER LE SERVICE CORRIGÉ avec "le jeu"
       const response = await optimizedService.processMessage(
         sessionId,
         content,
@@ -338,8 +379,16 @@ const ChatContainer = ({
       
       console.log('✅ [DESKTOP] Response received from service');
 
+      // ✅ VÉRIFIER L'UNICITÉ DE LA RÉPONSE
+      const responseId = generateMessageId(response);
+      if (messageIdCache.has(responseId)) {
+        console.log('🚫 [DESKTOP] Response already in cache, ignoring');
+        return;
+      }
+
       // Délai pour l'animation
       setTimeout(() => {
+        setMessageIdCache(prev => new Set(prev).add(responseId));
         console.log('✅ [DESKTOP] Adding response to chat');
         addMessage(response);
         
@@ -374,10 +423,15 @@ Voulez-vous réessayer ?`,
           },
           timestamp: new Date().toISOString()
         };
-        addMessage(errorMessage);
+        
+        const errorId = generateMessageId(errorMessage);
+        if (!messageIdCache.has(errorId)) {
+          setMessageIdCache(prev => new Set(prev).add(errorId));
+          addMessage(errorMessage);
+        }
       }, 500);
     }
-  }, [sessionId, currentStep, product.id, product.name, optimizedService, addMessage, updateOrderData, store]);
+  }, [sessionId, currentStep, product.id, product.name, optimizedService, addMessage, updateOrderData, store, generateMessageId, messageIdCache]);
 
   // GESTION DES CHOIX
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -439,38 +493,45 @@ Voulez-vous réessayer ?`,
     });
   }, [setPaymentModal]);
 
-  // ✅ CORRECTION MAJEURE: Fonction pour détecter les boutons d'interface AMÉLIORÉE
+  // ✅ CORRECTION MAJEURE: Fonction pour détecter les boutons d'interface ENTIÈREMENT RÉVISÉE
   const shouldShowInterfaceButtons = useCallback((message: ChatMessageType, index: number): boolean => {
-    // ✅ CORRECTION 1: Ne JAMAIS afficher si mobile
-    if (isMobile) return false;
+    // ✅ CONDITION 1: JAMAIS sur mobile
+    if (isMobile) {
+      return false;
+    }
     
-    // ✅ CORRECTION 2: Seulement pour le dernier message
-    if (index !== messages.length - 1) return false;
+    // ✅ CONDITION 2: SEULEMENT pour le dernier message
+    if (index !== messages.length - 1) {
+      return false;
+    }
     
-    // ✅ CORRECTION 3: Seulement pour les messages assistant
-    if (message.type !== 'assistant') return false;
+    // ✅ CONDITION 3: SEULEMENT pour les messages assistant
+    if (message.type !== 'assistant') {
+      return false;
+    }
     
-    // ✅ CORRECTION 4: NE JAMAIS afficher si le message a déjà des choix
+    // ✅ CONDITION 4: JAMAIS si le message a déjà des choix
     if (message.choices && message.choices.length > 0) {
       console.log('🚫 [DESKTOP] Message has choices, NOT showing interface buttons');
       return false;
     }
     
-    // ✅ CORRECTION 5: Seulement pour les messages d'accueil spécifiques SANS choix
-    const isDesktopWelcome = Boolean(
+    // ✅ CONDITION 5: SEULEMENT pour les messages d'accueil spécifiques avec le flag
+    const isDesktopWelcomeWithButtons = Boolean(
       message.metadata?.flags?.isWelcome && 
       message.metadata?.flags?.desktopMode &&
-      (!message.choices || message.choices.length === 0)
+      message.metadata?.flags?.useInterfaceButtons
     );
     
     console.log('🔍 [DESKTOP] Interface buttons check:', {
       isWelcome: Boolean(message.metadata?.flags?.isWelcome),
       isDesktop: Boolean(message.metadata?.flags?.desktopMode),
+      useInterfaceButtons: Boolean(message.metadata?.flags?.useInterfaceButtons),
       hasChoices: !!(message.choices && message.choices.length > 0),
-      shouldShow: isDesktopWelcome
+      shouldShow: isDesktopWelcomeWithButtons
     });
     
-    return isDesktopWelcome;
+    return isDesktopWelcomeWithButtons;
   }, [isMobile, messages.length]);
 
   // ✅ RENDU CONDITIONNEL pour éviter l'affichage prématuré
@@ -518,7 +579,7 @@ Voulez-vous réessayer ?`,
       >
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => {
-            // ✅ CORRECTION MAJEURE: Logique d'affichage des boutons CORRIGÉE
+            // ✅ CORRECTION MAJEURE: Logique d'affichage des boutons ENTIÈREMENT RÉVISÉE
             const showInterfaceButtons = shouldShowInterfaceButtons(message, index);
             
             return (
@@ -560,7 +621,7 @@ Voulez-vous réessayer ?`,
                   </div>
                 )}
 
-                {/* ✅ CORRECTION MAJEURE: BOUTONS D'INTERFACE DESKTOP - AFFICHAGE CONDITIONNEL STRICT */}
+                {/* ✅ CORRECTION MAJEURE: BOUTONS D'INTERFACE DESKTOP - AFFICHAGE UNIQUE ET CONDITIONNEL */}
                 {showInterfaceButtons && (
                   <div className="mt-4 space-y-3">
                     <motion.div

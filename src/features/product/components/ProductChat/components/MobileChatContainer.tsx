@@ -1,4 +1,5 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION CORRIGÉE HARMONISÉE
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION HARMONISÉE SANS DOUBLONS
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -10,6 +11,7 @@ import { ConversationProvider } from '@/hooks/useConversationContext';
 import { BictorysPaymentModal } from '@/components/payment/BictorysPaymentModal';
 import { StripePaymentModal } from '@/components/payment/StripePaymentModal';
 import { WelcomeMessageService } from '@/lib/services/WelcomeMessageService';
+import { AIManager } from '@/lib/services/AIManager';
 import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { useSpeechRecognition } from '@/lib/services/SpeechRecognitionService';
@@ -190,9 +192,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   const [showTyping, setShowTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // ✅ États locaux simplifiés pour éviter les boucles
-  const [initializationStarted, setInitializationStarted] = useState(false);
-  const [welcomeMessageSent, setWelcomeMessageSent] = useState(false);
+  // ✅ États locaux simplifiés pour éviter les boucles HARMONISÉS AVEC DESKTOP
+  const [initializationLock, setInitializationLock] = useState(false);
+  const [welcomeMessageAdded, setWelcomeMessageAdded] = useState(false);
+  const [messageIdCache, setMessageIdCache] = useState<Set<string>>(new Set());
   
   const [stats, setStats] = useState<RealTimeStats>({
     viewsCount: 0,
@@ -201,9 +204,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   });
   const [rating, setRating] = useState(product.stats?.satisfaction || 5);
 
-  // ✅ Service optimisé et d'accueil
+  // ✅ Services harmonisés avec desktop
   const optimizedService = OptimizedChatService.getInstance();
   const welcomeService = WelcomeMessageService.getInstance();
+  const aiManager = AIManager.getInstance();
 
   // ✅ Utilisation sélective du store pour éviter les re-renders
   const store = useChatStore();
@@ -246,7 +250,14 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     productName: product.name
   });
 
-  // ✅ CORRECTION MAJEURE: Fonction de détection du panier pour mobile
+  // ✅ FONCTION POUR GÉNÉRER UN ID UNIQUE DE MESSAGE HARMONISÉE
+  const generateMessageId = useCallback((message: ChatMessageType): string => {
+    const content = typeof message.content === 'string' ? message.content : String(message.content);
+    const preview = content.substring(0, 30).replace(/\s+/g, '_');
+    return `${message.type}_${preview}_${message.timestamp}`;
+  }, []);
+
+  // ✅ CORRECTION MAJEURE: Fonction de détection du panier pour mobile HARMONISÉE
   const detectCartFromMessages = useCallback(() => {
     console.log('🛒 [MOBILE] DÉTECTION PANIER:', { 
       orderData, 
@@ -347,26 +358,26 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
 
   // ✅ INITIALISATION CORRIGÉE - HARMONISÉE AVEC DESKTOP
   useEffect(() => {
-    if (!product?.id || initializationStarted || welcomeMessageSent) {
+    if (!product?.id || initializationLock || welcomeMessageAdded) {
       return;
     }
 
     const initializeChat = async () => {
       try {
-        console.log('📱 Initializing mobile chat session:', { 
+        console.log('📱 [MOBILE] Starting chat initialization:', { 
           productId: product.id, 
           storeId,
-          initializationStarted,
-          welcomeMessageSent,
+          initializationLock,
+          welcomeMessageAdded,
           existingMessages: messages.length
         });
         
-        setInitializationStarted(true);
+        setInitializationLock(true);
 
-        // Vérifier si des messages existent déjà
+        // ✅ DOUBLE VÉRIFICATION: Messages existants AVANT d'ajouter
         if (messages.length > 0) {
-          console.log('📝 Mobile chat already has messages, skipping initialization');
-          setWelcomeMessageSent(true);
+          console.log('📝 [MOBILE] Messages already exist, skipping initialization');
+          setWelcomeMessageAdded(true);
           return;
         }
 
@@ -376,14 +387,14 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           initializeSession(product.id, storeId, newSessionId);
         }
         
-        // ✅ NOUVEAU: Séquence réaliste avec typing indicator et message HARMONISÉ
+        // ✅ DÉLAI AVANT D'AJOUTER LE MESSAGE pour éviter les races conditions
         setTimeout(() => {
-          // Vérifier encore une fois qu'aucun message n'a été ajouté
-          const currentState = useChatStore.getState();
-          
-          if (currentState.messages.length === 0 && !welcomeMessageSent) {
+          // ✅ TRIPLE VÉRIFICATION avant d'ajouter le message
+          const currentMessages = useChatStore.getState().messages;
+          if (currentMessages.length === 0 && !welcomeMessageAdded) {
+            console.log('📝 [MOBILE] Adding welcome message...');
+            
             // ✅ ÉTAPE 1: Afficher "Rose écrit..." pendant 2 secondes
-            console.log('📝 Showing typing indicator...');
             setShowTyping(true);
             updateTypingStatus(true);
             
@@ -392,7 +403,6 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
               setShowTyping(false);
               updateTypingStatus(false);
               
-              // ✅ UTILISER LE SERVICE HARMONISÉ POUR MOBILE
               const welcomeMessage = welcomeService.generateMobileWelcomeMessage(
                 product.name,
                 sessionId,
@@ -400,25 +410,33 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                 product.price
               );
               
-              console.log('📝 Adding HARMONIZED welcome message to mobile chat');
-              addMessage(welcomeMessage);
-              setWelcomeMessageSent(true);
-            }, 2000); // ✅ 2 secondes de typing indicator
+              // ✅ VÉRIFIER L'UNICITÉ AVANT D'AJOUTER
+              const messageId = generateMessageId(welcomeMessage);
+              if (!messageIdCache.has(messageId)) {
+                setMessageIdCache(prev => new Set(prev).add(messageId));
+                console.log('✅ [MOBILE] Adding HARMONIZED welcome message');
+                addMessage(welcomeMessage);
+                setWelcomeMessageAdded(true);
+              } else {
+                console.log('🚫 [MOBILE] Welcome message already in cache');
+              }
+            }, 2000);
           } else {
-            console.log('⚠️ Mobile: Welcome message skipped - messages exist or already sent');
-            setWelcomeMessageSent(true);
+            console.log('⚠️ [MOBILE] Messages exist or welcome already added, skipping');
+            setWelcomeMessageAdded(true);
           }
-        }, 800); // ✅ Délai initial avant typing
+        }, 800);
         
       } catch (error) {
-        console.error('❌ Error initializing mobile chat:', error);
-        setInitializationStarted(true);
-        setWelcomeMessageSent(true);
+        console.error('❌ [MOBILE] Error initializing chat:', error);
+        setWelcomeMessageAdded(true);
+      } finally {
+        setTimeout(() => setInitializationLock(false), 1000);
       }
     };
 
     initializeChat();
-  }, [product.id, storeId, initializationStarted, welcomeMessageSent, updateTypingStatus, addMessage, welcomeService, sessionId]);
+  }, [product.id, storeId, initializationLock, welcomeMessageAdded, messages.length, updateTypingStatus, addMessage, welcomeService, sessionId, generateMessageId, messageIdCache]);
 
   // ✅ Header management
   useEffect(() => {
@@ -524,7 +542,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   }, [messages.length, showTyping]);
 
-  // ✅ CORRECTION MAJEURE: Envoi de message HARMONISÉ AVEC DESKTOP
+  // ✅ CORRECTION MAJEURE: Envoi de message HARMONISÉ AVEC DESKTOP ET IA INTELLIGENTE
   const sendMessage = useCallback(async (content: string) => {
     if (isProcessing) {
       console.log('⏳ Already processing a message, ignoring');
@@ -532,7 +550,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
 
     try {
-      console.log('📱 Processing mobile message:', { content: content.substring(0, 50) });
+      console.log('📱 Processing mobile message with AI INTELLIGENCE:', { content: content.substring(0, 50) });
       
       // ✅ GESTION: Ouverture du modal Stripe
       if (content.startsWith('STRIPE_MODAL_OPEN:')) {
@@ -552,79 +570,141 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
         metadata: {
           flags: {
             isButtonChoice: true,
-            preventAIIntervention: true
+            preventAIIntervention: false // ✅ PERMETTRE l'intervention IA intelligente
           }
         }
       };
       
+      // ✅ VÉRIFIER L'UNICITÉ DU MESSAGE UTILISATEUR
+      const userMessageId = generateMessageId(userMessage);
+      if (messageIdCache.has(userMessageId)) {
+        console.log('🚫 [MOBILE] User message already in cache, ignoring');
+        return;
+      }
+      
+      setMessageIdCache(prev => new Set(prev).add(userMessageId));
       addMessage(userMessage);
 
       let response: ChatMessageType;
       
-      // ✅ CORRECTION MAJEURE: Utiliser le service HARMONISÉ avec Desktop
+      // ✅ PRIORITÉ 1: UTILISER L'IA MANAGER INTELLIGENT pour analyser l'intention
       try {
-        console.log('🤖 [MOBILE] Using HARMONIZED OptimizedChatService...');
+        console.log('🤖 [MOBILE] Using INTELLIGENT AI Manager with intent detection...');
         
-        response = await optimizedService.processMessage(
-          sessionId || `${product.id}_${Date.now()}`,
-          content,
-          currentStep || 'initial',
+        const aiResponse = await aiManager.handleProductChatbot(
+          { content, type: 'user' },
           product.id,
-          product.name
+          product.name,
+          currentStep || 'initial',
+          orderData,
+          sessionId || `${product.id}_${Date.now()}`
         );
         
-        console.log('✅ Mobile: Harmonized service response received:', {
+        // ✅ CONVERTIR AIResponse en ChatMessage
+        response = {
+          type: 'assistant',
+          content: aiResponse.content || "Je suis là pour vous aider !",
+          choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: aiResponse.nextStep ?? (currentStep === null ? undefined : currentStep),
+            orderData: aiResponse.orderData,
+            flags: {
+              ...aiResponse.metadata?.flags,
+              aiManagerUsed: true,
+              intentAnalyzed: true,
+              mobileOptimized: true
+            },
+            purchaseIntent: aiResponse.metadata?.purchaseIntent
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        console.log('✅ Mobile: AI Manager response received with intent:', {
           type: response.type,
           hasChoices: !!(response.choices && response.choices.length > 0),
           nextStep: response.metadata?.nextStep,
+          intentScore: aiResponse.metadata?.purchaseIntent?.score,
           flags: response.metadata?.flags
         });
 
-      } catch (serviceError) {
-        console.error('❌ Mobile: Harmonized service failed, using API fallback:', serviceError);
+      } catch (aiError) {
+        console.error('❌ Mobile: AI Manager failed, using OptimizedChatService fallback:', aiError);
         
-        // ✅ FALLBACK: Utiliser API chat pour mobile
-        const apiResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: content,
-            productId: product.id,
-            currentStep: currentStep || 'initial',
-            orderData: orderData || {},
-            sessionId: sessionId || `${product.id}_${Date.now()}`,
-            storeId: storeId || 'default'
-          }),
-        });
-
-        if (apiResponse.ok) {
-          const aiResponse = await apiResponse.json();
-          console.log('✅ Mobile: API fallback response received');
-
-          response = {
-            type: 'assistant',
-            content: aiResponse.message || "Je suis là pour vous aider !",
-            choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
-            assistant: {
-              name: 'Rose',
-              title: 'Agent IA VIENS ON S\'CONNAÎT'
+        // ✅ FALLBACK 1: OptimizedChatService
+        try {
+          response = await optimizedService.processMessage(
+            sessionId || `${product.id}_${Date.now()}`,
+            content,
+            currentStep || 'initial',
+            product.id,
+            product.name
+          );
+          
+          console.log('✅ Mobile: OptimizedChatService fallback successful');
+          
+        } catch (serviceError) {
+          console.error('❌ Mobile: OptimizedChatService failed, using API fallback:', serviceError);
+          
+          // ✅ FALLBACK 2: API chat
+          const apiResponse = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
             },
-            metadata: {
-              nextStep: aiResponse.nextStep || currentStep,
-              orderData: aiResponse.orderData,
-              flags: aiResponse.flags || {}
-            },
-            timestamp: new Date().toISOString()
-          };
-        } else {
-          throw new Error('API fallback failed');
+            body: JSON.stringify({
+              message: content,
+              productId: product.id,
+              currentStep: currentStep || 'initial',
+              orderData: orderData || {},
+              sessionId: sessionId || `${product.id}_${Date.now()}`,
+              storeId: storeId || 'default',
+              forceAI: true // ✅ Forcer l'IA pour la cohérence
+            }),
+          });
+
+          if (apiResponse.ok) {
+            const aiResponse = await apiResponse.json();
+            console.log('✅ Mobile: API fallback response received');
+
+            response = {
+              type: 'assistant',
+              content: aiResponse.message || "Je suis là pour vous aider !",
+              choices: aiResponse.choices || ["Je veux l'acheter maintenant", "J'ai des questions à poser"],
+              assistant: {
+                name: 'Rose',
+                title: 'Assistante d\'achat'
+              },
+              metadata: {
+                nextStep: aiResponse.nextStep || currentStep,
+                orderData: aiResponse.orderData,
+                flags: {
+                  ...aiResponse.flags,
+                  apiFallback: true,
+                  mobileOptimized: true
+                }
+              },
+              timestamp: new Date().toISOString()
+            };
+          } else {
+            throw new Error('All fallbacks failed');
+          }
         }
       }
       
+      // ✅ VÉRIFIER L'UNICITÉ DE LA RÉPONSE
+      const responseId = generateMessageId(response);
+      if (messageIdCache.has(responseId)) {
+        console.log('🚫 [MOBILE] Response already in cache, ignoring');
+        return;
+      }
+
       // Délai pour l'animation
       setTimeout(() => {
+        setMessageIdCache(prev => new Set(prev).add(responseId));
         console.log('✅ Mobile: Response generated and added');
         addMessage(response);
         
@@ -650,17 +730,22 @@ ${err instanceof Error ? err.message : 'Erreur inconnue'}
 
 Voulez-vous réessayer ?`,
           choices: ['🔄 Réessayer', '💬 Poser une question', '🏠 Retour accueil'],
-          assistant: { name: 'Rose', title: 'Agent IA VIENS ON S\'CONNAÎT' },
+          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
           metadata: {
             nextStep: 'error_recovery' as ConversationStep,
             flags: { hasError: true }
           },
           timestamp: new Date().toISOString()
         };
-        addMessage(errorMessage);
+        
+        const errorId = generateMessageId(errorMessage);
+        if (!messageIdCache.has(errorId)) {
+          setMessageIdCache(prev => new Set(prev).add(errorId));
+          addMessage(errorMessage);
+        }
       }, 500);
     }
-  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, optimizedService, store]);
+  }, [isProcessing, product.id, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, optimizedService, aiManager, store, generateMessageId, messageIdCache]);
 
   // ✅ Gestion des choix avec protection
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -711,12 +796,12 @@ Voulez-vous réessayer ?`,
   }, [setPaymentModal]);
 
   // ✅ RENDU CONDITIONNEL
-  if (!initializationStarted) {
+  if (!initializationLock && !welcomeMessageAdded && messages.length === 0) {
     return (
       <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7E93] mx-auto mb-4" />
-          <p className="text-gray-600">Initialisation du chat...</p>
+          <p className="text-gray-600">Initialisation du chat intelligent...</p>
         </div>
       </div>
     );
@@ -786,7 +871,7 @@ Voulez-vous réessayer ?`,
             </div>
           </div>
 
-          {/* ✅ CORRECTION MAJEURE: BARRE DE COMMANDE MOBILE - Maintenant fonctionnelle */}
+          {/* ✅ BARRE DE COMMANDE MOBILE HARMONISÉE */}
           {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -886,7 +971,7 @@ Voulez-vous réessayer ?`,
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7E93] mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">Chargement du chat...</p>
+                <p className="text-gray-500 text-sm">Chargement du chat intelligent...</p>
               </div>
             </div>
           )}
@@ -903,7 +988,7 @@ Voulez-vous réessayer ?`,
           />
         </div>
 
-        {/* ✅ MODALS DE PAIEMENT CORRIGÉS */}
+        {/* ✅ MODALS DE PAIEMENT HARMONISÉS */}
         <BictorysPaymentModal
           isOpen={paymentModal?.isOpen || false}
           onClose={handleClosePaymentModal}
@@ -918,7 +1003,6 @@ Voulez-vous réessayer ?`,
           }}
         />
 
-        {/* ✅ CORRECTION MAJEURE: Modal Stripe corrigé pour mobile */}
         <StripePaymentModal
           isOpen={stripeModalOpen}
           onClose={() => {
@@ -933,7 +1017,7 @@ Voulez-vous réessayer ?`,
             setStripeModalOpen(false);
             setStripeModalData(null);
             
-            // ✅ NOUVEAU: Envoyer message de confirmation SEULEMENT après succès
+            // Confirmation de paiement
             const confirmationMessage: ChatMessageType = {
               type: 'assistant',
               content: `🎉 **Paiement Stripe confirmé !**
@@ -952,7 +1036,7 @@ Voulez-vous réessayer ?`,
                 '🛍️ Commander un autre jeu',
                 '📱 Télécharger l\'app mobile'
               ],
-              assistant: { name: 'Rose', title: 'Agent IA VIENS ON S\'CONNAÎT' },
+              assistant: { name: 'Rose', title: 'Assistante d\'achat' },
               metadata: {
                 nextStep: 'express_completed' as ConversationStep,
                 orderData: {
@@ -973,7 +1057,6 @@ Voulez-vous réessayer ?`,
           }}
           onError={(error) => {
             console.error('❌ Mobile Stripe payment error:', error);
-            // ✅ Le modal gère déjà l'affichage de l'erreur
           }}
         />
 
