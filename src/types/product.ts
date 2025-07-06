@@ -18,7 +18,7 @@ export interface ProductMetadata {
   duration: string;
   language: string;
   min_age: number;
-  // ✅ AJOUT : Champ pour gérer l'ordre d'affichage
+
   display_order?: number;
   stats?: {
     sold: number;
@@ -56,7 +56,7 @@ export interface Product {
   metadata: ProductMetadata;
   benefits: string[];
   topics: string[];
-  // ✅ NOUVEAU: Propriété tags ajoutée
+  
   tags?: string[];
   howToPlay?: string;
   testimonials?: string;
@@ -70,7 +70,7 @@ export interface Product {
   };
   badges?: ProductBadge[];
   createdAt: string;
-  // ✅ AJOUT : Propriétés pour le tri et le statut
+  
   status?: 'active' | 'draft' | 'archived';
   display_order?: number;
 }

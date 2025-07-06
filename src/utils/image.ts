@@ -54,9 +54,9 @@ export function getHeroImage(product: Product): string {
   
   // Mapping des catégories vers les images hero
   const heroImages = {
-    couples: '/images/hero/couples-hero.webp',
-    maries: '/images/hero/maries-hero.webp', 
-    famille: '/images/hero/famille-hero.webp',
+    couples: '/images/hero/maries-hero.webp',
+    maries: '/images/hero/couples-hero.webp', 
+    famille: '/images/hero/familles-hero.webp',
     amis: '/images/hero/amis-hero.jpg',
     collegues: '/images/hero/collegues-hero.jpg',
     stvalentin: '/images/hero/stval-hero.jpg'

@@ -1,4 +1,4 @@
-// src/features/home/components/mobile/HeroCarousel.tsx - VERSION FADE AVEC BACKGROUNDS CORRIGÉS
+// src/features/home/components/mobile/HeroCarousel.tsx 
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -249,7 +249,7 @@ export default function HeroCarousel({ className = "" }: HeroCarouselProps) {
 
   const productTags = (currentProduct as any).tags && Array.isArray((currentProduct as any).tags) && (currentProduct as any).tags.length > 0 
     ? (currentProduct as any).tags 
-    : ['Conversations', 'Relations', 'Connexion'];
+    : ['Conversations', 'Connexion', 'Connaissance'];
 
   return (
     <div className={`relative overflow-hidden transition-all duration-300 bg-theme-primary ${

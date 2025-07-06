@@ -174,14 +174,14 @@ export default function MobileProductsCollection() {
           <h1 className={`text-3xl font-bold mb-2 ${
             theme === 'light' 
               ? 'text-black drop-shadow-lg' 
-              : 'text-black drop-shadow-lg'
+              : 'text-white drop-shadow-lg'
           }`}>
             Nos Jeux de Cartes
           </h1>
           <p className={`text-lg ${
             theme === 'light' 
               ? 'text-black/90 drop-shadow' 
-              : 'text-black/80 drop-shadow'
+              : 'text-white/80 drop-shadow'
           }`}>
             {products.length} jeux pour améliorer et renforcer vos relations avec vos proches
           </p>

@@ -74,7 +74,7 @@ export default function MobileBlog() {
   return (
     <div className="min-h-screen bg-theme-primary">
       {/* Hero Section */}
-      <section className="relative min-h-[65vh] overflow-hidden pt-16">
+      <section className="relative min-h-[65vh] overflow-hidden pt-24 pb-10">
         {/* Dégradé adaptatif selon le thème */}
         <div className="absolute inset-0 bg-gradient-to-r from-brand-pink/30 to-brand-blue/30 dark:from-brand-pink/40 dark:to-black/60" />
         <div className="absolute inset-0 bg-theme-primary/20 dark:bg-black/30" />

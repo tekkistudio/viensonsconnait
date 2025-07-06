@@ -62,7 +62,7 @@ export class ProductService {
       metadata: {
         category: metadata.category || '',
         players: metadata.players || '2-8 joueurs',
-        duration: metadata.duration || '30-60 minutes',
+        duration: metadata.duration || '15-120 minutes',
         language: metadata.language || 'Français',
         min_age: metadata.min_age || 18,
         display_order: metadata.display_order || dbProduct.display_order,

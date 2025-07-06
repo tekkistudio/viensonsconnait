@@ -68,7 +68,7 @@ export default function MobileNotreHistoire() {
   return (
     <div className="min-h-screen bg-theme-primary">
       {/* Hero Section avec dégradé adaptatif */}
-      <section className="relative min-h-[85vh] overflow-hidden pt-24 pb-12">
+      <section className="relative min-h-[65vh] overflow-hidden pt-24 pb-10">
         {/* Dégradé adaptatif selon le thème */}
         <div className="absolute inset-0 bg-gradient-to-r from-brand-pink/30 via-brand-pink/20 to-brand-blue/30 light:to-brand-blue/30 dark:to-black/50" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-theme-primary/80" />

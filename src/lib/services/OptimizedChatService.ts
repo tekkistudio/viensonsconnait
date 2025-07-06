@@ -494,7 +494,7 @@ Ce jeu a déjà aidé des milliers de personnes à créer des liens plus forts a
         this.orderStates.delete(sessionId);
       }
 
-      const fullProductName = `le jeu ${productName || product.name}`;
+      const fullProductName = `${productName || product.name}`;
 
       const orderState: ExpressOrderState = {
         step: 'quantity',
@@ -519,7 +519,7 @@ Ce jeu a déjà aidé des milliers de personnes à créer des liens plus forts a
 
       return {
         type: 'assistant' as const,
-        content: `🎉 Super choix ! Je vais prendre votre commande pour le jeu ${fullProductName} 
+        content: `🎉 Super choix ! Je vais prendre votre commande pour le jeu **${fullProductName}** 
 
 Combien d'exemplaires souhaitez-vous acheter ?`,
         choices: [
@@ -690,7 +690,7 @@ Je viens d'ouvrir l'App Store dans un nouvel onglet !
     }
   }
 
-  // ✅ GESTION DU FLOW EXPRESS avec "le jeu" (méthodes restent identiques)
+  // ✅ GESTION DU FLOW EXPRESS
   private async handleExpressFlowInternal(
     sessionId: string,
     message: string,
@@ -809,7 +809,7 @@ Ex : *+221 77 123 45 67*`,
   private async handlePhoneStep(sessionId: string, message: string, orderState: ExpressOrderState): Promise<ChatMessage> {
     const cleanPhone = message.replace(/\s/g, '');
     if (cleanPhone.length < 8) {
-      return this.createErrorMessage('Numéro trop court. Format : +221 77 123 45 67');
+      return this.createErrorMessage('Ce numéro est trop court. Utilisez le format : +221 77 123 45 67');
     }
 
     let formattedPhone = cleanPhone;
@@ -861,7 +861,7 @@ Doit-on vous livrer à la même adresse :** ${existingCustomer.address}, ${exist
         type: 'assistant',
         content: `Ah! C'est votre première fois ici ! Bienvenue 🎉 
 
-Votre numéro de telephone **${formattedPhone}** a été enregistré
+Votre numéro de telephone **${formattedPhone}** a été enregistré ✅
 
 Quel est votre nom complet ?
 
@@ -881,7 +881,7 @@ Ex : *Aminata Diallo*`,
     const parts = name.split(/\s+/);
     
     if (parts.length < 2) {
-      return this.createErrorMessage('Nom complet SVP. Exemple : Aminata Diallo');
+      return this.createErrorMessage('Ecrivez votre nom complet, SVP. Exemple : Aminata Diallo');
     }
 
     orderState.data.firstName = parts[0];
@@ -926,7 +926,7 @@ Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
 Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
-          '📱 Wave (recommandé)',
+          'Wave (recommandé)',
           '💳 Carte bancaire', 
           '💵 Paiement à la livraison'
         ],
@@ -964,7 +964,7 @@ Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
 Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
-          '📱 Wave (recommandé)',
+          'Wave (recommandé)',
           '💳 Carte bancaire', 
           '💵 Paiement à la livraison'
         ],
@@ -989,7 +989,7 @@ Dernière étape : comment souhaitez-vous payer ?`,
     } else if (message.toLowerCase().includes('livraison')) {
       paymentMethod = 'cash_on_delivery';
     } else {
-      return this.createErrorMessage('Choisissez un mode de paiement valide');
+      return this.createErrorMessage('Veuillez choisir un mode de paiement valide');
     }
 
     orderState.data.paymentMethod = paymentMethod;
@@ -1001,12 +1001,12 @@ Dernière étape : comment souhaitez-vous payer ?`,
     const orderResult = await this.createOrder(sessionId, orderState);
     
     if (!orderResult.success) {
-      return this.createErrorMessage(orderResult.error || 'Erreur création commande');
+      return this.createErrorMessage(orderResult.error || 'Une erreur est survenue lors de la création de votre commande');
     }
 
     let paymentInstructions = '';
     if (paymentMethod === 'wave') {
-      paymentInstructions = `📱 **Wave** : Cliquez sur le bouton Wave ci-dessous`;
+      paymentInstructions = `**Wave** : Cliquez sur le bouton Wave ci-dessous`;
     } else if (paymentMethod === 'card') {
       paymentInstructions = `💳 **Carte bancaire** : Redirection vers paiement sécurisé`;
     } else {
@@ -1015,17 +1015,17 @@ Dernière étape : comment souhaitez-vous payer ?`,
 
     return {
       type: 'assistant',
-      content: `🎉 **Votre commande est confirmée !**
+      content: `🎉 **Votre commande est confirmée** ✅
 
-**N° :** #${orderResult.orderId}
+N° :** #${orderResult.orderId}**
 
 ${paymentInstructions}
 
-**Livraison :**
-📍 ${orderState.data.address}, ${orderState.data.city}
-⏰ 24-48h ouvrables
+Livraison :
+📍 Adresse : **${orderState.data.address}, ${orderState.data.city}**
+⏰ Délai : 24-48h ouvrables
 
-Merci pour votre confiance ! ✨`,
+Merci pour votre confiance ✨`,
       choices: paymentMethod === 'wave' ? ['Payer avec Wave'] : 
                paymentMethod === 'card' ? ['💳 Payer par carte'] : 
                ['⭐ Parfait, merci !', '🛍️ Commander un autre jeu'],
@@ -1062,13 +1062,12 @@ Merci pour votre confiance ! ✨`,
       type: 'assistant',
       content: `✅ **Merci pour votre confiance !**
 
-Votre **${orderState.data.productName}** sera livré rapidement.
+Votre commande du jeu **${orderState.data.productName}** sera livrée rapidement.
 
-À très bientôt ! 💕`,
+À très bientôt !`,
       choices: [
         '🛍️ Commander un autre jeu',
         '📱 Télécharger l\'app mobile',
-        '⭐ Merci Rose !'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -1152,14 +1151,14 @@ Votre **${orderState.data.productName}** sera livré rapidement.
   private async handleWavePaymentReturn(sessionId: string): Promise<ChatMessage> {
     return {
       type: 'assistant',
-      content: `✅ **Retour du paiement Wave**
+      content: `✅ **Confirmation du paiement Wave**
 
-Donnez-moi votre **ID de Transaction Wave** pour confirmer.
+Donnez-moi votre **ID de Transaction Wave** pour confirmer votre paiement.
 
 💡 **Comment le trouver :**
-1. Ouvrez Wave
-2. Historique des transactions  
-3. Copiez l'ID (commence par 'T')
+1. Ouvrez votre application Wave
+2. Cliquez sur la transaction effectuée 
+3. Copiez l'ID de Transaction (commence par 'T')
 
 *Exemple : TJJ4D7OR04EPQAR4FD*`,
       choices: [],
@@ -1175,7 +1174,7 @@ Donnez-moi votre **ID de Transaction Wave** pour confirmer.
     const cleanTransactionId = transactionId.trim().toUpperCase();
     
     if (!this.isWaveTransactionId(cleanTransactionId)) {
-      return this.createErrorMessage('ID Wave invalide. Format : TJJ4D7OR04EPQAR4FD');
+      return this.createErrorMessage('Votre ID de transaction Wave est invalide. Voici le bon format : TJJ4D7OR04EPQAR4FD');
     }
 
     try {
@@ -1194,9 +1193,9 @@ Donnez-moi votre **ID de Transaction Wave** pour confirmer.
 
       return {
         type: 'assistant',
-        content: `🎉 **Paiement Wave confirmé !**
+        content: `🎉 **Votre paiement via Wave est confirmé !**
 
-✅ **Transaction :** ${cleanTransactionId}
+✅ **ID de Transaction :** ${cleanTransactionId}
 ✅ **Commande confirmée**
 
 **Livraison sous 24-48h**
@@ -1215,7 +1214,7 @@ Merci pour votre confiance ! 🙏`,
       };
 
     } catch (error) {
-      return this.createErrorMessage('Erreur de vérification Wave');
+      return this.createErrorMessage('Erreur de vérification du paiement Wave');
     }
   }
 
@@ -1243,7 +1242,7 @@ Voulez-vous réessayer ?`,
     const orderState = this.orderStates.get(sessionId);
     
     if (!orderState) {
-      return this.createErrorMessage('Session expirée. Recommencez svp.');
+      return this.createErrorMessage('Session expirée. Veuillez recommencer svp.');
     }
 
     return await this.handleExpressFlowInternal(

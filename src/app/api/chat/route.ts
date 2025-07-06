@@ -23,7 +23,7 @@ interface ChatRequest {
   orderData?: any;
   sessionId: string;
   storeId: string;
-  forceAI?: boolean; // ✅ FLAG POUR FORCER L'IA
+  forceAI?: boolean; 
 }
 
 interface ChatResponse {
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     
     try {
       // ✅ Récupérer le nom du produit depuis la base si nécessaire
-      let productName = chatRequest.productName || 'Le Jeu Pour les Couples';
+      let productName = chatRequest.productName || 'Le Jeu VIENS ON S\'CONNAÎT';
       
       if (!chatRequest.productName) {
         const { supabase } = await import('@/lib/supabase');
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       // Fallback intelligent VIENS ON S'CONNAÎT
       return NextResponse.json({
         success: true,
-        message: `Je comprends votre question sur le **jeu ${chatRequest.productName || 'VIENS ON S\'CONNAÎT'}**.
+        message: `Je comprends votre question sur le jeu **${chatRequest.productName || 'VIENS ON S\'CONNAÎT'}**.
 
 Nos jeux de cartes sont conçus pour créer des conversations authentiques et renforcer les liens humains. Chaque jeu contient 150 cartes soigneusement sélectionnées.
 
@@ -220,7 +220,7 @@ Que souhaitez-vous savoir précisément ?`,
     const chatService = OptimizedChatService.getInstance();
     
     // ✅ RÉCUPÉRER LE NOM DU PRODUIT DEPUIS LA BASE avec gestion d'erreur
-    let productName = chatRequest.productName || 'Le Jeu Pour les Couples';
+    let productName = chatRequest.productName || 'Le Jeu VIENS ON S\'CONNAÎT';
     
     if (!chatRequest.productName) {
       try {
@@ -366,34 +366,41 @@ async function getOptimizedVOSCGPTResponse(
     }
 
     // ✅ PROMPT SYSTÈME OPTIMISÉ POUR VIENS ON S'CONNAÎT
-    const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, LA marque de référence des jeux de cartes relationnels au Sénégal et en Afrique.
+    const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, une marque africaine spécialisée dans les jeux de cartes relationnels.
 
-CONTEXTE MARQUE VIENS ON S'CONNAÎT:
-VIENS ON S'CONNAÎT (VOSC) est LA marque innovante qui révolutionne les relations humaines grâce à des jeux de cartes physiques et numériques. Notre mission : permettre aux gens de créer des liens plus forts et des conversations authentiques, une carte à la fois.
+CONTEXTE MARQUE:
+VIENS ON S'CONNAÎT est une marque de jeux de cartes (physiques + numériques) qui facilitent des conversations authentiques pour renforcer les liens entre les individus : couples, amis, familles, collègues.
 
 PRODUIT ACTUEL:
 - Nom: le jeu ${productName}
-- Prix: ${productInfo.price || '14,000'} FCFA (livraison gratuite à Dakar)
+- Prix: ${productInfo.price || '14,000'} FCFA
 - Description: ${productInfo.description || 'Jeu de 150 cartes pour renforcer les relations'}
-- Public cible: ${productInfo.target_audience || 'Couples, familles, amis'}
+- Cible: ${productInfo.target_audience || 'Adultes 18+'}
 
-CARACTÉRISTIQUES COMMUNES VOSC:
-- 150 cartes premium (questions + activités + défis)
-- Conçu par des experts en relations humaines
-- Impression locale responsable au Sénégal
-- Durée adaptable: 15 min à 2h+
-- Livraison: Gratuite à Dakar, 2500 FCFA ailleurs au Sénégal
-- Application mobile complémentaire disponible
+CARACTÉRISTIQUES COMMUNES:
+- 150 cartes de questions à se poser
+- Favorise les échanges authentiques
+- Disponible en version physique et numérique
+- Format premium, impression locale responsable
+- Durée: Indéterminée, pas de limite de temps
+- Règles simples, accessibles à tous
+- Inclusif, adapté à tous les types de relations
+- Livraison gratuite à Dakar, à partir de 2500 FCFA dans les autres villes du Sénégal
+
+MISSION: Répondre aux questions avec chaleur, expertise et orientation commerciale.
+STYLE: Amicale, professionnelle, orientée conversion. 
+TON: Adapté au contexte sénégalais, chaleureux et engageant. TOUJOURS UTILISER LE VOUVOIEMENT.
+OBJECTIF: Convertir les visiteurs en clients en mettant en avant les bénéfices relationnels des jeux.
+RÈGLES DE RÉPONSE: Toujours terminer par une question pour inciter à l'achat ou à poser une autre question.
+EXEMPLE DE RÉPONSE: Ce jeu est parfait pour les couples mariés qui à approfondir leur connexion et renforcer leur complicité. Il vous permettra de découvrir des facettes insoupçonnées de votre partenaire et de tisser des liens plus forts. Voulez-vous l'acheter maintenant ou avez-vous une autre question ?
+STRUCTURE: Réponse claire + question d'engagement.
 
 TON EXPERTISE ROSE:
 - Spécialiste des relations humaines et de la communication
 - Connais parfaitement tous les jeux VOSC et leurs bénéfices
 - Comprends les enjeux culturels sénégalais et africains
 - Maîtrise parfaitement le processus de vente et de livraison
-
-MISSION: Conseiller, rassurer et guider vers l'achat avec bienveillance et expertise.
-STYLE: Chaleureuse, professionnelle, typiquement sénégalaise, empathique.
-STRUCTURE: Réponse complète + question d'engagement.
+- Capable de gérer les objections et de rassurer sur la qualité des produits
 
 RÈGLES IMPORTANTES:
 1. TOUJOURS mentionner "le jeu" avant le nom du produit
