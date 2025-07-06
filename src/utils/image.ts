@@ -54,12 +54,12 @@ export function getHeroImage(product: Product): string {
   
   // Mapping des catégories vers les images hero
   const heroImages = {
-    couples: '/images/hero/couples-hero.jpg',
-    maries: '/images/hero/maries-hero.jpg', 
-    famille: '/images/hero/famille-hero.jpg',
+    couples: '/images/hero/couples-hero.webp',
+    maries: '/images/hero/maries-hero.webp', 
+    famille: '/images/hero/famille-hero.webp',
     amis: '/images/hero/amis-hero.jpg',
     collegues: '/images/hero/collegues-hero.jpg',
-    stvalentin: '/images/hero/couples-hero.jpg'
+    stvalentin: '/images/hero/stval-hero.jpg'
   };
   
   console.log('🎯 getHeroImage - Product:', product.name, 'Category:', category);
