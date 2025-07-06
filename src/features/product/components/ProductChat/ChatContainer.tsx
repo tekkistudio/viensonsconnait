@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION DESKTOP ENTIÈREMENT CORRIGÉE
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION DESKTOP CORRIGÉE SANS DOUBLONS
 
 'use client';
 
@@ -508,7 +508,7 @@ Voulez-vous réessayer ?`,
     );
   }
 
-  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP CORRIGÉS
+  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP CORRIGÉS (ANTI-DOUBLONS)
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
       {/* HEADER */}

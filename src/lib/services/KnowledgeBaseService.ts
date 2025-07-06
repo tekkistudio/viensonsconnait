@@ -1,4 +1,5 @@
-// src/lib/services/KnowledgeBaseService.ts - VERSION FINALE ADAPTÉE À LA STRUCTURE DB
+// src/lib/services/KnowledgeBaseService.ts - VERSION OPTIMISÉE AVEC "LE JEU" SYSTÉMATIQUE
+
 import { supabase } from '@/lib/supabase';
 
 interface KnowledgeBaseItem {
@@ -33,7 +34,7 @@ export class KnowledgeBaseService {
     return this.instance;
   }
 
-  // ✅ Recherche intelligente avec trigger_keywords ARRAY
+  // ✅ RECHERCHE INTELLIGENTE OPTIMISÉE avec trigger_keywords ARRAY
   public async searchKnowledge(
     query: string, 
     productId?: string,
@@ -50,15 +51,22 @@ export class KnowledgeBaseService {
       const queryLower = query.toLowerCase();
       const queryWords = queryLower.split(/\s+/).filter((word: string) => word.length > 2);
       
+      console.log('🔍 Searching knowledge base:', {
+        query: queryLower,
+        queryWords,
+        cacheSize: this.cache.length,
+        category
+      });
+      
       const results: SearchResult[] = [];
       
       for (const item of this.cache) {
         // Filtrer par catégorie si spécifiée
         if (category && item.category !== category) continue;
         
-        const score = this.calculateRelevanceScore(queryWords, item);
+        const score = this.calculateRelevanceScore(queryWords, item, queryLower);
         
-        if (score > 0.3) { // Seuil de pertinence
+        if (score > 0.3) { // Seuil de pertinence ajusté
           results.push({
             item,
             relevanceScore: score,
@@ -68,13 +76,21 @@ export class KnowledgeBaseService {
       }
       
       // Trier par score de pertinence et priorité
-      return results.sort((a, b) => {
+      const sortedResults = results.sort((a, b) => {
         const scoreDiff = b.relevanceScore - a.relevanceScore;
         if (Math.abs(scoreDiff) < 0.1) {
           return b.item.priority - a.item.priority;
         }
         return scoreDiff;
       });
+
+      console.log('✅ Knowledge search results:', {
+        totalResults: sortedResults.length,
+        topScore: sortedResults[0]?.relevanceScore || 0,
+        topMatch: sortedResults[0]?.item.question.substring(0, 50) || 'None'
+      });
+      
+      return sortedResults;
       
     } catch (error) {
       console.error('❌ KnowledgeBase search error:', error);
@@ -82,14 +98,19 @@ export class KnowledgeBaseService {
     }
   }
 
-  // ✅ Calcul de pertinence adapté aux ARRAY PostgreSQL
-  private calculateRelevanceScore(queryWords: string[], item: KnowledgeBaseItem): number {
+  // ✅ CALCUL DE PERTINENCE AMÉLIORÉ avec pondération intelligente
+  private calculateRelevanceScore(queryWords: string[], item: KnowledgeBaseItem, fullQuery: string): number {
     let score = 0;
     
     // S'assurer que trigger_keywords est un array
     const triggerKeywords = Array.isArray(item.trigger_keywords) 
       ? item.trigger_keywords.map(k => k.toLowerCase())
       : [];
+    
+    // ✅ NOUVEAU: Score basé sur correspondance phrase complète (poids maximum)
+    if (triggerKeywords.some(keyword => fullQuery.includes(keyword.toLowerCase()))) {
+      score += 1.5; // Bonus important pour correspondance de phrase
+    }
     
     // Score basé sur trigger_keywords (poids fort)
     for (const keyword of triggerKeywords) {
@@ -99,7 +120,7 @@ export class KnowledgeBaseService {
         }
         // Correspondance exacte
         if (keyword === queryWord) {
-          score += 1.0;
+          score += 1.2; // Augmenté pour les correspondances exactes
         }
       }
     }
@@ -108,7 +129,7 @@ export class KnowledgeBaseService {
     const questionLower = item.question.toLowerCase();
     for (const queryWord of queryWords) {
       if (questionLower.includes(queryWord)) {
-        score += 0.4;
+        score += 0.5; // Augmenté
       }
     }
     
@@ -116,20 +137,27 @@ export class KnowledgeBaseService {
     const answerLower = item.answer.toLowerCase();
     for (const queryWord of queryWords) {
       if (answerLower.includes(queryWord)) {
-        score += 0.2;
+        score += 0.3; // Augmenté
       }
     }
     
-    // Bonus pour correspondance multi-mots
+    // ✅ NOUVEAU: Bonus pour correspondance multi-mots
     const queryPhrase = queryWords.join(' ');
     if (triggerKeywords.some((k: string) => k.includes(queryPhrase))) {
-      score += 0.5;
+      score += 0.7;
     }
     
-    return Math.min(score, 2.0); // Plafonner à 2.0
+    // ✅ NOUVEAU: Bonus pour catégorie spécifique
+    if (item.category && queryWords.some(word => 
+      ['produit', 'jeu', 'prix', 'livraison', 'paiement'].includes(word)
+    )) {
+      score += 0.3;
+    }
+    
+    return Math.min(score, 3.0); // Plafonner à 3.0
   }
 
-  // ✅ Identifier les mots-clés correspondants avec ARRAY PostgreSQL
+  // ✅ IDENTIFIER LES MOTS-CLÉS CORRESPONDANTS AMÉLIORÉ
   private getMatchedKeywords(queryWords: string[], item: KnowledgeBaseItem): string[] {
     const matched: string[] = [];
     
@@ -149,7 +177,7 @@ export class KnowledgeBaseService {
     return [...new Set(matched)];
   }
 
-  // ✅ Cache intelligent pour performance
+  // ✅ CACHE INTELLIGENT OPTIMISÉ pour performance
   private async ensureCache(): Promise<void> {
     const now = Date.now();
     
@@ -158,7 +186,7 @@ export class KnowledgeBaseService {
     }
   }
 
-  // ✅ Refresh cache adapté à la structure exacte
+  // ✅ REFRESH CACHE ROBUSTE avec gestion d'erreur
   private async refreshCache(): Promise<void> {
     try {
       console.log('🔄 Refreshing knowledge base cache...');
@@ -170,12 +198,15 @@ export class KnowledgeBaseService {
       
       if (error) {
         console.error('❌ Supabase error:', error);
-        throw error;
+        // Ne pas throw l'erreur, garder le cache existant
+        return;
       }
       
       if (!data || data.length === 0) {
-        console.warn('⚠️ No knowledge base data found');
-        this.cache = [];
+        console.warn('⚠️ No knowledge base data found in database');
+        
+        // ✅ NOUVEAU: Créer un cache de base si vide
+        this.cache = this.createDefaultKnowledgeBase();
         this.lastCacheUpdate = Date.now();
         return;
       }
@@ -199,32 +230,80 @@ export class KnowledgeBaseService {
       
       // Debug: afficher les premières entrées
       if (this.cache.length > 0) {
-        console.log('📋 First knowledge item:', {
-          category: this.cache[0].category,
-          triggerKeywords: this.cache[0].trigger_keywords,
-          question: this.cache[0].question.substring(0, 50)
+        console.log('📋 Sample knowledge items:', {
+          total: this.cache.length,
+          categories: [...new Set(this.cache.map(item => item.category))],
+          firstItem: {
+            category: this.cache[0].category,
+            triggerKeywords: this.cache[0].trigger_keywords.slice(0, 3),
+            question: this.cache[0].question.substring(0, 50)
+          }
         });
       }
       
-      // Debug: afficher les catégories trouvées
-      const categories = [...new Set(this.cache.map(item => item.category))];
-      console.log('📂 Categories found:', categories);
-      
     } catch (error) {
       console.error('❌ Failed to refresh knowledge base cache:', error);
-      // En cas d'erreur, initialiser un cache vide pour éviter les crashes
-      this.cache = [];
-      this.lastCacheUpdate = Date.now();
+      
+      // ✅ NOUVEAU: En cas d'erreur, créer un cache minimal pour éviter les crashes
+      if (this.cache.length === 0) {
+        this.cache = this.createDefaultKnowledgeBase();
+        this.lastCacheUpdate = Date.now();
+        console.log('🆘 Using default knowledge base due to error');
+      }
     }
   }
 
-  // ✅ Recherche par catégorie spécifique
-  public async getByCategory(category: string): Promise<KnowledgeBaseItem[]> {
-    await this.ensureCache();
-    return this.cache.filter((item: KnowledgeBaseItem) => item.category === category);
+  // ✅ NOUVEAU: Créer une base de connaissances par défaut
+  private createDefaultKnowledgeBase(): KnowledgeBaseItem[] {
+    return [
+      {
+        id: 'default-prix',
+        category: 'prix',
+        trigger_keywords: ['prix', 'coût', 'coute', 'cher', 'tarif', 'montant'],
+        question: 'Quel est le prix du jeu ?',
+        answer: 'Chaque jeu coûte 14,000 FCFA avec livraison gratuite à Dakar. Pour les autres villes du Sénégal, les frais de livraison sont de 2,500 FCFA.',
+        priority: 10,
+        tone: 'friendly',
+        next_suggestions: ['Je veux l\'acheter maintenant', 'Comment y jouer ?', 'Zones de livraison'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'default-livraison',
+        category: 'livraison',
+        trigger_keywords: ['livraison', 'livrer', 'expédition', 'délai', 'transport'],
+        question: 'Comment fonctionne la livraison ?',
+        answer: 'Nous livrons partout au Sénégal ! Livraison gratuite à Dakar (24h), 2,500 FCFA ailleurs (48-72h ouvrables).',
+        priority: 9,
+        tone: 'friendly',
+        next_suggestions: ['Je veux l\'acheter maintenant', 'Quelles villes ?', 'Modes de paiement'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'default-jeu',
+        category: 'produit',
+        trigger_keywords: ['jeu', 'cartes', 'comment jouer', 'règles', 'fonctionnement'],
+        question: 'Comment fonctionne le jeu ?',
+        answer: 'Nos jeux contiennent 150 cartes de questions pour créer des conversations authentiques. Tirez une carte, lisez la question, répondez sincèrement et échangez !',
+        priority: 8,
+        tone: 'friendly',
+        next_suggestions: ['Je veux l\'acheter maintenant', 'C\'est pour qui ?', 'Voir les témoignages'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
   }
 
-  // ✅ Obtenir une réponse formatée avec suggestions
+  // ✅ RECHERCHE PAR CATÉGORIE SPÉCIFIQUE
+  public async getByCategory(category: string): Promise<KnowledgeBaseItem[]> {
+    await this.ensureCache();
+    const results = this.cache.filter((item: KnowledgeBaseItem) => item.category === category);
+    console.log(`📂 Found ${results.length} items in category: ${category}`);
+    return results;
+  }
+
+  // ✅ OBTENIR UNE RÉPONSE FORMATÉE AVEC "LE JEU" SYSTÉMATIQUE
   public formatResponse(result: SearchResult, productName?: string): {
     content: string;
     suggestions: string[];
@@ -232,36 +311,92 @@ export class KnowledgeBaseService {
   } {
     let content = result.item.answer;
     
-    // Remplacer les variables dynamiques
+    // ✅ NOUVEAU: Remplacer les variables dynamiques avec "le jeu" systématique
     if (productName) {
+      // S'assurer que productName commence par "le jeu"
+      const fullProductName = productName.toLowerCase().startsWith('le jeu') 
+        ? productName 
+        : `le jeu ${productName}`;
+      
       content = content
-        .replace(/\{product_name\}/g, `le jeu ${productName}`)
-        .replace(/\{jeu_name\}/g, `le jeu ${productName}`)
-        .replace(/\{nom_produit\}/g, `le jeu ${productName}`);
+        .replace(/\{product_name\}/g, fullProductName)
+        .replace(/\{jeu_name\}/g, fullProductName)
+        .replace(/\{nom_produit\}/g, fullProductName);
     }
     
-    // Ajouter le contexte des mots-clés trouvés si pertinent
+    // ✅ NOUVEAU: Ajouter le contexte si pertinent
     if (result.matchedKeywords.length > 0 && result.relevanceScore > 0.8) {
-      console.log(`🔍 Mots-clés identifiés : ${result.matchedKeywords.join(', ')}`);
+      console.log(`🔍 High relevance match (${result.relevanceScore}) with keywords: ${result.matchedKeywords.join(', ')}`);
     }
     
-    // S'assurer que next_suggestions est un array
-    const suggestions = Array.isArray(result.item.next_suggestions) && result.item.next_suggestions.length > 0
+    // S'assurer que next_suggestions est un array et le rendre plus pertinent
+    let suggestions = Array.isArray(result.item.next_suggestions) && result.item.next_suggestions.length > 0
       ? result.item.next_suggestions 
-      : [
-          'Je veux l\'acheter maintenant',
-          'J\'ai d\'autres questions',
-          'Comment y jouer ?'
-        ];
+      : this.getDefaultSuggestions(result.item.category);
+    
+    // ✅ NOUVEAU: Adapter les suggestions selon la catégorie
+    suggestions = this.adaptSuggestions(suggestions, result.item.category);
     
     return {
       content,
       suggestions,
-      confidence: result.relevanceScore
+      confidence: Math.min(result.relevanceScore, 1.0) // Normaliser à 1.0 max
     };
   }
 
-  // ✅ Méthode pour ajouter un nouvel élément
+  // ✅ NOUVEAU: Suggestions par défaut selon la catégorie
+  private getDefaultSuggestions(category: string): string[] {
+    const suggestionMap: Record<string, string[]> = {
+      'prix': [
+        'Je veux l\'acheter maintenant',
+        'Modes de paiement disponibles',
+        'Comment y jouer ?'
+      ],
+      'livraison': [
+        'Je veux l\'acheter maintenant',
+        'Quelles sont les zones ?',
+        'Délais de livraison'
+      ],
+      'produit': [
+        'Je veux l\'acheter maintenant',
+        'C\'est pour qui ?',
+        'Voir les témoignages'
+      ],
+      'jeu': [
+        'Je veux l\'acheter maintenant',
+        'Règles détaillées',
+        'Durée d\'une partie'
+      ],
+      'paiement': [
+        'Je veux l\'acheter maintenant',
+        'Paiement Wave',
+        'Paiement par carte'
+      ],
+      'app': [
+        'Télécharger l\'app mobile',
+        'Je veux l\'acheter maintenant',
+        'Différence physique/digital'
+      ]
+    };
+    
+    return suggestionMap[category] || [
+      'Je veux l\'acheter maintenant',
+      'J\'ai d\'autres questions',
+      'Comment y jouer ?'
+    ];
+  }
+
+  // ✅ NOUVEAU: Adapter les suggestions selon le contexte
+  private adaptSuggestions(suggestions: string[], category: string): string[] {
+    // Toujours garder "Je veux l'acheter maintenant" en premier si pas présent
+    if (!suggestions.some(s => s.includes('acheter'))) {
+      suggestions = ['Je veux l\'acheter maintenant', ...suggestions.slice(0, 2)];
+    }
+    
+    return suggestions.slice(0, 3); // Limiter à 3 suggestions max
+  }
+
+  // ✅ MÉTHODE pour ajouter un nouvel élément
   public async addKnowledgeItem(item: Omit<KnowledgeBaseItem, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
     try {
       const { error } = await supabase
@@ -276,6 +411,7 @@ export class KnowledgeBaseService {
       
       // Refresh cache après ajout
       await this.refreshCache();
+      console.log('✅ Knowledge item added successfully');
       return true;
       
     } catch (error) {
@@ -284,35 +420,68 @@ export class KnowledgeBaseService {
     }
   }
 
-  // ✅ Méthode pour vider le cache (utile pour les tests)
+  // ✅ MÉTHODE pour vider le cache (utile pour les tests)
   public clearCache(): void {
     this.cache = [];
     this.lastCacheUpdate = 0;
     console.log('🧹 Knowledge base cache cleared');
   }
 
-  // ✅ Méthode pour obtenir les statistiques du cache
+  // ✅ MÉTHODE pour obtenir les statistiques du cache
   public getCacheStats(): {
     itemCount: number;
     lastUpdate: Date;
     categories: string[];
+    isHealthy: boolean;
   } {
+    const categories = [...new Set(this.cache.map((item: KnowledgeBaseItem) => item.category))];
+    const isHealthy = this.cache.length > 0 && (Date.now() - this.lastCacheUpdate) < this.CACHE_DURATION * 2;
+    
     return {
       itemCount: this.cache.length,
       lastUpdate: new Date(this.lastCacheUpdate),
-      categories: [...new Set(this.cache.map((item: KnowledgeBaseItem) => item.category))]
+      categories,
+      isHealthy
     };
   }
 
-  // ✅ Méthode de debug pour afficher tout le cache
+  // ✅ MÉTHODE de debug pour afficher tout le cache
   public debugCache(): void {
     console.log('🔍 Knowledge Base Cache Debug:');
     console.log(`Total items: ${this.cache.length}`);
+    console.log(`Cache age: ${Math.round((Date.now() - this.lastCacheUpdate) / 1000)}s`);
     
-    this.cache.forEach((item, index) => {
+    const categoryStats = this.cache.reduce((stats, item) => {
+      stats[item.category] = (stats[item.category] || 0) + 1;
+      return stats;
+    }, {} as Record<string, number>);
+    
+    console.log('Categories:', categoryStats);
+    
+    this.cache.slice(0, 5).forEach((item, index) => {
       console.log(`${index + 1}. [${item.category}] ${item.question}`);
       console.log(`   Keywords: ${item.trigger_keywords.join(', ')}`);
       console.log(`   Priority: ${item.priority}`);
     });
+  }
+
+  // ✅ NOUVEAU: Recherche rapide par mots-clés exacts
+  public async quickSearch(keyword: string): Promise<KnowledgeBaseItem[]> {
+    await this.ensureCache();
+    
+    const keywordLower = keyword.toLowerCase();
+    return this.cache.filter(item => 
+      Array.isArray(item.trigger_keywords) &&
+      item.trigger_keywords.some(k => k.toLowerCase().includes(keywordLower))
+    );
+  }
+
+  // ✅ NOUVEAU: Obtenir les questions les plus fréquentes
+  public async getTopQuestions(limit: number = 5): Promise<KnowledgeBaseItem[]> {
+    await this.ensureCache();
+    
+    return this.cache
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, limit);
   }
 }

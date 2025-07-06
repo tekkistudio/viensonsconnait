@@ -1,4 +1,4 @@
-// src/lib/services/WelcomeMessageService.ts - VERSION ENTIÈREMENT CORRIGÉE
+// src/lib/services/WelcomeMessageService.ts - VERSION CORRIGÉE AVEC VRAIES DONNÉES SUPABASE
 
 import type { ChatMessage, ConversationStep } from '@/types/chat';
 import { supabase } from '@/lib/supabase';
@@ -117,7 +117,7 @@ Comment puis-je vous aider ?`,
     }
   }
   
-  // ✅ GÈRE LES RÉPONSES AUX BOUTONS D'ACCUEIL - VERSION ENTIÈREMENT CORRIGÉE
+  // ✅ GÈRE LES RÉPONSES AUX BOUTONS D'ACCUEIL - VERSION CORRIGÉE AVEC VRAIES DONNÉES
   public async handleWelcomeButtonResponse(
     choice: string,
     productId: string,
@@ -168,10 +168,10 @@ Vous pouvez me poser librement toutes les questions que vous souhaitez au sujet 
       };
     }
 
-    // ✅ 2. "Je veux en savoir plus" → Description depuis la base de données
+    // ✅ 2. "Je veux en savoir plus" → Description VRAIE depuis la base de données
     if (choice.includes('savoir plus') || choice.includes('en savoir plus')) {
       try {
-        console.log('📋 Fetching product description for:', productId);
+        console.log('📋 Fetching REAL product description for:', productId);
         
         // ✅ RÉCUPÉRER LA VRAIE DESCRIPTION depuis la base
         const { data: productInfo, error } = await supabase
@@ -197,9 +197,9 @@ ${description}
 **Que voulez-vous découvrir en premier ?**`,
           choices: [
             'Comment y jouer ?',
-            'C\'est pour qui ?',
             'Je veux l\'acheter maintenant',
-            'Voir les témoignages'
+            'Voir les témoignages',
+            'J\'ai d\'autres questions'
           ],
           assistant: {
             name: 'Rose',
@@ -212,7 +212,8 @@ ${description}
               discoveryMode: true,
               detailedInfo: true,
               showGameRules: !!productInfo.game_rules,
-              showTargetAudience: !!productInfo.target_audience
+              showTargetAudience: !!productInfo.target_audience,
+              realDataUsed: true
             }
           },
           timestamp: new Date().toISOString()
@@ -229,43 +230,77 @@ ${description}
       return await this.handleGameRulesRequest(productId, productName);
     }
 
-    if (choice.includes('C\'est pour qui')) {
-      return await this.handleTargetAudienceRequest(productId, productName);
-    }
-
     if (choice.includes('Voir les témoignages')) {
       return await this.handleTestimonialsRequest(productId, productName);
     }
 
-    // ✅ Choix non reconnu - Rediriger
+    // ✅ 4. "Je veux l'acheter maintenant" → Déclenchement du flow express
+    if (choice.includes('acheter maintenant') || choice.includes('Je veux l\'acheter')) {
+      return {
+        type: 'assistant',
+        content: `🛒 **Parfait ! Commençons votre commande**
+
+Le **jeu ${productName}** - Excellent choix ! 🎉
+
+Combien d'exemplaires voulez-vous ?`,
+        choices: [
+          '1 exemplaire',
+          '2 exemplaires',
+          '3 exemplaires', 
+          'Autre quantité'
+        ],
+        assistant: {
+          name: 'Rose',
+          title: 'Assistante d\'achat'
+        },
+        metadata: {
+          nextStep: 'express_quantity' as ConversationStep,
+          productId: productId,
+          flags: { 
+            expressMode: true,
+            quantitySelection: true,
+            purchaseInitiated: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // ✅ Choix non reconnu - Rediriger vers IA
+    console.log('🤖 Unrecognized choice, using AI to handle:', choice);
     return {
       type: 'assistant',
-      content: `😅 **Je n'ai pas bien compris votre choix.**
+      content: `🤔 **Intéressant ! Laissez-moi vous aider avec ça.**
 
-Pouvez-vous me dire ce qui vous intéresse le plus au sujet du **jeu ${productName}** ?`,
+Concernant le **jeu ${productName}**, que souhaitez-vous savoir précisément ?`,
       choices: [
         'Je veux l\'acheter maintenant',
         'J\'ai des questions à poser',
-        'Je veux en savoir plus'
+        'Je veux en savoir plus',
+        'Comment y jouer ?'
       ],
       assistant: {
         name: 'Rose',
         title: 'Assistante d\'achat'
       },
       metadata: {
-        nextStep: 'initial_engagement' as ConversationStep,
+        nextStep: 'ai_response' as ConversationStep,
         productId: productId,
         flags: { 
-          retryWelcome: true
+          aiRedirect: true,
+          unrecognizedChoice: true,
+          needsAIProcessing: true
         }
       },
       timestamp: new Date().toISOString()
     };
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gestion des règles du jeu
+  // ✅ NOUVELLE MÉTHODE: Gestion des règles du jeu avec VRAIES DONNÉES
   private async handleGameRulesRequest(productId: string, productName: string): Promise<ChatMessage> {
     try {
+      console.log('🎮 Fetching REAL game rules for:', productId);
+      
       const { data: productInfo, error } = await supabase
         .from('products')
         .select('game_rules')
@@ -273,6 +308,7 @@ Pouvez-vous me dire ce qui vous intéresse le plus au sujet du **jeu ${productNa
         .single();
 
       if (error || !productInfo?.game_rules) {
+        console.log('⚠️ No game rules found, using generic rules');
         // Règles génériques
         return {
           type: 'assistant',
@@ -290,20 +326,21 @@ Pouvez-vous me dire ce qui vous intéresse le plus au sujet du **jeu ${productNa
 ⏰ **Durée :** 15 min (express) à 2h+ (marathon)`,
           choices: [
             'Je veux l\'acheter maintenant',
-            'C\'est pour qui ?',
             'Voir les témoignages',
             'J\'ai d\'autres questions'
           ],
           assistant: { name: 'Rose', title: 'Assistante d\'achat' },
           metadata: {
             nextStep: 'game_rules_shown' as ConversationStep,
-            productId: productId
+            productId: productId,
+            flags: { gameRulesShown: true, genericRules: true }
           },
           timestamp: new Date().toISOString()
         };
       }
 
       // Utiliser les vraies règles depuis la base
+      console.log('✅ Using REAL game rules from database');
       return {
         type: 'assistant',
         content: `🎮 **Comment jouer au jeu ${productName} :**
@@ -311,14 +348,14 @@ Pouvez-vous me dire ce qui vous intéresse le plus au sujet du **jeu ${productNa
 ${productInfo.game_rules}`,
         choices: [
           'Je veux l\'acheter maintenant',
-          'C\'est pour qui ?',
           'Voir les témoignages',
           'J\'ai d\'autres questions'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'game_rules_shown' as ConversationStep,
-          productId: productId
+          productId: productId,
+          flags: { gameRulesShown: true, realDataUsed: true }
         },
         timestamp: new Date().toISOString()
       };
@@ -329,79 +366,21 @@ ${productInfo.game_rules}`,
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gestion du public cible
-  private async handleTargetAudienceRequest(productId: string, productName: string): Promise<ChatMessage> {
-    try {
-      const { data: productInfo, error } = await supabase
-        .from('products')
-        .select('target_audience')
-        .eq('id', productId)
-        .single();
-
-      if (error || !productInfo?.target_audience) {
-        // Public cible générique
-        return {
-          type: 'assistant',
-          content: `👥 **Le jeu ${productName} est parfait pour :**
-
-❤️ **Les couples** qui veulent se redécouvrir
-👨‍👩‍👧‍👦 **Les familles** pour créer des liens forts  
-👫 **Les amis** qui veulent approfondir leur amitié
-💼 **Les collègues** pour la cohésion d'équipe
-
-✨ **Peu importe votre âge**, ce jeu s'adapte à tous !`,
-          choices: [
-            'Je veux l\'acheter maintenant',
-            'Comment y jouer ?',
-            'Voir les témoignages',
-            'J\'ai d\'autres questions'
-          ],
-          assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-          metadata: {
-            nextStep: 'target_audience_shown' as ConversationStep,
-            productId: productId
-          },
-          timestamp: new Date().toISOString()
-        };
-      }
-
-      // Utiliser le vrai public cible depuis la base
-      return {
-        type: 'assistant',
-        content: `👥 **Le jeu ${productName} est conçu pour :**
-
-${productInfo.target_audience}`,
-        choices: [
-          'Je veux l\'acheter maintenant',
-          'Comment y jouer ?',
-          'Voir les témoignages',
-          'J\'ai d\'autres questions'
-        ],
-        assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-        metadata: {
-          nextStep: 'target_audience_shown' as ConversationStep,
-          productId: productId
-        },
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ Error fetching target audience:', error);
-      return this.createGenericTargetAudience(productName, productId);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Gestion des témoignages
+  // ✅ NOUVELLE MÉTHODE: Gestion des témoignages avec VRAIES DONNÉES
   private async handleTestimonialsRequest(productId: string, productName: string): Promise<ChatMessage> {
     try {
+      console.log('⭐ Fetching REAL testimonials for:', productId);
+      
       const { data: testimonials, error } = await supabase
         .from('testimonials')
         .select('customer_name, content, rating')
         .eq('product_id', productId)
         .eq('is_active', true)
+        .order('created_at', { ascending: false })
         .limit(3);
 
       if (error || !testimonials || testimonials.length === 0) {
+        console.log('⚠️ No testimonials found, using generic message');
         return {
           type: 'assistant',
           content: `⭐ **Témoignages pour le jeu ${productName} :**
@@ -412,19 +391,21 @@ Voulez-vous en savoir plus sur le jeu ?`,
           choices: [
             'Je veux l\'acheter maintenant',
             'Comment y jouer ?',
-            'C\'est pour qui ?',
             'J\'ai d\'autres questions'
           ],
           assistant: { name: 'Rose', title: 'Assistante d\'achat' },
           metadata: {
             nextStep: 'testimonials_empty' as ConversationStep,
-            productId: productId
+            productId: productId,
+            flags: { testimonialsRequested: true, noTestimonials: true }
           },
           timestamp: new Date().toISOString()
         };
       }
 
       // Afficher les vrais témoignages
+      console.log(`✅ Using ${testimonials.length} REAL testimonials from database`);
+      
       const testimonialsText = testimonials.map(t => 
         `**${t.customer_name}** (${t.rating}/5 ⭐)
 "${t.content}"`
@@ -440,13 +421,13 @@ Ces témoignages vous donnent-ils envie d'essayer ?`,
         choices: [
           'Je veux l\'acheter maintenant',
           'Comment y jouer ?',
-          'C\'est pour qui ?',
           'J\'ai d\'autres questions'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'testimonials_shown' as ConversationStep,
-          productId: productId
+          productId: productId,
+          flags: { testimonialsShown: true, realDataUsed: true }
         },
         timestamp: new Date().toISOString()
       };
@@ -475,7 +456,6 @@ Un jeu de cartes révolutionnaire qui transforme vos conversations ordinaires en
 **Que voulez-vous découvrir en premier ?**`,
       choices: [
         'Comment y jouer ?',
-        'C\'est pour qui ?',
         'Je veux l\'acheter maintenant',
         'J\'ai d\'autres questions'
       ],
@@ -505,38 +485,14 @@ Un jeu de cartes révolutionnaire qui transforme vos conversations ordinaires en
 ⏰ **Durée :** 15 min (express) à 2h+ (marathon)`,
       choices: [
         'Je veux l\'acheter maintenant',
-        'C\'est pour qui ?',
+        'Voir les témoignages',
         'J\'ai d\'autres questions'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
         nextStep: 'game_rules_shown' as ConversationStep,
-        productId: productId
-      },
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  private createGenericTargetAudience(productName: string, productId: string): ChatMessage {
-    return {
-      type: 'assistant',
-      content: `👥 **Le jeu ${productName} est parfait pour :**
-
-❤️ **Les couples** qui veulent se redécouvrir
-👨‍👩‍👧‍👦 **Les familles** pour créer des liens forts  
-👫 **Les amis** qui veulent approfondir leur amitié
-💼 **Les collègues** pour la cohésion d'équipe
-
-✨ **Peu importe votre âge**, ce jeu s'adapte à tous !`,
-      choices: [
-        'Je veux l\'acheter maintenant',
-        'Comment y jouer ?',
-        'J\'ai d\'autres questions'
-      ],
-      assistant: { name: 'Rose', title: 'Assistante d\'achat' },
-      metadata: {
-        nextStep: 'target_audience_shown' as ConversationStep,
-        productId: productId
+        productId: productId,
+        flags: { gameRulesShown: true, genericFallback: true }
       },
       timestamp: new Date().toISOString()
     };
@@ -553,13 +509,13 @@ Les témoignages détaillés arrivent bientôt. En attendant, voulez-vous essaye
       choices: [
         'Je veux l\'acheter maintenant',
         'Comment y jouer ?',
-        'C\'est pour qui ?',
         'J\'ai d\'autres questions'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
         nextStep: 'testimonials_generic' as ConversationStep,
-        productId: productId
+        productId: productId,
+        flags: { testimonialsRequested: true, genericFallback: true }
       },
       timestamp: new Date().toISOString()
     };

@@ -1,4 +1,4 @@
-// src/components/chat/ChatProductCards.tsx
+// src/features/product/components/ProductChat/components/ChatProductCards.tsx - CORRIGÉ AVEC VRAIES DONNÉES
 
 'use client';
 
@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Star, Users, ArrowRight, ShoppingBag, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// ✅ TYPE UNIFIÉ pour tous les produits dans le chat
+// ✅ TYPE UNIFIÉ pour tous les produits dans le chat avec VRAIES DONNÉES
 interface ChatProduct {
   id: string;
   name: string;
@@ -17,14 +17,23 @@ interface ChatProduct {
     sold?: number;
     satisfaction?: number;
     reviews?: number;
+    sales_count?: number;   // ✅ AJOUT: Compatible avec la DB
+    reviews_count?: number; // ✅ AJOUT: Compatible avec la DB
+    avg_rating?: number;    // ✅ AJOUT: Compatible avec la DB
   };
   // Spécifique aux recommandations
   reason?: string;
   urgency?: 'low' | 'medium' | 'high';
   discount?: number; // Pourcentage de réduction pour l'upsell
+  
+  // ✅ NOUVELLES PROPRIÉTÉS pour les vraies données DB
+  rating?: number;
+  sales_count?: number;
+  reviews_count?: number;
+  description?: string;
 }
 
-// ✅ COMPOSANT PRINCIPAL: Carte produit adaptative
+// ✅ COMPOSANT PRINCIPAL: Carte produit adaptative avec VRAIES DONNÉES
 interface ChatProductCardProps {
   product: ChatProduct;
   variant?: 'recommendation' | 'upsell' | 'related';
@@ -44,9 +53,26 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
   onDecline,
   className = ''
 }) => {
+  // ✅ CORRECTION: Gestion de l'image avec fallback sécurisé
   const primaryImage = product.images && product.images.length > 0 
     ? product.images[0] 
     : '/images/products/default-product.jpg';
+
+  // ✅ CORRECTION: Extraction des vraies statistiques de la DB
+  const getRealStats = () => {
+    // Priorité aux données directes de la DB
+    const salesCount = product.sales_count || product.stats?.sales_count || product.stats?.sold || 0;
+    const reviewsCount = product.reviews_count || product.stats?.reviews_count || product.stats?.reviews || 0;
+    const avgRating = product.rating || product.stats?.avg_rating || product.stats?.satisfaction || 5;
+
+    return {
+      salesCount: Math.max(0, salesCount),
+      reviewsCount: Math.max(0, reviewsCount),
+      avgRating: Math.min(5, Math.max(1, avgRating))
+    };
+  };
+
+  const realStats = getRealStats();
 
   // ✅ RENDU SELON LE VARIANT
   if (variant === 'upsell') {
@@ -70,10 +96,14 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
           <div className="relative w-20 h-20 flex-shrink-0">
             <Image
               src={primaryImage}
-              alt={product.name}
+              alt={`le jeu ${product.name}`}
               fill
               className="object-cover rounded-lg"
               sizes="80px"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/images/products/default-product.jpg';
+              }}
             />
             
             {/* Badge promo */}
@@ -87,7 +117,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
           {/* Informations */}
           <div className="flex-1">
             <h4 className="font-bold text-gray-900 mb-1">
-              {product.name}
+              le jeu {product.name}
             </h4>
             
             {product.reason && (
@@ -96,18 +126,25 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
               </div>
             )}
 
+            {/* ✅ CORRECTION: Utiliser les vraies statistiques */}
             <div className="flex items-center gap-2 mb-3">
-              {product.stats?.satisfaction && (
+              {realStats.avgRating > 0 && (
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">{product.stats.satisfaction}</span>
+                  <span className="text-sm font-medium">{realStats.avgRating.toFixed(1)}</span>
                 </div>
               )}
               
-              {product.stats?.sold && (
+              {realStats.salesCount > 0 && (
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{product.stats.sold} vendus</span>
+                  <span className="text-sm text-gray-600">{realStats.salesCount} vendus</span>
+                </div>
+              )}
+
+              {realStats.reviewsCount > 0 && (
+                <div className="text-xs text-gray-500">
+                  ({realStats.reviewsCount} avis)
                 </div>
               )}
             </div>
@@ -157,7 +194,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
     );
   }
 
-  // ✅ RENDU STANDARD (recommendation/related)
+  // ✅ RENDU STANDARD (recommendation/related) avec VRAIES DONNÉES
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -170,10 +207,14 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
         <div className="relative w-16 h-16 flex-shrink-0">
           <Image
             src={primaryImage}
-            alt={product.name}
+            alt={`le jeu ${product.name}`}
             fill
             className="object-cover rounded-lg"
             sizes="64px"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/images/products/default-product.jpg';
+            }}
           />
           
           {/* Badge d'urgence */}
@@ -192,7 +233,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-2">
             <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate pr-2">
-              {product.name}
+              le jeu {product.name}
             </h4>
             <div className="text-[#FF7E93] font-bold text-sm whitespace-nowrap">
               {product.price.toLocaleString()} FCFA
@@ -206,29 +247,29 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
             </div>
           )}
 
-          {/* Métadonnées */}
+          {/* ✅ CORRECTION MAJEURE: Métadonnées avec VRAIES DONNÉES */}
           <div className="flex items-center gap-3 mb-3">
             {/* Rating si disponible */}
-            {product.stats?.satisfaction && (
+            {realStats.avgRating > 0 && (
               <div className="flex items-center gap-1">
                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                 <span className="text-xs text-gray-600">
-                  {product.stats.satisfaction}
+                  {realStats.avgRating.toFixed(1)}
                 </span>
-                {product.stats.reviews && (
+                {realStats.reviewsCount > 0 && (
                   <span className="text-xs text-gray-400">
-                    ({product.stats.reviews})
+                    ({realStats.reviewsCount})
                   </span>
                 )}
               </div>
             )}
 
-            {/* Nombre de ventes */}
-            {product.stats?.sold && product.stats.sold > 0 && (
+            {/* Nombre de ventes RÉELLES */}
+            {realStats.salesCount > 0 && (
               <div className="flex items-center gap-1">
                 <Users className="w-3 h-3 text-gray-400" />
                 <span className="text-xs text-gray-600">
-                  {product.stats.sold} vendus
+                  {realStats.salesCount} vendus
                 </span>
               </div>
             )}
@@ -273,7 +314,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
   );
 };
 
-// ✅ COMPOSANT LISTE: Grille de recommandations
+// ✅ COMPOSANT LISTE: Grille de recommandations avec VRAIES DONNÉES
 interface ChatProductListProps {
   products: ChatProduct[];
   title?: string;
@@ -293,6 +334,24 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
 }) => {
   if (!products || products.length === 0) return null;
 
+  // ✅ CORRECTION: Trier les produits par vraies statistiques
+  const sortedProducts = [...products].sort((a, b) => {
+    const aStats = {
+      salesCount: a.sales_count || a.stats?.sales_count || a.stats?.sold || 0,
+      avgRating: a.rating || a.stats?.avg_rating || a.stats?.satisfaction || 0
+    };
+    const bStats = {
+      salesCount: b.sales_count || b.stats?.sales_count || b.stats?.sold || 0,
+      avgRating: b.rating || b.stats?.avg_rating || b.stats?.satisfaction || 0
+    };
+    
+    // Trier par ventes d'abord, puis par note
+    if (aStats.salesCount !== bStats.salesCount) {
+      return bStats.salesCount - aStats.salesCount;
+    }
+    return bStats.avgRating - aStats.avgRating;
+  });
+
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="text-sm text-gray-600 font-medium mb-3">
@@ -300,7 +359,7 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
       </div>
       
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {products.map((product, index) => (
+        {sortedProducts.map((product, index) => (
           <motion.div
             key={product.id}
             initial={{ opacity: 0, y: 20 }}
@@ -316,11 +375,22 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
           </motion.div>
         ))}
       </div>
+      
+      {/* ✅ AJOUT: Statistiques récapitulatives */}
+      {sortedProducts.length > 1 && (
+        <div className="text-xs text-gray-500 text-center mt-3 p-2 bg-gray-50 rounded-lg">
+          {sortedProducts.length} jeux disponibles • 
+          {" "}
+          {sortedProducts.reduce((sum, p) => sum + (p.sales_count || p.stats?.sales_count || 0), 0)} ventes au total •
+          {" "}
+          Note moyenne: {(sortedProducts.reduce((sum, p) => sum + (p.rating || p.stats?.avg_rating || 5), 0) / sortedProducts.length).toFixed(1)}/5
+        </div>
+      )}
     </div>
   );
 };
 
-// ✅ COMPOSANT PANIER: Résumé de commande dans le chat
+// ✅ COMPOSANT PANIER: Résumé de commande dans le chat avec VRAIES DONNÉES
 interface ChatOrderSummaryProps {
   orderItems: Array<{
     productId: string;
@@ -374,17 +444,21 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
               <div className="relative w-12 h-12 flex-shrink-0">
                 <Image
                   src={item.image}
-                  alt={item.name}
+                  alt={`le jeu ${item.name}`}
                   fill
                   className="object-cover rounded-md"
                   sizes="48px"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/images/products/default-product.jpg';
+                  }}
                 />
               </div>
             )}
             
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm text-gray-900 truncate">
-                {item.name}
+                {item.name.startsWith('le jeu') ? item.name : `le jeu ${item.name}`}
               </div>
               <div className="text-xs text-gray-600">
                 {item.price.toLocaleString()} FCFA × {item.quantity}
@@ -429,6 +503,11 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
         <span>Finaliser ma commande</span>
         <ArrowRight className="w-5 h-5" />
       </button>
+      
+      {/* ✅ AJOUT: Informations de livraison */}
+      <div className="text-xs text-gray-500 text-center mt-2">
+        📦 Livraison gratuite à Dakar • 2,500 FCFA ailleurs au Sénégal
+      </div>
     </motion.div>
   );
 };

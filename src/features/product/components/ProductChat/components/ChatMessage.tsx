@@ -1,21 +1,15 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION AMÉLIORÉE
-
+// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE TYPESCRIPT
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Check, 
   Clock, 
   CreditCard, 
   Copy,
   AlertCircle,
-  ExternalLink,
-  Star,
-  Users,
-  TrendingUp,
-  Heart,
-  Zap
+  ExternalLink
 } from 'lucide-react';
 import Image from 'next/image';
 import type { ChatMessage as ChatMessageType, ChatMessageMetadata } from '@/types/chat';
@@ -27,28 +21,78 @@ interface ChatMessageProps {
   isTyping?: boolean;
   onChoiceSelect?: (choice: string) => void;
   onRetry?: () => void;
-  showInterfaceButtons?: boolean; // ✅ NOUVEAU: Contrôle d'affichage des boutons d'interface
 }
 
-// ✅ TYPE GUARDS AMÉLIORÉS
+// ✅ TYPE GUARD: Vérifier si orderData existe et est valide
 const isValidOrderData = (data: unknown): data is Record<string, any> => {
-  return Boolean(data && typeof data === 'object' && data !== null);
+  return Boolean(
+    data && 
+    typeof data === 'object' && 
+    data !== null
+  );
 };
 
+// ✅ TYPE GUARD: Vérifier si un array de produits est valide
 const isValidProductArray = (data: unknown): data is any[] => {
-  return Boolean(Array.isArray(data) && data.length > 0);
+  return Boolean(
+    Array.isArray(data) && 
+    data.length > 0
+  );
 };
 
-const isValidUpsellProduct = (data: unknown): data is Record<string, any> & { id: string | number } => {
-  return Boolean(data && typeof data === 'object' && data !== null && 'id' in data);
+// ✅ TYPE GUARD CORRIGÉ: Vérifier si un produit d'upsell est valide avec toutes les propriétés
+const isValidUpsellProduct = (data: unknown): data is {
+  id: string | number;
+  name: string;
+  price: number;
+  images: string[];
+  [key: string]: any;
+} => {
+  return Boolean(
+    data && 
+    typeof data === 'object' && 
+    data !== null &&
+    'id' in data &&
+    'name' in data &&
+    'price' in data
+  );
 };
 
-// ✅ FONCTIONS UTILITAIRES AMÉLIORÉES
+// ✅ FONCTION UTILITAIRE: Convertir un objet upsell en ChatProduct complet
+const convertToValidChatProduct = (upsellData: any) => {
+  if (!isValidUpsellProduct(upsellData)) {
+    return null;
+  }
+
+  return {
+    id: String(upsellData.id),
+    name: upsellData.name && upsellData.name.startsWith('le jeu') 
+      ? upsellData.name 
+      : `le jeu ${upsellData.name || 'Produit'}`,
+    price: Number(upsellData.price || 14000),
+    images: Array.isArray(upsellData.images) ? upsellData.images : [],
+    stats: {
+      sold: Number(upsellData.stats?.sold || 0),
+      satisfaction: Number(upsellData.stats?.satisfaction || 5),
+      reviews: Number(upsellData.stats?.reviews || 0)
+    },
+    reason: upsellData.reason || 'Produit recommandé',
+    urgency: upsellData.urgency || 'medium' as const,
+    discount: Number(upsellData.discount || 0)
+  };
+};
+
+// ✅ FONCTION: Conversion sécurisée des données de commande
 const convertToOrderItems = (orderData: unknown) => {
-  if (!isValidOrderData(orderData)) return [];
+  if (!isValidOrderData(orderData)) {
+    return [];
+  }
   
   const data = orderData as Record<string, any>;
-  if (!Array.isArray(data.items)) return [];
+  
+  if (!Array.isArray(data.items)) {
+    return [];
+  }
   
   return data.items.map((item: any) => ({
     productId: String(item?.productId || item?.product_id || ''),
@@ -61,8 +105,11 @@ const convertToOrderItems = (orderData: unknown) => {
   }));
 };
 
+// ✅ FONCTION: Extraction sécurisée du montant total
 const extractTotalAmount = (orderData: unknown): number => {
-  if (!isValidOrderData(orderData)) return 0;
+  if (!isValidOrderData(orderData)) {
+    return 0;
+  }
   
   const data = orderData as Record<string, any>;
   return Math.max(0, Number(
@@ -73,21 +120,37 @@ const extractTotalAmount = (orderData: unknown): number => {
   ));
 };
 
-// ✅ DÉTECTION D'APPAREIL AMÉLIORÉE
-const isMobileDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// ✅ FONCTION: Détecter les boutons de paiement
+const isPaymentButton = (choice: string): boolean => {
+  const paymentKeywords = [
+    'payer', 'wave', 'carte', 'livraison', 'bancaire', 
+    '💳', '🌊', '📱', '🛵', '💵'
+  ];
+  
+  return paymentKeywords.some(keyword => 
+    choice.toLowerCase().includes(keyword.toLowerCase())
+  );
 };
 
-// ✅ GESTION WAVE AVEC LIENS PROFONDS AMÉLIORÉE
+// ✅ FONCTION CORRIGÉE: Détecter le type d'appareil
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
+// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec liens profonds mobile
 const handleWavePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
   onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('🌊 Processing enhanced Wave payment:', choice);
+  console.log('🌊 Processing Wave payment:', choice);
   
   try {
+    // ✅ CORRECTION: Extraire le montant de manière sécurisée
     let amount = 0;
     
     if (metadata?.paymentAmount && typeof metadata.paymentAmount === 'number') {
@@ -101,64 +164,68 @@ const handleWavePayment = async (
       return { success: false };
     }
     
+    // ✅ CORRECTION MAJEURE: Liens Wave spécifiques selon l'appareil
     const isMobile = isMobileDevice();
-    const merchantId = 'M_OfAgT8X_IT6P';
     
     let waveUrl: string;
     
     if (isMobile) {
-      // ✅ AMÉLIORATION: Liens profonds Wave optimisés
-      waveUrl = `wave://pay?amount=${amount}&merchant=${merchantId}&reference=VOSC_${Date.now()}`;
+      // ✅ CORRECTION: Utiliser le lien profond Wave pour mobile
+      // Format: wave://pay?amount=XXXX&merchant=YYYY
+      const merchantId = 'M_OfAgT8X_IT6P'; // Votre ID marchand Wave
+      waveUrl = `wave://pay?amount=${amount}&merchant=${merchantId}`;
       
-      console.log('📱 Enhanced mobile Wave deep link:', waveUrl);
+      console.log('📱 Mobile Wave deep link:', waveUrl);
       
-      // ✅ Tentative d'ouverture de l'app
+      // ✅ Essayer d'ouvrir l'app Wave via le lien profond
       const deepLinkAttempt = document.createElement('a');
       deepLinkAttempt.href = waveUrl;
-      deepLinkAttempt.style.display = 'none';
-      document.body.appendChild(deepLinkAttempt);
       deepLinkAttempt.click();
-      document.body.removeChild(deepLinkAttempt);
       
-      // ✅ Fallback web amélioré
+      // ✅ FALLBACK: Si l'app ne s'ouvre pas dans 2 secondes, utiliser le lien web
       setTimeout(() => {
-        const webUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}&reference=VOSC_${Date.now()}`;
-        window.open(webUrl, '_blank');
-      }, 2500);
+        console.log('📱 Deep link fallback - opening web version');
+        const webFallbackUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
+        window.open(webFallbackUrl, '_blank');
+      }, 2000);
       
     } else {
-      // ✅ Desktop: URL web optimisée
-      waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}&reference=VOSC_${Date.now()}`;
+      // ✅ Desktop : Utiliser le lien web Wave
+      waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
       
-      const newWindow = window.open(waveUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+      console.log('🖥️ Desktop Wave URL:', waveUrl);
+      
+      // Desktop : Ouvrir dans un nouvel onglet
+      const newWindow = window.open(waveUrl, '_blank', 'width=800,height=600');
       if (!newWindow) {
+        // Si le popup est bloqué, essayer la même fenêtre
         window.location.href = waveUrl;
       }
     }
     
-    // ✅ RETOUR AUTOMATIQUE AMÉLIORÉ
+    // ✅ NOUVEAU: Après redirection, déclencher automatiquement le retour
     setTimeout(() => {
       if (onChoiceSelect) {
-        console.log('🔄 Auto-triggering enhanced Wave return flow');
+        console.log('🔄 Auto-triggering Wave payment return flow');
         onChoiceSelect('WAVE_PAYMENT_INITIATED');
       }
-    }, isMobile ? 6000 : 4000);
+    }, isMobile ? 5000 : 3000); // Plus de temps sur mobile pour les liens profonds
     
     return { success: true, redirected: true };
     
   } catch (error) {
-    console.error('❌ Enhanced Wave payment error:', error);
+    console.error('❌ Wave payment error:', error);
     return { success: false };
   }
 };
 
-// ✅ GESTION STRIPE AMÉLIORÉE
+// ✅ FONCTION: Gestion des paiements Stripe avec modal intégré
 const handleStripePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
   onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('💳 Processing enhanced Stripe payment:', choice);
+  console.log('💳 Processing Stripe payment with integrated modal:', choice);
   
   try {
     let amount = 0;
@@ -174,7 +241,7 @@ const handleStripePayment = async (
       return { success: false };
     }
     
-    // ✅ DÉCLENCHEMENT MODAL STRIPE AMÉLIORÉ
+    // ✅ NOUVEAU: Déclencher l'ouverture du modal Stripe intégré
     if (onChoiceSelect) {
       onChoiceSelect(`STRIPE_MODAL_OPEN:${amount}`);
     }
@@ -182,26 +249,54 @@ const handleStripePayment = async (
     return { success: true, redirected: false };
     
   } catch (error) {
-    console.error('❌ Enhanced Stripe payment error:', error);
+    console.error('❌ Stripe modal opening error:', error);
     return { success: false };
   }
 };
 
-// ✅ COMPOSANT PRINCIPAL AMÉLIORÉ
+// ✅ CORRECTION MAJEURE: Validation d'ID de transaction Wave AMÉLIORÉE
+const validateWaveTransactionId = (transactionId: string): boolean => {
+  // ✅ CORRECTION: Pattern plus flexible pour les IDs Wave réels
+  const cleanId = transactionId.trim().toUpperCase();
+  
+  // Les IDs Wave peuvent avoir différents formats :
+  // - TJJ4D7OR04EPQAR4FD (format classique)
+  // - TJJXXXXXXXXXXXXXXX (15-17 caractères)
+  // - Parfois sans le T initial dans certains cas
+  
+  const wavePatterns = [
+    /^T[A-Z0-9]{10,20}$/i,           // Format classique avec T
+    /^[A-Z0-9]{12,20}$/i,            // Format sans T initial
+    /^TXN[A-Z0-9]{10,15}$/i,         // Format avec TXN
+    /^PAY[A-Z0-9]{10,15}$/i          // Format avec PAY
+  ];
+  
+  const isValid = wavePatterns.some(pattern => pattern.test(cleanId));
+  
+  console.log('🔍 Wave ID validation:', {
+    id: cleanId,
+    isValid,
+    length: cleanId.length
+  });
+  
+  return isValid;
+};
+
+// ✅ COMPOSANT PRINCIPAL
 export default function ChatMessage({ 
   message, 
   onChoiceSelect,
-  onRetry,
-  showInterfaceButtons = false
+  onRetry 
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
-  const [isAnimating, setIsAnimating] = useState(true);
 
   const messageContent = ensureStringContent(message.content);
+  
+  // ✅ ACCÈS SÉCURISÉ AUX MÉTADONNÉES
   const metadata = message.metadata || {};
   
-  // ✅ ACCÈS SÉCURISÉ AUX MÉTADONNÉES AVEC TYPE GUARDS
+  // Utilisation des type guards pour éliminer les erreurs TypeScript
   const orderData = metadata.orderData;
   const hasValidOrderData = isValidOrderData(orderData);
   
@@ -211,37 +306,14 @@ export default function ChatMessage({
   const upsellProduct = metadata.upsellProduct;
   const hasUpsellProduct = isValidUpsellProduct(upsellProduct);
 
-  // ✅ ANIMATION D'ENTRÉE
-  useEffect(() => {
-    const timer = setTimeout(() => setIsAnimating(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  // ✅ CONVERSION SÉCURISÉE POUR UPSELL
+  const validUpsellProduct = hasUpsellProduct ? convertToValidChatProduct(upsellProduct) : null;
 
-  // ✅ GESTION DES CLICS AMÉLIORÉE AVEC INTELLIGENCE COMMERCIALE
+  // ✅ GESTION DES CLICS SUR LES BOUTONS CORRIGÉE
   const handleChoiceClick = async (choice: string): Promise<void> => {
     if (processingPayment) return;
     
-    console.log('🎯 Enhanced choice processing:', choice);
-    
-    // ✅ INTELLIGENCE COMMERCIALE: Détecter l'intention d'achat
-    const isPurchaseIntent = choice.toLowerCase().includes('acheter') || 
-                           choice.toLowerCase().includes('commander') ||
-                           choice.toLowerCase().includes('prendre');
-    
-    if (isPurchaseIntent) {
-      // ✅ TRACKING DE CONVERSION
-      console.log('🛒 Purchase intent detected, tracking conversion');
-      
-      // Analytics de conversion (à implémenter)
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'begin_checkout', {
-          currency: 'XOF',
-          value: extractTotalAmount(orderData)
-        });
-      }
-    }
-    
-    // ✅ GESTION WAVE AMÉLIORÉE
+    // ✅ CORRECTION: Gestion spécifique Wave avec liens profonds mobile
     if (choice.toLowerCase().includes('wave')) {
       setProcessingPayment(choice);
       
@@ -249,17 +321,18 @@ export default function ChatMessage({
         const result = await handleWavePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Enhanced Wave payment process initiated');
+          console.log('✅ Wave payment process initiated with mobile deep links');
+          // Le retour automatique est géré dans handleWavePayment
           return;
         }
       } catch (error) {
-        console.error('❌ Enhanced Wave payment failed:', error);
+        console.error('❌ Wave payment processing failed:', error);
       } finally {
         setProcessingPayment(null);
       }
     }
     
-    // ✅ GESTION STRIPE AMÉLIORÉE
+    // ✅ Gestion Stripe
     else if (choice.toLowerCase().includes('carte')) {
       setProcessingPayment(choice);
       
@@ -267,95 +340,34 @@ export default function ChatMessage({
         const result = await handleStripePayment(choice, metadata, onChoiceSelect);
         
         if (result.success) {
-          console.log('✅ Enhanced Stripe payment modal triggered');
+          console.log('✅ Stripe payment modal triggered');
+          // Le modal sera géré par le composant parent
           return;
         }
       } catch (error) {
-        console.error('❌ Enhanced Stripe payment failed:', error);
+        console.error('❌ Stripe payment processing failed:', error);
       } finally {
         setProcessingPayment(null);
       }
     }
     
-    // ✅ APPEL NORMAL POUR LES AUTRES BOUTONS
+    // Appeler le handler normal pour les autres boutons
     if (onChoiceSelect) {
       onChoiceSelect(choice);
     }
   };
 
-  // ✅ COPIE DU NUMÉRO DE COMMANDE AMÉLIORÉE
+  // ✅ COPIE DU NUMÉRO DE COMMANDE
   const copyOrderId = async (): Promise<void> => {
     const orderId = metadata.orderId;
     if (orderId) {
       try {
         await navigator.clipboard.writeText(String(orderId));
         setCopied(true);
-        setTimeout(() => setCopied(false), 3000);
-        
-        // ✅ FEEDBACK VISUEL AMÉLIORÉ
-        console.log('📋 Order ID copied to clipboard');
+        setTimeout(() => setCopied(false), 2000);
       } catch (error) {
-        console.error('❌ Copy failed:', error);
-        // ✅ Fallback pour les navigateurs plus anciens
-        const textArea = document.createElement('textarea');
-        textArea.value = String(orderId);
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 3000);
+        console.error('Copy failed:', error);
       }
-    }
-  };
-
-  // ✅ DÉTECTION DU TYPE DE MESSAGE POUR PERSONNALISATION
-  const getMessageVariant = (): 'welcome' | 'info' | 'sales' | 'urgent' | 'success' | 'error' => {
-    if (metadata.flags?.isWelcome) return 'welcome';
-    if (metadata.flags?.hasError) return 'error';
-    if (metadata.flags?.orderCompleted) return 'success';
-    if (metadata.flags?.createUrgency) return 'urgent';
-    if (metadata.flags?.conversionOriented) return 'sales';
-    return 'info';
-  };
-
-  const messageVariant = getMessageVariant();
-
-  // ✅ STYLES PERSONNALISÉS SELON LE VARIANT
-  const getMessageStyles = () => {
-    const baseStyles = message.type === 'user'
-      ? 'bg-[#FF7E93] text-white rounded-[20px] rounded-tr-sm'
-      : 'bg-white text-gray-800 rounded-[20px] rounded-tl-sm shadow-sm border border-gray-100';
-
-    if (message.type === 'assistant') {
-      switch (messageVariant) {
-        case 'welcome':
-          return `${baseStyles} border-l-4 border-l-[#FF7E93]`;
-        case 'sales':
-          return `${baseStyles} border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-white`;
-        case 'urgent':
-          return `${baseStyles} border-l-4 border-l-orange-500 bg-gradient-to-r from-orange-50 to-white`;
-        case 'success':
-          return `${baseStyles} border-l-4 border-l-green-600 bg-gradient-to-r from-green-100 to-white`;
-        case 'error':
-          return `${baseStyles} border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-white`;
-        default:
-          return baseStyles;
-      }
-    }
-    
-    return baseStyles;
-  };
-
-  // ✅ ICÔNE SELON LE VARIANT
-  const getVariantIcon = () => {
-    switch (messageVariant) {
-      case 'welcome': return <Heart className="w-4 h-4 text-[#FF7E93]" />;
-      case 'sales': return <TrendingUp className="w-4 h-4 text-green-600" />;
-      case 'urgent': return <Zap className="w-4 h-4 text-orange-600" />;
-      case 'success': return <Check className="w-4 h-4 text-green-600" />;
-      case 'error': return <AlertCircle className="w-4 h-4 text-red-600" />;
-      default: return null;
     }
   };
 
@@ -363,28 +375,26 @@ export default function ChatMessage({
     <div className={`flex w-full flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
       <div className={`${message.type === 'user' ? 'ml-8 md:ml-12' : 'mr-8 md:mr-12'} max-w-[90%] md:max-w-[85%]`}>
         <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`relative p-4 ${getMessageStyles()}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`relative p-4 ${
+            message.type === 'user'
+              ? 'bg-[#FF7E93] text-white rounded-[20px] rounded-tr-sm'
+              : 'bg-white text-gray-800 rounded-[20px] rounded-tl-sm shadow-sm border border-gray-100'
+          }`}
         >
-          {/* ✅ EN-TÊTE AMÉLIORÉ AVEC VARIANT ICON */}
+          {/* En-tête du bot */}
           {message.type === 'assistant' && message.assistant && (
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#FF7E93] to-[#FF6B9D] rounded-full flex items-center justify-center relative">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#FF7E93] to-[#FF6B9D] rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-bold">
                   {message.assistant.name?.[0] || 'R'}
                 </span>
-                {/* ✅ INDICATEUR DE STATUT */}
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#132D5D] text-sm">
-                    {message.assistant.name}
-                  </span>
-                  {getVariantIcon()}
-                </div>
+              <div>
+                <span className="font-semibold text-[#132D5D] text-sm">
+                  {message.assistant.name}
+                </span>
                 {message.assistant.title && (
                   <p className="text-xs text-gray-500">
                     {message.assistant.title}
@@ -394,248 +404,177 @@ export default function ChatMessage({
             </div>
           )}
 
-          {/* ✅ CONTENU DU MESSAGE AMÉLIORÉ */}
+          {/* Contenu du message */}
           <div className="text-[15px] leading-relaxed">
             <div 
               className="whitespace-pre-line"
               dangerouslySetInnerHTML={{
                 __html: messageContent
-                  .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-[#132D5D]">$1</strong>')
-                  .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                  .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>')
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
               }}
             />
           </div>
 
-          {/* ✅ HORODATAGE AMÉLIORÉ */}
+          {/* Horodatage */}
           <div className="mt-2 text-xs opacity-70 flex items-center gap-2">
             <Clock className="w-3 h-3" />
             {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
               minute: '2-digit'
             })}
-            {/* ✅ INDICATEUR DE TECHNIQUE DE VENTE */}
-            {metadata.salesTechnique && (
-              <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs ml-2">
-                {metadata.salesTechnique}
-              </span>
-            )}
           </div>
 
-          {/* ✅ BOUTON DE COPIE AMÉLIORÉ */}
+          {/* Bouton de copie pour les commandes */}
           {metadata.orderId && (
             <button
               onClick={copyOrderId}
-              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 transition-colors group"
+              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
               title="Copier le numéro de commande"
             >
-              {copied ? (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="flex items-center gap-1"
-                >
-                  <Check className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-green-500">Copié!</span>
-                </motion.div>
-              ) : (
-                <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              )}
+              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
             </button>
           )}
         </motion.div>
 
-        {/* ✅ CONTENU ÉTENDU AMÉLIORÉ */}
+        {/* Actions et contenu supplémentaire */}
         {message.type === 'assistant' && (
-          <AnimatePresence>
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-3 space-y-3"
-            >
-              
-              {/* ✅ RÉSUMÉ DE COMMANDE AMÉLIORÉ */}
-              {hasValidOrderData && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <ChatOrderSummary
-                    orderItems={convertToOrderItems(orderData)}
-                    totalAmount={extractTotalAmount(orderData)}
-                    onQuantityChange={(productId: string, newQuantity: number) => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect(`Modifier quantité ${productId} à ${newQuantity}`);
-                      }
-                    }}
-                    onRemoveItem={(productId: string) => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect(`Retirer ${productId} du panier`);
-                      }
-                    }}
-                    onProceedToCheckout={() => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect('Finaliser ma commande');
-                      }
-                    }}
-                  />
-                </motion.div>
-              )}
+          <div className="mt-3 space-y-3">
+            
+            {/* ✅ RÉSUMÉ DE COMMANDE - Type safe */}
+            {hasValidOrderData && (
+              <ChatOrderSummary
+                orderItems={convertToOrderItems(orderData)}
+                totalAmount={extractTotalAmount(orderData)}
+                onQuantityChange={(productId: string, newQuantity: number) => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect(`Modifier quantité ${productId} à ${newQuantity}`);
+                  }
+                }}
+                onRemoveItem={(productId: string) => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect(`Retirer ${productId} du panier`);
+                  }
+                }}
+                onProceedToCheckout={() => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect('Finaliser ma commande');
+                  }
+                }}
+              />
+            )}
 
-              {/* ✅ RECOMMANDATIONS AMÉLIORÉES */}
-              {hasRecommendedProducts && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <ChatProductList
-                    products={recommendedProducts as any[]}
-                    title="Nos clients ont aussi aimé :"
-                    variant="recommendation"
-                    onAddToCart={(productId: string) => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect(`Ajouter ${productId} au panier`);
-                      }
-                    }}
-                    onViewDetails={(productId: string) => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect(`Voir détails ${productId}`);
-                      }
-                    }}
-                  />
-                </motion.div>
-              )}
+            {/* ✅ RECOMMANDATIONS - Type safe */}
+            {hasRecommendedProducts && (
+              <ChatProductList
+                products={recommendedProducts as any[]}
+                title="Vous pourriez aussi aimer :"
+                variant="recommendation"
+                onAddToCart={(productId: string) => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect(`Ajouter ${productId} au panier`);
+                  }
+                }}
+                onViewDetails={(productId: string) => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect(`Voir détails ${productId}`);
+                  }
+                }}
+              />
+            )}
 
-              {/* ✅ UPSELL AMÉLIORÉ */}
-              {hasUpsellProduct && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <ChatProductCard
-                    product={upsellProduct as any}
-                    variant="upsell"
-                    onAccept={() => {
-                      if (onChoiceSelect && isValidUpsellProduct(upsellProduct)) {
-                        onChoiceSelect(`Accepter upsell ${upsellProduct.id}`);
-                      }
-                    }}
-                    onDecline={() => {
-                      if (onChoiceSelect) {
-                        onChoiceSelect('Refuser upsell');
-                      }
-                    }}
-                  />
-                </motion.div>
-              )}
+            {/* ✅ UPSELL - Type safe CORRIGÉ avec validation complète */}
+            {validUpsellProduct && (
+              <ChatProductCard
+                product={validUpsellProduct}
+                variant="upsell"
+                onAccept={() => {
+                  if (onChoiceSelect && validUpsellProduct) {
+                    onChoiceSelect(`Accepter upsell ${validUpsellProduct.id}`);
+                  }
+                }}
+                onDecline={() => {
+                  if (onChoiceSelect) {
+                    onChoiceSelect('Refuser upsell');
+                  }
+                }}
+              />
+            )}
 
-              {/* ✅ BOUTONS DE CHOIX AMÉLIORÉS */}
-              {message.choices && message.choices.length > 0 && !showInterfaceButtons && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="grid gap-2"
-                >
-                  {message.choices.map((choice, index) => {
-                    const isPrimary = choice.includes('acheter') || choice.includes('⚡');
-                    const isWave = choice.toLowerCase().includes('wave');
-                    const isStripe = choice.toLowerCase().includes('carte');
-                    const isProcessingThis = processingPayment === choice;
-                    
-                    return (
-                      <motion.button
-                        key={index}
-                        onClick={() => handleChoiceClick(choice)}
-                        disabled={isProcessingThis}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.6 + (index * 0.1) }}
-                        whileHover={!isProcessingThis ? { scale: 1.02, y: -2 } : {}}
-                        whileTap={!isProcessingThis ? { scale: 0.98 } : {}}
-                        className={`
-                          px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
-                          flex items-center justify-center gap-2 min-h-[48px] w-full
-                          disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden
-                          ${isPrimary 
-                            ? 'bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white shadow-lg hover:shadow-xl hover:from-[#FF6B9D] hover:to-[#FF7E93]' 
-                            : isWave
-                              ? 'bg-gradient-to-r from-[#4BD2FA] to-[#3BC9E8] text-white shadow-lg hover:shadow-xl'
-                              : isStripe
-                                ? 'bg-gradient-to-r from-[#635BFF] to-[#5A52E8] text-white shadow-lg hover:shadow-xl'
-                                : 'bg-white text-[#FF7E93] border-2 border-[#FF7E93] hover:bg-[#FF7E93] hover:text-white hover:shadow-lg'
-                          }
-                        `}
-                      >
-                        {/* ✅ ANIMATION DE LOADING */}
-                        {isProcessingThis && (
-                          <motion.div
-                            className="absolute inset-0 bg-black bg-opacity-20"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          />
-                        )}
-                        
-                        {isProcessingThis ? (
-                          <motion.div
-                            className="flex items-center gap-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          >
-                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            <span>
-                              {isMobileDevice() && isWave ? 'Ouverture Wave...' : 'Redirection...'}
-                            </span>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            className="flex items-center gap-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          >
-                            {/* ✅ ICÔNES AMÉLIORÉES */}
-                            {isWave ? (
-                              <Image 
-                                src="/images/payments/wave_2.svg" 
-                                alt="Wave" 
-                                width={18} 
-                                height={18} 
-                                className="flex-shrink-0" 
-                              />
-                            ) : isStripe ? (
-                              <CreditCard className="w-4 h-4" />
-                            ) : isPrimary ? (
-                              <Zap className="w-4 h-4" />
-                            ) : choice.toLowerCase().includes('livraison') ? (
-                              <span>💵</span>
-                            ) : null}
-                            <span>{choice}</span>
-                            {(isWave || isStripe) && (
-                              <ExternalLink className="w-3 h-3 opacity-75" />
-                            )}
-                          </motion.div>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+            {/* ✅ BOUTONS DE CHOIX CORRIGÉS AVEC WAVE MOBILE DEEP LINKS */}
+            {message.choices && message.choices.length > 0 && (
+              <div className="grid gap-2">
+                {message.choices.map((choice, index) => {
+                  const isPrimary = choice.includes('acheter') || choice.includes('⚡');
+                  const isWave = choice.toLowerCase().includes('wave');
+                  const isStripe = choice.toLowerCase().includes('carte');
+                  const isProcessingThis = processingPayment === choice;
+                  
+                  return (
+                    <motion.button
+                      key={index}
+                      onClick={() => handleChoiceClick(choice)}
+                      disabled={isProcessingThis}
+                      whileHover={!isProcessingThis ? { scale: 1.02 } : {}}
+                      whileTap={!isProcessingThis ? { scale: 0.98 } : {}}
+                      className={`
+                        px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
+                        flex items-center justify-center gap-2 min-h-[48px] w-full
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        ${isPrimary 
+                          ? 'bg-[#FF7E93] text-white shadow-md hover:bg-[#FF7E93]/90 hover:shadow-lg' 
+                          : isWave
+                            ? 'bg-[#4BD2FA] hover:bg-[#3BC9E8] text-white shadow-md hover:shadow-lg'
+                            : isStripe
+                              ? 'bg-[#635BFF] hover:bg-[#5A52E8] text-white shadow-md hover:shadow-lg'
+                              : 'bg-white text-[#FF7E93] border border-[#FF7E93] hover:bg-[#FF7E93]/5 hover:shadow-md'
+                        }
+                      `}
+                    >
+                      {isProcessingThis ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>
+                            {isMobileDevice() && isWave ? 'Ouverture Wave...' : 'Redirection...'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {/* ✅ CORRECTION: Icônes spécifiques selon le type de paiement */}
+                          {isWave ? (
+                            <Image 
+                              src="/images/payments/wave_2.svg" 
+                              alt="Wave" 
+                              width={16} 
+                              height={16} 
+                              className="flex-shrink-0" 
+                            />
+                          ) : isStripe ? (
+                            <CreditCard className="w-4 h-4" />
+                          ) : choice.toLowerCase().includes('livraison') ? (
+                            <span>💵</span>
+                          ) : null}
+                          <span>{choice}</span>
+                          {(isWave || isStripe) && <ExternalLink className="w-3 h-3 opacity-75" />}
+                        </>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
-        {/* ✅ BOUTON DE RETRY AMÉLIORÉ */}
+        {/* Bouton de retry en cas d'erreur */}
         {metadata.flags?.hasError && onRetry && (
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={onRetry}
-            className="mt-2 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors group"
+            className="mt-2 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors"
           >
-            <AlertCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <AlertCircle className="w-4 h-4" />
             <span>Réessayer</span>
           </motion.button>
         )}

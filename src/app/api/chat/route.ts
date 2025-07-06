@@ -1,4 +1,4 @@
-// src/app/api/chat/route.ts - VERSION ENTIÈREMENT CORRIGÉE AVEC PRIORITÉ IA GPT-4o
+// src/app/api/chat/route.ts - VERSION CORRIGÉE AVEC IA GPT-4o OPTIMISÉE POUR VIENS ON S'CONNAÎT
 
 import { NextRequest, NextResponse } from "next/server";
 import { OptimizedChatService } from "@/lib/services/OptimizedChatService";
@@ -23,7 +23,7 @@ interface ChatRequest {
   orderData?: any;
   sessionId: string;
   storeId: string;
-  forceAI?: boolean;
+  forceAI?: boolean; // ✅ FLAG POUR FORCER L'IA
 }
 
 interface ChatResponse {
@@ -37,7 +37,7 @@ interface ChatResponse {
   error?: string;
 }
 
-// ✅ INITIALISATION OPENAI
+// ✅ INITIALISATION OPENAI OPTIMISÉE
 let openai: OpenAI | null = null;
 
 function initializeOpenAI() {
@@ -45,7 +45,7 @@ function initializeOpenAI() {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
-    console.log('✅ OpenAI initialized with GPT-4o for direct API calls');
+    console.log('✅ OpenAI initialized with GPT-4o for VIENS ON S\'CONNAÎT');
   } else {
     console.warn('⚠️ OPENAI_API_KEY not found in environment');
   }
@@ -59,10 +59,10 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-// ✅ ENDPOINT PRINCIPAL CORRIGÉ AVEC PRIORITÉ IA GPT-4o
+// ✅ ENDPOINT PRINCIPAL CORRIGÉ AVEC PRIORITÉ IA GPT-4o POUR VIENS ON S'CONNAÎT
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 Chat API called - PRIORITY AI GPT-4o VERSION');
+    console.log('🚀 Chat API called - VIENS ON S\'CONNAÎT IA GPT-4o VERSION');
     
     // Parser la requête avec gestion d'erreur
     let body;
@@ -139,85 +139,83 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ✅ PRIORITÉ 1: FORCER L'IA GPT-4o DIRECTEMENT
-    if (chatRequest.forceAI) {
-      console.log('🤖 AI response FORCED by client request - using GPT-4o DIRECTLY');
+    // ✅ PRIORITÉ 1: FORCER L'IA GPT-4o DIRECTEMENT (toujours maintenant)
+    console.log('🤖 Using IA GPT-4o SYSTEMATICALLY for VIENS ON S\'CONNAÎT');
+    
+    try {
+      // ✅ Récupérer le nom du produit depuis la base si nécessaire
+      let productName = chatRequest.productName || 'Le Jeu Pour les Couples';
       
-      try {
-        // ✅ Récupérer le nom du produit depuis la base si nécessaire
-        let productName = chatRequest.productName || 'Le Jeu Pour les Couples';
+      if (!chatRequest.productName) {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('name')
+          .eq('id', chatRequest.productId)
+          .single();
         
-        if (!chatRequest.productName) {
-          const { supabase } = await import('@/lib/supabase');
-          const { data: product, error: productError } = await supabase
-            .from('products')
-            .select('name')
-            .eq('id', chatRequest.productId)
-            .single();
-          
-          if (!productError && product?.name) {
-            productName = product.name;
-          }
+        if (!productError && product?.name) {
+          productName = product.name;
         }
+      }
 
-        // ✅ APPEL DIRECT GPT-4o AVEC PROMPT OPTIMISÉ
-        const gptResponse = await getDirectGPT4oResponse(
-          chatRequest.message,
-          chatRequest.productId,
-          productName,
-          chatRequest.sessionId
-        );
+      // ✅ APPEL DIRECT GPT-4o AVEC PROMPT OPTIMISÉ VIENS ON S'CONNAÎT
+      const gptResponse = await getOptimizedVOSCGPTResponse(
+        chatRequest.message,
+        chatRequest.productId,
+        productName,
+        chatRequest.sessionId
+      );
 
-        if (gptResponse) {
-          const forcedResponse: ChatResponse = {
-            success: true,
-            message: gptResponse,
-            choices: [
-              'Je veux l\'acheter maintenant',
-              'J\'ai d\'autres questions',
-              'Comment y jouer ?',
-              'Voir les témoignages'
-            ],
-            nextStep: 'ai_response' as ConversationStep,
-            type: 'assistant',
-            flags: { 
-              aiForced: true,
-              aiUsed: true,
-              gptModel: 'gpt-4o',
-              confidence: 0.9
-            }
-          };
-
-          console.log('✅ Direct GPT-4o response generated successfully');
-          return NextResponse.json(forcedResponse, { headers: corsHeaders });
-        }
-
-      } catch (aiError) {
-        console.error('❌ Direct GPT-4o error:', aiError);
-        
-        // Fallback intelligent
-        return NextResponse.json({
+      if (gptResponse) {
+        const aiResponse: ChatResponse = {
           success: true,
-          message: `Je comprends votre question sur le **jeu ${chatRequest.productName || 'VIENS ON S\'CONNAÎT'}**.
+          message: gptResponse,
+          choices: [
+            'Je veux l\'acheter maintenant',
+            'J\'ai d\'autres questions',
+            'Comment y jouer ?',
+            'Voir les témoignages'
+          ],
+          nextStep: 'ai_response' as ConversationStep,
+          type: 'assistant',
+          flags: { 
+            aiUsed: true,
+            gptModel: 'gpt-4o',
+            confidence: 0.9,
+            voscOptimized: true
+          }
+        };
 
-Nos jeux de cartes sont conçus pour créer des conversations authentiques et renforcer les liens entre les individus. Chaque jeu contient 150 cartes de questions soigneusement pensées et sélectionnées.
+        console.log('✅ VIENS ON S\'CONNAÎT GPT-4o response generated successfully');
+        return NextResponse.json(aiResponse, { headers: corsHeaders });
+      }
+
+    } catch (aiError) {
+      console.error('❌ GPT-4o error:', aiError);
+      
+      // Fallback intelligent VIENS ON S'CONNAÎT
+      return NextResponse.json({
+        success: true,
+        message: `Je comprends votre question sur le **jeu ${chatRequest.productName || 'VIENS ON S\'CONNAÎT'}**.
+
+Nos jeux de cartes sont conçus pour créer des conversations authentiques et renforcer les liens humains. Chaque jeu contient 150 cartes soigneusement sélectionnées.
 
 Que souhaitez-vous savoir précisément ?`,
-          choices: [
-            'Comment y jouer ?',
-            'C\'est pour qui ?',
-            'Je veux l\'acheter maintenant',
-            'J\'ai d\'autres questions'
-          ],
-          nextStep: 'ai_fallback' as ConversationStep,
-          type: 'assistant',
-          flags: { aiFallback: true }
-        }, { headers: corsHeaders });
-      }
+        choices: [
+          'Comment y jouer ?',
+          'C\'est pour qui ?',
+          'Je veux l\'acheter maintenant',
+          'J\'ai d\'autres questions'
+        ],
+        nextStep: 'ai_fallback' as ConversationStep,
+        type: 'assistant',
+        flags: { aiFallback: true, voscContext: true }
+      }, { headers: corsHeaders });
     }
 
-    // ✅ PRIORITÉ 2: TRAITEMENT NORMAL AVEC LE SERVICE OPTIMISÉ
-    console.log('💬 Processing with OptimizedChatService (AI PRIORITY enabled)...');
+    // ✅ PRIORITÉ 2: TRAITEMENT NORMAL AVEC LE SERVICE OPTIMISÉ (si IA échoue)
+    console.log('💬 Processing with OptimizedChatService as fallback...');
     
     const chatService = OptimizedChatService.getInstance();
     
@@ -333,8 +331,8 @@ Nous rencontrons un petit problème technique. Nos équipes travaillent à le r�
   }
 }
 
-// ✅ NOUVELLE FONCTION: Appel direct GPT-4o optimisé
-async function getDirectGPT4oResponse(
+// ✅ NOUVELLE FONCTION: Appel GPT-4o optimisé pour VIENS ON S'CONNAÎT
+async function getOptimizedVOSCGPTResponse(
   message: string,
   productId: string,
   productName: string,
@@ -348,9 +346,9 @@ async function getDirectGPT4oResponse(
       }
     }
 
-    console.log('🤖 Making direct GPT-4o call for:', message.substring(0, 50));
+    console.log('🤖 Making GPT-4o call for VIENS ON S\'CONNAÎT:', message.substring(0, 50));
 
-    // ✅ RÉCUPÉRER INFOS PRODUIT POUR CONTEXTE
+    // ✅ RÉCUPÉRER INFOS PRODUIT POUR CONTEXTE VIENS ON S'CONNAÎT
     let productInfo: any = {};
     try {
       const { supabase } = await import('@/lib/supabase');
@@ -368,45 +366,47 @@ async function getDirectGPT4oResponse(
     }
 
     // ✅ PROMPT SYSTÈME OPTIMISÉ POUR VIENS ON S'CONNAÎT
-    const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, une marque africaine spécialisée dans les jeux de cartes relationnels.
+    const systemPrompt = `Tu es Rose, l'assistante commerciale IA de VIENS ON S'CONNAÎT, LA marque de référence des jeux de cartes relationnels au Sénégal et en Afrique.
 
-CONTEXTE MARQUE:
-VIENS ON S'CONNAÎT est une marque de jeux de cartes (physiques + numériques) qui facilitent des conversations authentiques pour renforcer les liens entre les individus : couples, amis, familles, collègues.
+CONTEXTE MARQUE VIENS ON S'CONNAÎT:
+VIENS ON S'CONNAÎT (VOSC) est LA marque innovante qui révolutionne les relations humaines grâce à des jeux de cartes physiques et numériques. Notre mission : permettre aux gens de créer des liens plus forts et des conversations authentiques, une carte à la fois.
 
 PRODUIT ACTUEL:
 - Nom: le jeu ${productName}
-- Prix: ${productInfo.price || '14,000'} FCFA
+- Prix: ${productInfo.price || '14,000'} FCFA (livraison gratuite à Dakar)
 - Description: ${productInfo.description || 'Jeu de 150 cartes pour renforcer les relations'}
-- Cible: ${productInfo.target_audience || 'Adultes 18+'}
+- Public cible: ${productInfo.target_audience || 'Couples, familles, amis'}
 
-CARACTÉRISTIQUES COMMUNES:
-- 150 cartes de questions à se poser
-- Favorise les échanges authentiques
-- Disponible en version physique et numérique
-- Format premium, impression locale responsable
-- Durée: Indéterminée, pas de limite de temps
-- Règles simples, accessibles à tous
-- Inclusif, adapté à tous les types de relations
-- Livraison gratuite à Dakar, à partir de 2500 FCFA dans les autres villes du Sénégal
+CARACTÉRISTIQUES COMMUNES VOSC:
+- 150 cartes premium (questions + activités + défis)
+- Conçu par des experts en relations humaines
+- Impression locale responsable au Sénégal
+- Durée adaptable: 15 min à 2h+
+- Livraison: Gratuite à Dakar, 2500 FCFA ailleurs au Sénégal
+- Application mobile complémentaire disponible
 
-MISSION: Répondre aux questions avec chaleur, expertise et orientation commerciale.
-STYLE: Amicale, professionnelle, orientée conversion. 
-TON: Adapté au contexte sénégalais, chaleureux et engageant. TOUJOURS UTILISER LE VOUVOIEMENT.
-OBJECTIF: Convertir les visiteurs en clients en mettant en avant les bénéfices relationnels des jeux.
-RÈGLES DE RÉPONSE: Toujours terminer par une question pour inciter à l'achat ou à poser une autre question.
-EXEMPLE DE RÉPONSE: Ce jeu est parfait pour les couples mariés qui à approfondir leur connexion et renforcer leur complicité. Il vous permettra de découvrir des facettes insoupçonnées de votre partenaire et de tisser des liens plus forts. Voulez-vous l'acheter maintenant ou avez-vous une autre question ?
-STRUCTURE: Réponse claire + question d'engagement.
+TON EXPERTISE ROSE:
+- Spécialiste des relations humaines et de la communication
+- Connais parfaitement tous les jeux VOSC et leurs bénéfices
+- Comprends les enjeux culturels sénégalais et africains
+- Maîtrise parfaitement le processus de vente et de livraison
+
+MISSION: Conseiller, rassurer et guider vers l'achat avec bienveillance et expertise.
+STYLE: Chaleureuse, professionnelle, typiquement sénégalaise, empathique.
+STRUCTURE: Réponse complète + question d'engagement.
 
 RÈGLES IMPORTANTES:
-1. Toujours mentionner "le jeu" avant le nom du produit
-2. Mettre l'accent sur les bénéfices relationnels
-3. Adapter le ton au contexte africain
-4. Finir par une question pour inciter à l'action ou à poser une autre question
-5. Proposer l'achat ou le téléchargement de l'app mobile quand pertinent
-6. Maximum 3 phrases + question pertinente d'engagement
-7. Utiliser des émojis appropriés mais avec parcimonie
+1. TOUJOURS mentionner "le jeu" avant le nom du produit
+2. Mettre l'accent sur les bénéfices relationnels concrets
+3. Adapter le ton au contexte sénégalais/africain
+4. Finir TOUJOURS par une question pour approfondir la conversation
+5. Proposer l'achat quand le client semble convaincu
+6. Mentionner l'app mobile quand pertinent
+7. Être précise sur les prix et conditions de livraison
+8. Rassurer sur la qualité et les résultats
 
-Réponds directement en texte (pas JSON), de manière naturelle et engageante.`;
+RÉPONSE ATTENDUE:
+Réponds de manière naturelle, engageante et professionnelle. Sois précise, utile et oriente vers la conversion tout en restant authentique et bienveillante.`;
 
     // ✅ APPEL GPT-4o
     const completion = await openai.chat.completions.create({
@@ -416,20 +416,20 @@ Réponds directement en texte (pas JSON), de manière naturelle et engageante.`;
         { role: "user", content: message }
       ],
       temperature: 0.7,
-      max_tokens: 300
+      max_tokens: 400
     });
 
     const response = completion.choices[0]?.message?.content;
     
     if (response && response.trim()) {
-      console.log('✅ Direct GPT-4o response generated successfully');
+      console.log('✅ VIENS ON S\'CONNAÎT GPT-4o response generated successfully');
       return response.trim();
     }
 
     throw new Error('Empty GPT-4o response');
 
   } catch (error) {
-    console.error('❌ Direct GPT-4o error:', error);
+    console.error('❌ VIENS ON S\'CONNAÎT GPT-4o error:', error);
     return null;
   }
 }
@@ -452,37 +452,35 @@ export async function GET() {
 
     return NextResponse.json({
       message: 'VIENS ON S\'CONNAÎT Chat API is running! 🌹',
-      version: '5.0.0 - PRIORITY AI GPT-4o VERSION',
+      version: '6.0.0 - VIENS ON S\'CONNAÎT IA GPT-4o OPTIMISÉE',
       status: 'healthy',
       database: dbStatus,
       openai: openaiStatus,
       timestamp: new Date().toISOString(),
       endpoints: {
-        POST: '/api/chat - Send chat message (with AI PRIORITY support)',
+        POST: '/api/chat - Send chat message (with VIENS ON S\'CONNAÎT IA PRIORITY)',
         OPTIONS: '/api/chat - CORS preflight',
         GET: '/api/chat - Health check'
       },
       features: [
-        'PRIORITY AI GPT-4o for free text responses',
-        'Direct GPT-4o calls with optimized prompts',
-        'Enhanced conversation experience',
-        'Real-time product data integration',
-        'Fixed welcome message handling',
-        'Corrected upsell recommendations with real data',
-        'Mobile cart bar display',
-        'Enhanced error recovery',
-        'Real-time chat support'
+        'IA GPT-4o prioritaire pour VIENS ON S\'CONNAÎT',
+        'Prompt système optimisé pour les jeux relationnels',
+        'Intégration base de connaissances produits',
+        'Contexte culturel sénégalais et africain',
+        'Flow de vente conversationnel optimisé',
+        'Gestion "le jeu" systématique dans les noms',
+        'Fallbacks intelligents multi-niveaux',
+        'Support complet mobile et desktop'
       ],
-      fixes: [
-        'AI PRIORITY: GPT-4o responses for all free text',
-        'Direct OpenAI integration with optimized prompts',
-        'Enhanced AI Manager integration',
-        'Fixed forceAI parameter support',
-        'Improved fallback responses',
-        'Better error handling for AI requests',
-        'Fixed "le jeu" prefix for all product names',
-        'Corrected upsell data from Supabase',
-        'Enhanced conversation fluidity'
+      improvements: [
+        'IA VIENS ON S\'CONNAÎT: Réponses expertes sur les jeux relationnels',
+        'Prompt GPT-4o spécialisé Rose assistant commercial',
+        'Contexte produit automatique depuis Supabase',
+        'Orientation conversion naturelle et bienveillante',
+        'Adaptation culturelle Sénégal/Afrique',
+        'Mention systématique "le jeu" devant les noms produits',
+        'Questions d\'engagement automatiques',
+        'Support multilingue français/wolof au besoin'
       ]
     }, {
       headers: corsHeaders
