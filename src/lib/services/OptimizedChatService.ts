@@ -519,7 +519,7 @@ Ce jeu a déjà aidé des milliers de personnes à créer des liens plus forts a
 
       return {
         type: 'assistant' as const,
-        content: `🎉 Super choix ! Je vais prendre votre commande pour le jeu **${fullProductName}** 
+        content: `🎉 Super choix ! Je vais prendre votre commande.
 
 Combien d'exemplaires souhaitez-vous acheter ?`,
         choices: [
@@ -786,7 +786,7 @@ Je viens d'ouvrir l'App Store dans un nouvel onglet !
 
     return {
       type: 'assistant',
-      content: `✅ C'est noté ! Vous commandez **${quantity} exemplaire${quantity > 1 ? 's' : ''}**
+      content: `✅ C'est noté !
       
       Cela fera **${totalAmount.toLocaleString()} FCFA**
 
@@ -859,7 +859,7 @@ Doit-on vous livrer à la même adresse :** ${existingCustomer.address}, ${exist
 
       return {
         type: 'assistant',
-        content: `Ah! C'est votre première fois ici ! Bienvenue 🎉 
+        content: `Je vois que c'est votre première fois ici ! Bienvenue 🎉 
 
 Votre numéro de telephone **${formattedPhone}** a été enregistré ✅
 
@@ -894,12 +894,12 @@ Ex : *Aminata Diallo*`,
 
     return {
       type: 'assistant',
-      content: `Enchantée, **${orderState.data.firstName} !**
+      content: `Enchantée, **${orderState.data.firstName}** !
 
 A quelle adresse doit-on vous livrer ?
 
-*Format : Quartier/Rue, Ville*
-*Ex : Mermoz, Dakar*`,
+Format : *Quartier/Rue, Ville*
+Ex : *Mermoz, Dakar*`,
       choices: [],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
@@ -924,11 +924,17 @@ A quelle adresse doit-on vous livrer ?
 
 Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
+Voici le récapitulatif de votre commande :
+- **Commande :** ${orderState.data.quantity}ex du jeu ${orderState.data.productName}
+- **A livrer à :** ${orderState.data.address}, ${orderState.data.city}
+- **Téléphone :** ${orderState.data.phone}
+- **Total :** ${totalAmount.toLocaleString()} FCFA
+
 Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
           'Wave (recommandé)',
-          '💳 Carte bancaire', 
-          '💵 Paiement à la livraison'
+          'Carte bancaire', 
+          'Paiement à la livraison'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
@@ -962,11 +968,17 @@ Dernière étape : comment souhaitez-vous payer ?`,
 
 Nous vous livrerons à **${orderState.data.address}, ${orderState.data.city}**
 
+Voici le récapitulatif de votre commande :
+- **Commande :** ${orderState.data.quantity}ex du jeu ${orderState.data.productName}
+- **A livrer à :** ${orderState.data.address}, ${orderState.data.city}
+- **Téléphone :** ${orderState.data.phone}
+- **Total :** ${totalAmount.toLocaleString()} FCFA
+
 Dernière étape : comment souhaitez-vous payer ?`,
         choices: [
           'Wave (recommandé)',
-          '💳 Carte bancaire', 
-          '💵 Paiement à la livraison'
+          'Carte bancaire', 
+          'Paiement à la livraison'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {

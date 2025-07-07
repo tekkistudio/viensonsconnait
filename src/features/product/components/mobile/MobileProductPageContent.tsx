@@ -1,5 +1,4 @@
 // src/features/product/components/mobile/MobileProductPageContent.tsx 
-// 🎯 VERSION FINALE OPTIMISÉE CONVERSION
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -477,26 +476,26 @@ export default function MobileProductPageContent({ productId, product }: MobileP
 
           {/* 🎯 PRIX OPTIMISÉ - UNE SEULE LIGNE */}
           <div className="flex items-center gap-3 mb-6">
-            {formattedPrice && (
-              <span className={`text-2xl font-bold transition-colors duration-300 ${
-                theme === 'light' ? 'text-gray-900' : 'text-white'
+          {formattedPrice && (
+            <span className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+              theme === 'light' ? 'text-gray-900' : 'text-white'
+            }`}>
+              {formattedPrice}
+            </span>
+          )}
+          {product.compareAtPrice && product.compareAtPrice > product.price && (
+            <>
+              <span className={`text-sm sm:text-lg line-through transition-colors duration-300 ${
+                theme === 'light' ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                {formattedPrice}
+                {convertPrice(product.compareAtPrice)?.formatted}
               </span>
-            )}
-            {product.compareAtPrice && product.compareAtPrice > product.price && (
-              <>
-                <span className={`text-lg line-through transition-colors duration-300 ${
-                  theme === 'light' ? 'text-gray-500' : 'text-gray-400'
-                }`}>
-                  {convertPrice(product.compareAtPrice)?.formatted}
-                </span>
-                <span className="bg-red-600 text-white px-2 py-1 rounded-full text-sm font-medium">
-                  -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
-                </span>
-              </>
-            )}
-          </div>
+              <span className="bg-red-600 text-white px-2 py-1 rounded-full text-xs sm:text-sm font-medium">
+                -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
+              </span>
+            </>
+          )}
+        </div>
         </section>
 
         {/* 🎯 SECTION 3: CTA CONVERSATIONNEL OPTIMISÉ */}
