@@ -16,15 +16,15 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
       <div className="flex space-x-1">
         <div 
           className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-          style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
+          style={{ animationDelay: '0ms', animationDuration: '1s' }}
         />
         <div 
           className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-          style={{ animationDelay: '150ms', animationDuration: '1.4s' }}
+          style={{ animationDelay: '100ms', animationDuration: '1s' }}
         />
         <div 
           className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-          style={{ animationDelay: '300ms', animationDuration: '1.4s' }}
+          style={{ animationDelay: '200ms', animationDuration: '1s' }}
         />
       </div>
       

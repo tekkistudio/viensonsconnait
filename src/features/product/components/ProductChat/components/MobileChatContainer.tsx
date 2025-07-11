@@ -423,7 +423,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
               console.log('📝 [MOBILE] Adding HARMONIZED welcome message');
               addMessage(welcomeMessage);
               setWelcomeMessageSent(true);
-            }, 2500); // ✅ 2.5 secondes de typing indicator (comme desktop)
+            }, 1000); // ✅ 2.5 secondes de typing indicator (comme desktop)
           } else {
             console.log('⚠️ Mobile: Welcome message skipped - messages exist or already sent');
             setWelcomeMessageSent(true);

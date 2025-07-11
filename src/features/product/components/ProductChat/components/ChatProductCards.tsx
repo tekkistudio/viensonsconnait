@@ -1,17 +1,19 @@
-// src/features/product/components/ProductChat/components/ChatProductCards.tsx - VERSION CORRIGÉE
+// src/features/product/components/ProductChat/components/ChatProductCards.tsx - VERSION FINALE
 
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
-import { Star, Users, ArrowRight, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Star, Users, ArrowRight, ShoppingBag, TrendingUp, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// ✅ TYPE UNIFIÉ pour tous les produits dans le chat avec VRAIES DONNÉES
+// ✅ INTERFACE PRINCIPALE avec support de la réduction
 interface ChatProduct {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;  // ✅ Prix après réduction
+  discountAmount?: number;   // ✅ Montant de la réduction (500 FCFA)
   images: string[];
   stats?: {
     sold?: number;
@@ -21,26 +23,28 @@ interface ChatProduct {
     reviews_count?: number; 
     avg_rating?: number;    
   };
-  // Spécifique aux recommandations
   reason?: string;
   urgency?: 'low' | 'medium' | 'high';
-  discount?: number; // Pourcentage de réduction pour l'upsell
+  discount?: number; // Pourcentage pour compatibilité
   
-  // ✅ NOUVELLES PROPRIÉTÉS pour les vraies données DB
+  // Données DB
   rating?: number;
   sales_count?: number;
   reviews_count?: number;
   description?: string;
+  stock_quantity?: number;
+  category?: string;
+  tags?: string[];
 }
 
-// ✅ COMPOSANT PRINCIPAL: Carte produit adaptative avec VRAIES DONNÉES
+// ✅ COMPOSANT CARTE PRODUIT
 interface ChatProductCardProps {
   product: ChatProduct;
   variant?: 'recommendation' | 'upsell' | 'related';
   onAddToCart?: (productId: string) => void;
   onViewDetails?: (productId: string) => void;
-  onAccept?: () => void; // Pour l'upsell
-  onDecline?: () => void; // Pour l'upsell
+  onAccept?: () => void;
+  onDecline?: () => void;
   className?: string;
 }
 
@@ -53,17 +57,16 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
   onDecline,
   className = ''
 }) => {
-  // ✅ CORRECTION: Gestion de l'image avec fallback sécurisé
+  // Image avec fallback
   const primaryImage = product.images && product.images.length > 0 
     ? product.images[0] 
     : '/images/products/default-product.jpg';
 
-  // ✅ CORRECTION: Extraction des vraies statistiques de la DB
+  // Extraction des stats réelles
   const getRealStats = () => {
-    // Priorité aux données directes de la DB
     const salesCount = product.sales_count || product.stats?.sales_count || product.stats?.sold || 0;
     const reviewsCount = product.reviews_count || product.stats?.reviews_count || product.stats?.reviews || 0;
-    const avgRating = product.rating || product.stats?.avg_rating || product.stats?.satisfaction || 5;
+    const avgRating = product.rating || product.stats?.avg_rating || product.stats?.satisfaction || 4.5;
 
     return {
       salesCount: Math.max(0, salesCount),
@@ -74,7 +77,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
 
   const realStats = getRealStats();
 
-  // ✅ RENDU SELON LE VARIANT
+  // ✅ RENDU POUR VARIANT UPSELL
   if (variant === 'upsell') {
     return (
       <motion.div
@@ -87,12 +90,11 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
             🎉 Offre spéciale !
           </div>
           <div className="text-sm text-gray-600">
-            Nos clients qui achètent ce jeu prennent aussi :
+            Économisez 500 FCFA sur ce jeu
           </div>
         </div>
 
         <div className="flex gap-3 mb-4">
-          {/* Image du produit */}
           <div className="relative w-20 h-20 flex-shrink-0">
             <Image
               src={primaryImage}
@@ -106,15 +108,12 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
               }}
             />
             
-            {/* Badge promo */}
-            {product.discount && (
-              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                -{product.discount}%
-              </div>
-            )}
+            {/* Badge réduction */}
+            <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+              -500F
+            </div>
           </div>
 
-          {/* Informations */}
           <div className="flex-1">
             <h4 className="font-bold text-gray-900 mb-1">
               {product.name.startsWith('le jeu') ? product.name : `le jeu ${product.name}`}
@@ -126,7 +125,6 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
               </div>
             )}
 
-            {/* ✅ CORRECTION: Utiliser les vraies statistiques */}
             <div className="flex items-center gap-2 mb-3">
               {realStats.avgRating > 0 && (
                 <div className="flex items-center gap-1">
@@ -141,34 +139,23 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
                   <span className="text-sm text-gray-600">{realStats.salesCount} vendus</span>
                 </div>
               )}
-
-              {realStats.reviewsCount > 0 && (
-                <div className="text-xs text-gray-500">
-                  ({realStats.reviewsCount} avis)
-                </div>
-              )}
             </div>
 
+            {/* ✅ PRIX AVEC RÉDUCTION DE 500 FCFA */}
             <div className="flex items-center gap-2">
-              {product.discount ? (
-                <>
-                  <span className="text-lg font-bold text-[#FF7E93]">
-                    {Math.round(product.price * (1 - product.discount / 100)).toLocaleString()} FCFA
-                  </span>
-                  <span className="text-sm text-gray-500 line-through">
-                    {product.price.toLocaleString()} FCFA
-                  </span>
-                </>
-              ) : (
-                <span className="text-lg font-bold text-[#FF7E93]">
-                  {product.price.toLocaleString()} FCFA
-                </span>
-              )}
+              <span className="text-lg font-bold text-[#FF7E93]">
+                {(product.discountedPrice || product.price - 500).toLocaleString()} FCFA
+              </span>
+              <span className="text-sm text-gray-500 line-through">
+                {product.price.toLocaleString()} FCFA
+              </span>
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+                -500 FCFA
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Actions pour upsell */}
         <div className="flex gap-3">
           <button
             onClick={onAccept}
@@ -184,17 +171,11 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
             Non merci
           </button>
         </div>
-        
-        {product.discount && (
-          <div className="text-xs text-center text-gray-500 mt-2">
-            ⏰ Offre limitée - Économisez {Math.round(product.price * product.discount / 100).toLocaleString()} FCFA
-          </div>
-        )}
       </motion.div>
     );
   }
 
-  // ✅ RENDU STANDARD (recommendation/related) avec VRAIES DONNÉES
+  // ✅ RENDU STANDARD (recommendation/related)
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -203,7 +184,6 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
       onClick={() => onViewDetails?.(product.id)}
     >
       <div className="flex gap-3">
-        {/* Image du produit */}
         <div className="relative w-16 h-16 flex-shrink-0">
           <Image
             src={primaryImage}
@@ -217,54 +197,55 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
             }}
           />
           
-          {/* Badge d'urgence */}
-          {product.urgency && (
-            <div className={`absolute -top-1 -right-1 px-2 py-1 rounded-full text-xs font-medium ${
-              product.urgency === 'high' ? 'text-red-600 bg-red-50' :
-              product.urgency === 'medium' ? 'text-orange-600 bg-orange-50' :
-              'text-blue-600 bg-blue-50'
-            }`}>
-              {product.urgency === 'high' ? '🔥' : product.urgency === 'medium' ? '⭐' : '💡'}
+          {/* Badge réduction si applicable */}
+          {product.discountAmount && (
+            <div className="absolute -top-1 -right-1 bg-green-500 text-white text-xs font-bold w-10 h-10 rounded-full flex items-center justify-center">
+              -500F
             </div>
           )}
         </div>
 
-        {/* Informations du produit */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-2">
             <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate pr-2">
               {product.name.startsWith('le jeu') ? product.name : `le jeu ${product.name}`}
             </h4>
-            <div className="text-[#FF7E93] font-bold text-sm whitespace-nowrap">
-              {product.price.toLocaleString()} FCFA
+            
+            {/* ✅ PRIX AVEC GESTION DE LA RÉDUCTION */}
+            <div className="text-right">
+              {product.discountedPrice ? (
+                <>
+                  <div className="text-[#FF7E93] font-bold text-sm whitespace-nowrap">
+                    {product.discountedPrice.toLocaleString()} FCFA
+                  </div>
+                  <div className="text-xs text-gray-500 line-through">
+                    {product.price.toLocaleString()} FCFA
+                  </div>
+                </>
+              ) : (
+                <div className="text-[#FF7E93] font-bold text-sm whitespace-nowrap">
+                  {product.price.toLocaleString()} FCFA
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Raison de la recommandation */}
           {product.reason && (
             <div className="text-xs text-gray-600 mb-2 line-clamp-2">
               {product.reason}
             </div>
           )}
 
-          {/* ✅ CORRECTION MAJEURE: Métadonnées avec VRAIES DONNÉES */}
           <div className="flex items-center gap-3 mb-3">
-            {/* Rating si disponible */}
             {realStats.avgRating > 0 && (
               <div className="flex items-center gap-1">
                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                 <span className="text-xs text-gray-600">
                   {realStats.avgRating.toFixed(1)}
                 </span>
-                {realStats.reviewsCount > 0 && (
-                  <span className="text-xs text-gray-400">
-                    ({realStats.reviewsCount})
-                  </span>
-                )}
               </div>
             )}
 
-            {/* Nombre de ventes RÉELLES */}
             {realStats.salesCount > 0 && (
               <div className="flex items-center gap-1">
                 <Users className="w-3 h-3 text-gray-400" />
@@ -274,21 +255,15 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
               </div>
             )}
 
-            {/* Badge d'urgence textuel */}
-            {product.urgency && (
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                product.urgency === 'high' ? 'text-red-600 bg-red-50' :
-                product.urgency === 'medium' ? 'text-orange-600 bg-orange-50' :
-                'text-blue-600 bg-blue-50'
-              }`}>
-                {product.urgency === 'high' ? '🔥 Très demandé' :
-                 product.urgency === 'medium' ? '⭐ Populaire' :
-                 '💡 Recommandé'}
-              </div>
+            {/* Badge économie si réduction */}
+            {product.discountAmount && (
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+                <Sparkles className="w-3 h-3 inline mr-1" />
+                Économisez 500F
+              </span>
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2">
             <button
               onClick={(e) => {
@@ -301,7 +276,10 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
             </button>
             
             <button
-              onClick={() => onViewDetails?.(product.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewDetails?.(product.id);
+              }}
               className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               title="Voir les détails"
             >
@@ -314,7 +292,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
   );
 };
 
-// ✅ COMPOSANT LISTE: Grille de recommandations avec VRAIES DONNÉES
+// ✅ COMPOSANT LISTE DE PRODUITS
 interface ChatProductListProps {
   products: ChatProduct[];
   title?: string;
@@ -333,30 +311,20 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
   className = ''
 }) => {
   if (!products || products.length === 0) {
-    return (
-      <div className="text-center py-6">
-        <div className="text-gray-500 mb-3">
-          🎯 Aucune recommandation disponible pour le moment
-        </div>
-        <div className="text-sm text-gray-400">
-          Nos algorithmes travaillent à vous proposer les meilleurs jeux !
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  // ✅ CORRECTION: Trier les produits par vraies statistiques
+  // Trier par popularité
   const sortedProducts = [...products].sort((a, b) => {
     const aStats = {
-      salesCount: a.sales_count || a.stats?.sales_count || a.stats?.sold || 0,
-      avgRating: a.rating || a.stats?.avg_rating || a.stats?.satisfaction || 0
+      salesCount: a.sales_count || a.stats?.sales_count || 0,
+      avgRating: a.rating || a.stats?.avg_rating || 0
     };
     const bStats = {
-      salesCount: b.sales_count || b.stats?.sales_count || b.stats?.sold || 0,
-      avgRating: b.rating || b.stats?.avg_rating || b.stats?.satisfaction || 0
+      salesCount: b.sales_count || b.stats?.sales_count || 0,
+      avgRating: b.rating || b.stats?.avg_rating || 0
     };
     
-    // Trier par ventes d'abord, puis par note
     if (aStats.salesCount !== bStats.salesCount) {
       return bStats.salesCount - aStats.salesCount;
     }
@@ -387,30 +355,32 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
         ))}
       </div>
       
-      {/* ✅ AJOUT: Statistiques récapitulatives */}
-      {sortedProducts.length > 1 && (
-        <div className="text-xs text-gray-500 text-center mt-3 p-2 bg-gray-50 rounded-lg">
-          {sortedProducts.length} jeux disponibles • 
-          {" "}
-          {sortedProducts.reduce((sum, p) => sum + (p.sales_count || p.stats?.sales_count || 0), 0)} ventes au total •
-          {" "}
-          Note moyenne: {(sortedProducts.reduce((sum, p) => sum + (p.rating || p.stats?.avg_rating || 5), 0) / sortedProducts.length).toFixed(1)}/5
+      {/* Info économies totales */}
+      {sortedProducts.some(p => p.discountAmount) && (
+        <div className="text-center mt-3 p-2 bg-green-50 rounded-lg">
+          <Sparkles className="w-4 h-4 text-green-600 inline mr-1" />
+          <span className="text-xs text-green-700 font-medium">
+            Économisez 500 FCFA sur chaque jeu supplémentaire !
+          </span>
         </div>
       )}
     </div>
   );
 };
 
-// ✅ COMPOSANT PANIER: Résumé de commande dans le chat avec VRAIES DONNÉES
+// ✅ COMPOSANT RÉSUMÉ DE COMMANDE
 interface ChatOrderSummaryProps {
   orderItems: Array<{
     productId: string;
     name: string;
     quantity: number;
     price: number;
+    discountedPrice?: number;
+    discount?: number;
     image?: string;
   }>;
   totalAmount: number;
+  totalDiscount?: number;
   onQuantityChange: (productId: string, newQuantity: number) => void;
   onRemoveItem: (productId: string) => void;
   onProceedToCheckout: () => void;
@@ -420,6 +390,7 @@ interface ChatOrderSummaryProps {
 export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
   orderItems,
   totalAmount,
+  totalDiscount = 0,
   onQuantityChange,
   onRemoveItem,
   onProceedToCheckout,
@@ -443,8 +414,15 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
           </span>
         </h3>
         
-        <div className="text-lg font-bold text-[#FF7E93]">
-          {totalAmount.toLocaleString()} FCFA
+        <div className="text-right">
+          <div className="text-lg font-bold text-[#FF7E93]">
+            {totalAmount.toLocaleString()} FCFA
+          </div>
+          {totalDiscount > 0 && (
+            <div className="text-xs text-green-600">
+              Économie: {totalDiscount.toLocaleString()} FCFA
+            </div>
+          )}
         </div>
       </div>
 
@@ -472,7 +450,17 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
                 {item.name.startsWith('le jeu') ? item.name : `le jeu ${item.name}`}
               </div>
               <div className="text-xs text-gray-600">
-                {item.price.toLocaleString()} FCFA × {item.quantity}
+                {item.discountedPrice ? (
+                  <>
+                    <span className="font-medium">{item.discountedPrice.toLocaleString()} FCFA</span>
+                    {item.discount && item.discount > 0 && (
+                      <span className="text-green-600 ml-1">(-{item.discount} FCFA)</span>
+                    )}
+                  </>
+                ) : (
+                  `${item.price.toLocaleString()} FCFA`
+                )}
+                {' × '}{item.quantity}
               </div>
             </div>
 
@@ -515,7 +503,6 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
         <ArrowRight className="w-5 h-5" />
       </button>
       
-      {/* ✅ AJOUT: Informations de livraison */}
       <div className="text-xs text-gray-500 text-center mt-2">
         📦 Livraison gratuite à Dakar • 2,500 FCFA ailleurs au Sénégal
       </div>

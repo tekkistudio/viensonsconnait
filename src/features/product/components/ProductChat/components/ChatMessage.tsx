@@ -147,102 +147,42 @@ const handleWavePayment = async (
   metadata?: ChatMessageMetadata,
   onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('🌊 Processing Wave payment with mobile optimization:', choice);
+  console.log('🌊 Processing Wave payment - Mobile optimized');
   
   try {
-    // ✅ CORRECTION: Extraire le montant de manière sécurisée
+    // Extraire le montant
     let amount = 0;
-    
-    if (metadata?.paymentAmount && typeof metadata.paymentAmount === 'number') {
+    if (metadata?.paymentAmount) {
       amount = metadata.paymentAmount;
-    } else if (metadata?.orderData && isValidOrderData(metadata.orderData)) {
+    } else if (metadata?.orderData) {
       amount = extractTotalAmount(metadata.orderData);
     }
     
     if (amount <= 0) {
-      console.warn('⚠️ No valid payment amount found for Wave');
+      console.warn('⚠️ Invalid amount for Wave payment');
       return { success: false };
     }
     
-    // ✅ NOUVEAU: Détecter le type d'appareil avec plus de précision
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
+    // Configuration Wave
+    const merchantId = 'M_OfAgT8X_IT6P';
+    const waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
     
-    console.log('📱 Device detection:', { isMobile, isIOS, isAndroid });
+    // ✅ SOLUTION UNIVERSELLE: Redirection directe
+    console.log('🚀 Redirecting to Wave:', waveUrl);
+    window.location.href = waveUrl;
     
-    // ✅ CORRECTION MAJEURE: URLs Wave optimisées
-    let waveUrl: string;
-    const merchantId = 'M_OfAgT8X_IT6P'; // Votre ID marchand Wave
-    
-    if (isMobile) {
-      if (isIOS) {
-        // ✅ iOS : Utiliser le scheme wave:// avec fallback web
-        waveUrl = `wave://pay?merchant=${merchantId}&amount=${amount}`;
-        
-        console.log('📱 iOS Wave deep link:', waveUrl);
-        
-        // Essayer le lien profond iOS
-        const deepLinkFrame = document.createElement('iframe');
-        deepLinkFrame.style.display = 'none';
-        deepLinkFrame.src = waveUrl;
-        document.body.appendChild(deepLinkFrame);
-        
-        // Fallback web après 2.5 secondes
-        setTimeout(() => {
-          document.body.removeChild(deepLinkFrame);
-          const webUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
-          console.log('🌐 iOS fallback to web:', webUrl);
-          window.open(webUrl, '_blank');
-        }, 2500);
-        
-      } else if (isAndroid) {
-        // ✅ Android : Intent avec fallback
-        waveUrl = `intent://pay?merchant=${merchantId}&amount=${amount}#Intent;scheme=wave;package=com.wave.personal;end`;
-        
-        console.log('🤖 Android Wave intent:', waveUrl);
-        
-        try {
-          window.location.href = waveUrl;
-        } catch (error) {
-          // Fallback vers URL web si l'intent échoue
-          const webUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
-          console.log('🌐 Android fallback to web:', webUrl);
-          window.open(webUrl, '_blank');
-        }
-        
-      } else {
-        // ✅ Autre mobile : URL web directe
-        waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
-        console.log('📱 Generic mobile web URL:', waveUrl);
-        window.open(waveUrl, '_blank');
-      }
-      
-    } else {
-      // ✅ Desktop : URL web dans nouvel onglet
-      waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
-      
-      console.log('🖥️ Desktop Wave URL:', waveUrl);
-      
-      const newWindow = window.open(waveUrl, '_blank', 'width=800,height=600');
-      if (!newWindow) {
-        // Si popup bloqué, redirection même fenêtre
-        window.location.href = waveUrl;
-      }
-    }
-    
-    // ✅ NOUVEAU: Déclencher le retour automatique après délai
-    setTimeout(() => {
-      if (onChoiceSelect) {
-        console.log('🔄 Auto-triggering Wave payment return flow');
+    // Déclencher le callback après un délai
+    if (onChoiceSelect) {
+      setTimeout(() => {
+        console.log('🔄 Triggering Wave return flow');
         onChoiceSelect('WAVE_PAYMENT_INITIATED');
-      }
-    }, isMobile ? 6000 : 4000); // Plus de temps sur mobile
+      }, 3000);
+    }
     
     return { success: true, redirected: true };
     
   } catch (error) {
-    console.error('❌ Wave payment error:', error);
+    console.error('❌ Wave error:', error);
     return { success: false };
   }
 };

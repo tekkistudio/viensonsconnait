@@ -477,7 +477,7 @@ export default function MobileProductPageContent({ productId, product }: MobileP
           {/* 🎯 PRIX OPTIMISÉ - UNE SEULE LIGNE */}
           <div className="flex items-center gap-3 mb-6">
           {formattedPrice && (
-            <span className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+            <span className={`text-2xl sm:text-2xl font-bold transition-colors duration-300 ${
               theme === 'light' ? 'text-gray-900' : 'text-white'
             }`}>
               {formattedPrice}
