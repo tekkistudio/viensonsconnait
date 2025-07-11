@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatProductCards.tsx - CORRIGÉ AVEC VRAIES DONNÉES
+// src/features/product/components/ProductChat/components/ChatProductCards.tsx - VERSION CORRIGÉE
 
 'use client';
 
@@ -17,9 +17,9 @@ interface ChatProduct {
     sold?: number;
     satisfaction?: number;
     reviews?: number;
-    sales_count?: number;   // ✅ AJOUT: Compatible avec la DB
-    reviews_count?: number; // ✅ AJOUT: Compatible avec la DB
-    avg_rating?: number;    // ✅ AJOUT: Compatible avec la DB
+    sales_count?: number;   
+    reviews_count?: number; 
+    avg_rating?: number;    
   };
   // Spécifique aux recommandations
   reason?: string;
@@ -96,7 +96,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
           <div className="relative w-20 h-20 flex-shrink-0">
             <Image
               src={primaryImage}
-              alt={`le jeu ${product.name}`}
+              alt={product.name}
               fill
               className="object-cover rounded-lg"
               sizes="80px"
@@ -117,7 +117,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
           {/* Informations */}
           <div className="flex-1">
             <h4 className="font-bold text-gray-900 mb-1">
-              le jeu {product.name}
+              {product.name.startsWith('le jeu') ? product.name : `le jeu ${product.name}`}
             </h4>
             
             {product.reason && (
@@ -207,7 +207,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
         <div className="relative w-16 h-16 flex-shrink-0">
           <Image
             src={primaryImage}
-            alt={`le jeu ${product.name}`}
+            alt={product.name}
             fill
             className="object-cover rounded-lg"
             sizes="64px"
@@ -233,7 +233,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-2">
             <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate pr-2">
-              le jeu {product.name}
+              {product.name.startsWith('le jeu') ? product.name : `le jeu ${product.name}`}
             </h4>
             <div className="text-[#FF7E93] font-bold text-sm whitespace-nowrap">
               {product.price.toLocaleString()} FCFA
@@ -297,7 +297,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({
               }}
               className="flex-1 bg-[#FF7E93] text-white text-xs font-medium py-2 px-3 rounded-lg hover:bg-[#132D5D] transition-colors duration-200"
             >
-              Ajouter au panier
+              Ajouter à la commande
             </button>
             
             <button
@@ -332,7 +332,18 @@ export const ChatProductList: React.FC<ChatProductListProps> = ({
   onViewDetails,
   className = ''
 }) => {
-  if (!products || products.length === 0) return null;
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <div className="text-gray-500 mb-3">
+          🎯 Aucune recommandation disponible pour le moment
+        </div>
+        <div className="text-sm text-gray-400">
+          Nos algorithmes travaillent à vous proposer les meilleurs jeux !
+        </div>
+      </div>
+    );
+  }
 
   // ✅ CORRECTION: Trier les produits par vraies statistiques
   const sortedProducts = [...products].sort((a, b) => {
@@ -444,7 +455,7 @@ export const ChatOrderSummary: React.FC<ChatOrderSummaryProps> = ({
               <div className="relative w-12 h-12 flex-shrink-0">
                 <Image
                   src={item.image}
-                  alt={`le jeu ${item.name}`}
+                  alt={item.name}
                   fill
                   className="object-cover rounded-md"
                   sizes="48px"

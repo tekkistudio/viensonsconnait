@@ -595,6 +595,8 @@ export interface MessageFlags {
   productUnavailable?: boolean;
   wavePayment?: boolean;
   paymentValidated?: boolean;
+  validationWarnings?: string;
+  warningCount?: number;
   
   // Flags IA
   professionalAIUsed?: boolean;

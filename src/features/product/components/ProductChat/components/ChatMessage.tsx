@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatMessage.tsx - VERSION CORRIGÉE TYPESCRIPT
+// src/features/product/components/ProductChat/components/ChatMessage.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -124,7 +124,7 @@ const extractTotalAmount = (orderData: unknown): number => {
 const isPaymentButton = (choice: string): boolean => {
   const paymentKeywords = [
     'payer', 'wave', 'carte', 'livraison', 'bancaire', 
-    '💳', '🌊', '📱', '🛵', '💵'
+    '💳', '🐧', '📱', '🛵', '💵'
   ];
   
   return paymentKeywords.some(keyword => 
@@ -141,13 +141,13 @@ const isMobileDevice = (): boolean => {
   );
 };
 
-// ✅ FONCTION CORRIGÉE: Gestion des paiements Wave avec liens profonds mobile
+// ✅ FONCTION CORRIGÉE: Gestion Wave avec liens profonds mobile optimisés
 const handleWavePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
   onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('🌊 Processing Wave payment:', choice);
+  console.log('🌊 Processing Wave payment with mobile optimization:', choice);
   
   try {
     // ✅ CORRECTION: Extraire le montant de manière sécurisée
@@ -164,52 +164,80 @@ const handleWavePayment = async (
       return { success: false };
     }
     
-    // ✅ CORRECTION MAJEURE: Liens Wave spécifiques selon l'appareil
-    const isMobile = isMobileDevice();
+    // ✅ NOUVEAU: Détecter le type d'appareil avec plus de précision
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
     
+    console.log('📱 Device detection:', { isMobile, isIOS, isAndroid });
+    
+    // ✅ CORRECTION MAJEURE: URLs Wave optimisées
     let waveUrl: string;
+    const merchantId = 'M_OfAgT8X_IT6P'; // Votre ID marchand Wave
     
     if (isMobile) {
-      // ✅ CORRECTION: Utiliser le lien profond Wave pour mobile
-      // Format: wave://pay?amount=XXXX&merchant=YYYY
-      const merchantId = 'M_OfAgT8X_IT6P'; // Votre ID marchand Wave
-      waveUrl = `wave://pay?amount=${amount}&merchant=${merchantId}`;
-      
-      console.log('📱 Mobile Wave deep link:', waveUrl);
-      
-      // ✅ Essayer d'ouvrir l'app Wave via le lien profond
-      const deepLinkAttempt = document.createElement('a');
-      deepLinkAttempt.href = waveUrl;
-      deepLinkAttempt.click();
-      
-      // ✅ FALLBACK: Si l'app ne s'ouvre pas dans 2 secondes, utiliser le lien web
-      setTimeout(() => {
-        console.log('📱 Deep link fallback - opening web version');
-        const webFallbackUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
-        window.open(webFallbackUrl, '_blank');
-      }, 2000);
+      if (isIOS) {
+        // ✅ iOS : Utiliser le scheme wave:// avec fallback web
+        waveUrl = `wave://pay?merchant=${merchantId}&amount=${amount}`;
+        
+        console.log('📱 iOS Wave deep link:', waveUrl);
+        
+        // Essayer le lien profond iOS
+        const deepLinkFrame = document.createElement('iframe');
+        deepLinkFrame.style.display = 'none';
+        deepLinkFrame.src = waveUrl;
+        document.body.appendChild(deepLinkFrame);
+        
+        // Fallback web après 2.5 secondes
+        setTimeout(() => {
+          document.body.removeChild(deepLinkFrame);
+          const webUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
+          console.log('🌐 iOS fallback to web:', webUrl);
+          window.open(webUrl, '_blank');
+        }, 2500);
+        
+      } else if (isAndroid) {
+        // ✅ Android : Intent avec fallback
+        waveUrl = `intent://pay?merchant=${merchantId}&amount=${amount}#Intent;scheme=wave;package=com.wave.personal;end`;
+        
+        console.log('🤖 Android Wave intent:', waveUrl);
+        
+        try {
+          window.location.href = waveUrl;
+        } catch (error) {
+          // Fallback vers URL web si l'intent échoue
+          const webUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
+          console.log('🌐 Android fallback to web:', webUrl);
+          window.open(webUrl, '_blank');
+        }
+        
+      } else {
+        // ✅ Autre mobile : URL web directe
+        waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
+        console.log('📱 Generic mobile web URL:', waveUrl);
+        window.open(waveUrl, '_blank');
+      }
       
     } else {
-      // ✅ Desktop : Utiliser le lien web Wave
-      waveUrl = `https://pay.wave.com/m/M_OfAgT8X_IT6P/c/sn/?amount=${amount}`;
+      // ✅ Desktop : URL web dans nouvel onglet
+      waveUrl = `https://pay.wave.com/m/${merchantId}/c/sn/?amount=${amount}`;
       
       console.log('🖥️ Desktop Wave URL:', waveUrl);
       
-      // Desktop : Ouvrir dans un nouvel onglet
       const newWindow = window.open(waveUrl, '_blank', 'width=800,height=600');
       if (!newWindow) {
-        // Si le popup est bloqué, essayer la même fenêtre
+        // Si popup bloqué, redirection même fenêtre
         window.location.href = waveUrl;
       }
     }
     
-    // ✅ NOUVEAU: Après redirection, déclencher automatiquement le retour
+    // ✅ NOUVEAU: Déclencher le retour automatique après délai
     setTimeout(() => {
       if (onChoiceSelect) {
         console.log('🔄 Auto-triggering Wave payment return flow');
         onChoiceSelect('WAVE_PAYMENT_INITIATED');
       }
-    }, isMobile ? 5000 : 3000); // Plus de temps sur mobile pour les liens profonds
+    }, isMobile ? 6000 : 4000); // Plus de temps sur mobile
     
     return { success: true, redirected: true };
     
@@ -219,13 +247,13 @@ const handleWavePayment = async (
   }
 };
 
-// ✅ FONCTION: Gestion des paiements Stripe avec modal intégré
+// ✅ FONCTION CORRIGÉE: Gestion Stripe mobile avec redirection optimisée
 const handleStripePayment = async (
   choice: string, 
   metadata?: ChatMessageMetadata,
   onChoiceSelect?: (choice: string) => void
 ): Promise<{ success: boolean; redirected?: boolean }> => {
-  console.log('💳 Processing Stripe payment with integrated modal:', choice);
+  console.log('💳 Processing Stripe payment for mobile:', choice);
   
   try {
     let amount = 0;
@@ -241,15 +269,57 @@ const handleStripePayment = async (
       return { success: false };
     }
     
-    // ✅ NOUVEAU: Déclencher l'ouverture du modal Stripe intégré
-    if (onChoiceSelect) {
-      onChoiceSelect(`STRIPE_MODAL_OPEN:${amount}`);
+    // ✅ NOUVEAU: Détecter si mobile pour choisir le bon flow
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // ✅ Mobile : Créer session Checkout pour redirection
+      console.log('📱 Mobile Stripe: Creating checkout session for redirect');
+      
+      try {
+        const response = await fetch('/api/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount, // Le endpoint gère la conversion FCFA → EUR
+            currency: 'eur',
+            orderId: `MOBILE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            successUrl: `${window.location.origin}/payment-success?mobile=true`,
+            cancelUrl: `${window.location.origin}/payment-cancel?mobile=true`
+          }),
+        });
+
+        if (response.ok) {
+          const session = await response.json();
+          
+          if (session.url) {
+            console.log('✅ Redirecting to Stripe Checkout:', session.url);
+            window.location.href = session.url; // Redirection complète sur mobile
+            return { success: true, redirected: true };
+          }
+        } else {
+          console.error('❌ Checkout session creation failed:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Error creating checkout session:', error);
+      }
+      
+      // Fallback si la redirection échoue
+      return { success: false };
+      
+    } else {
+      // ✅ Desktop : Utiliser le modal intégré
+      console.log('🖥️ Desktop Stripe: Using integrated modal');
+      
+      if (onChoiceSelect) {
+        onChoiceSelect(`STRIPE_MODAL_OPEN:${amount}`);
+      }
+      
+      return { success: true, redirected: false };
     }
     
-    return { success: true, redirected: false };
-    
   } catch (error) {
-    console.error('❌ Stripe modal opening error:', error);
+    console.error('❌ Stripe payment processing error:', error);
     return { success: false };
   }
 };
@@ -418,7 +488,6 @@ export default function ChatMessage({
 
           {/* Horodatage */}
           <div className="mt-2 text-xs opacity-70 flex items-center gap-2">
-            <Clock className="w-3 h-3" />
             {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
               minute: '2-digit'
@@ -464,20 +533,25 @@ export default function ChatMessage({
               />
             )}
 
-            {/* ✅ RECOMMANDATIONS - Type safe */}
+            {/* ✅ RECOMMANDATIONS - Type safe avec gestion complète */}
             {hasRecommendedProducts && (
               <ChatProductList
                 products={recommendedProducts as any[]}
-                title="Vous pourriez aussi aimer :"
+                title="Nos clients ont aussi aimé ces jeux :"
                 variant="recommendation"
                 onAddToCart={(productId: string) => {
                   if (onChoiceSelect) {
-                    onChoiceSelect(`Ajouter ${productId} au panier`);
+                    // ✅ CORRECTION : Message plus explicite pour l'ajout
+                    const selectedProduct = (recommendedProducts as any[]).find(p => p.id === productId);
+                    const productName = selectedProduct?.name || 'ce jeu';
+                    onChoiceSelect(`Je veux aussi commander le jeu ${productName}`);
                   }
                 }}
                 onViewDetails={(productId: string) => {
                   if (onChoiceSelect) {
-                    onChoiceSelect(`Voir détails ${productId}`);
+                    const selectedProduct = (recommendedProducts as any[]).find(p => p.id === productId);
+                    const productName = selectedProduct?.name || 'ce jeu';
+                    onChoiceSelect(`J'aimerais en savoir plus sur le jeu ${productName}`);
                   }
                 }}
               />

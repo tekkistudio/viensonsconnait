@@ -1,4 +1,5 @@
-// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION HARMONISÉE AVEC CORRECTIONS
+// src/features/product/components/ProductChat/components/MobileChatContainer.tsx - VERSION COMPLÈTE MISE À JOUR
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -13,8 +14,10 @@ import { WelcomeMessageService } from '@/lib/services/WelcomeMessageService';
 import { productStatsService } from '@/lib/services/product-stats.service';
 import { testimonialsService } from '@/lib/services/testimonials.service';
 import { useSpeechRecognition } from '@/lib/services/SpeechRecognitionService';
+import { usePersonalization } from '@/hooks/usePersonalization';
 import TypingIndicator from './TypingIndicator';
 import ChatMessage from './ChatMessage';
+import ChatChoices from './ChatChoices';
 import QuantitySelector from './QuantitySelector';
 import type { PaymentProvider } from '@/types/order';
 import type { ProductData } from '@/types/chat';
@@ -205,7 +208,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
   const optimizedService = OptimizedChatService.getInstance();
   const welcomeService = WelcomeMessageService.getInstance();
 
-  // ✅ Utilisation sélective du store pour éviter les re-renders
+  // Utilisation sélective du store pour éviter les re-renders
   const store = useChatStore();
   const {
     messages = [],
@@ -238,12 +241,29 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   } = store;
 
-  // ✅ État du panier dérivé des messages et orderData
+  // ✅ HOOK DE PERSONNALISATION MOBILE
+  const {
+    analyzeMessage,
+    getPersonalizedRecommendations,
+    personalizeMessage,
+    getUserProfile,
+    isProfileReady
+  } = usePersonalization({
+    sessionId,
+    productId: product.id,
+    productName: product.name,
+    messages,
+    onProfileUpdate: (profile) => {
+      console.log('🎯 [MOBILE] Profile updated:', profile.relationshipStatus, profile.interests);
+    }
+  });
+
+  // État du panier dérivé des messages et orderData
   const [cartInfo, setCartInfo] = useState({
     hasItems: false,
     itemsCount: 0,
     totalAmount: 0,
-    productName: `le jeu ${product.name}` // ✅ CORRECTION: "le jeu" ajouté
+    productName: `le jeu ${product.name}`
   });
 
   // ✅ CORRECTION MAJEURE: Fonction de détection du panier pour mobile HARMONISÉE
@@ -259,7 +279,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
       hasItems: false,
       itemsCount: 0,
       totalAmount: 0,
-      productName: `le jeu ${product.name}` // ✅ CORRECTION: "le jeu" ajouté
+      productName: `le jeu ${product.name}`
     };
 
     // PRIORITÉ 1: orderData direct (plus fiable)
@@ -270,7 +290,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
         hasItems: true,
         itemsCount: orderData.quantity,
         totalAmount: totalAmount,
-        productName: `le jeu ${product.name}` // ✅ CORRECTION: "le jeu" ajouté
+        productName: `le jeu ${product.name}`
       };
       
       console.log('✅ [MOBILE] Cart found in orderData:', newCartInfo);
@@ -308,7 +328,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                 hasItems: true,
                 itemsCount: quantity,
                 totalAmount: totalAmount,
-                productName: `le jeu ${product.name}` // ✅ CORRECTION: "le jeu" ajouté
+                productName: `le jeu ${product.name}`
               };
               
               console.log('✅ [MOBILE] Cart found in messages:', newCartInfo);
@@ -319,7 +339,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                 hasItems: true,
                 itemsCount: quantity,
                 totalAmount: quantity * product.price,
-                productName: `le jeu ${product.name}` // ✅ CORRECTION: "le jeu" ajouté
+                productName: `le jeu ${product.name}`
               };
               
               console.log('✅ [MOBILE] Cart calculated from quantity:', newCartInfo);
@@ -382,12 +402,12 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           const currentState = useChatStore.getState();
           
           if (currentState.messages.length === 0 && !welcomeMessageSent) {
-            // ✅ ÉTAPE 1: Afficher "Rose écrit..." pendant 2 secondes
-            console.log('📝 Showing typing indicator...');
+            // ✅ ÉTAPE 1: Afficher "Rose écrit..." pendant 2.5 secondes
+            console.log('📝 [MOBILE] Showing typing indicator...');
             setShowTyping(true);
             updateTypingStatus(true);
             
-            // ✅ ÉTAPE 2: Après 2 secondes, afficher le MESSAGE HARMONISÉ
+            // ✅ ÉTAPE 2: Après 2.5 secondes, afficher le MESSAGE HARMONISÉ
             setTimeout(() => {
               setShowTyping(false);
               updateTypingStatus(false);
@@ -400,10 +420,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
                 product.price
               );
               
-              console.log('📝 Adding HARMONIZED welcome message to mobile chat');
+              console.log('📝 [MOBILE] Adding HARMONIZED welcome message');
               addMessage(welcomeMessage);
               setWelcomeMessageSent(true);
-            }, 2000); // ✅ 2 secondes de typing indicator
+            }, 2500); // ✅ 2.5 secondes de typing indicator (comme desktop)
           } else {
             console.log('⚠️ Mobile: Welcome message skipped - messages exist or already sent');
             setWelcomeMessageSent(true);
@@ -445,7 +465,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
         setStats({
           viewsCount: productStats.currentViewers || 1,
           salesCount: productStats.sold || 0,
-          reviewsCount: testimonialsCount || 0  // ✅ VRAIE DONNÉE des testimonials
+          reviewsCount: testimonialsCount || 0
         });
 
         // ✅ UTILISER LA VRAIE NOTE MOYENNE
@@ -453,7 +473,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           setRating(averageRating);
         }
 
-        console.log('📊 Real stats loaded:', {
+        console.log('📊 [MOBILE] Real stats loaded:', {
           viewsCount: productStats.currentViewers || 1,
           salesCount: productStats.sold || 0,
           reviewsCount: testimonialsCount || 0,
@@ -473,7 +493,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
             const count = testimonials.length;
             const avgRating = testimonials.length > 0 
               ? testimonials.reduce((sum, t) => sum + t.rating, 0) / testimonials.length
-              : 5;
+              : (product.rating || 5);
 
             setStats(prev => ({
               ...prev,
@@ -524,7 +544,7 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
   }, [messages.length, showTyping]);
 
-  // ✅ CORRECTION MAJEURE: Envoi de message HARMONISÉ AVEC DESKTOP
+  // ✅ CORRECTION MAJEURE: Envoi de message HARMONISÉ AVEC DESKTOP + PERSONNALISATION
   const sendMessage = useCallback(async (content: string) => {
     if (isProcessing) {
       console.log('⏳ Already processing a message, ignoring');
@@ -532,7 +552,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
     }
 
     try {
-      console.log('📱 Processing mobile message HARMONIZED:', { content: content.substring(0, 50) });
+      console.log('📱 Processing mobile message HARMONIZED with PERSONALIZATION:', { content: content.substring(0, 50) });
+      
+      // ✅ ANALYSER LE MESSAGE POUR LA PERSONNALISATION
+      analyzeMessage(content);
       
       // ✅ GESTION: Ouverture du modal Stripe
       if (content.startsWith('STRIPE_MODAL_OPEN:')) {
@@ -558,6 +581,10 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
       };
       
       addMessage(userMessage);
+
+      // ✅ AFFICHER LE TYPING INDICATOR
+      setShowTyping(true);
+      updateTypingStatus(true);
 
       let response: ChatMessageType;
       
@@ -624,24 +651,62 @@ const MobileChatContainer: React.FC<MobileChatContainerProps> = ({
           throw new Error('API fallback failed');
         }
       }
+
+      // ✅ PERSONNALISER LA RÉPONSE SI POSSIBLE
+      let finalResponse = response;
+      if (isProfileReady && typeof response.content === 'string') {
+        const personalizedContent = personalizeMessage(
+          response.content,
+          response.metadata?.nextStep || currentStep
+        );
+        
+        if (personalizedContent !== response.content) {
+          finalResponse = {
+            ...response,
+            content: personalizedContent,
+            metadata: {
+              ...response.metadata,
+              flags: {
+                ...response.metadata?.flags,
+                personalized: true
+              }
+            }
+          };
+          console.log('🎯 [MOBILE] Message personalized based on user profile');
+        }
+      }
+
+      // ✅ DÉLAI RÉALISTE BASÉ SUR LA LONGUEUR DE LA RÉPONSE (comme desktop)
+      const responseLength = typeof finalResponse.content === 'string' ? finalResponse.content.length : 100;
+      const realisticDelay = Math.min(Math.max(responseLength * 30, 1200), 3500); // Entre 1.2s et 3.5s
+
+      console.log(`⏱️ [MOBILE] Response delay calculated: ${realisticDelay}ms for ${responseLength} characters`);
       
       // Délai pour l'animation
       setTimeout(() => {
-        console.log('✅ Mobile: Response generated and added');
-        addMessage(response);
+        // Cacher le typing indicator
+        setShowTyping(false);
+        updateTypingStatus(false);
         
-        if (response.metadata?.orderData) {
-          updateOrderData(response.metadata.orderData);
+        console.log('✅ Mobile: Response generated and added');
+        addMessage(finalResponse);
+        
+        if (finalResponse.metadata?.orderData) {
+          updateOrderData(finalResponse.metadata.orderData);
         }
         
         // Mettre à jour le step si nécessaire
-        if (response.metadata?.nextStep && store.setCurrentStep) {
-          store.setCurrentStep(response.metadata.nextStep);
+        if (finalResponse.metadata?.nextStep && store.setCurrentStep) {
+          store.setCurrentStep(finalResponse.metadata.nextStep);
         }
-      }, 800);
+      }, realisticDelay);
 
     } catch (err) {
       console.error('❌ Mobile: Error in sendMessage:', err);
+      
+      // Cacher le typing indicator en cas d'erreur
+      setShowTyping(false);
+      updateTypingStatus(false);
       
       setTimeout(() => {
         const errorMessage: ChatMessageType = {
@@ -662,7 +727,7 @@ Voulez-vous réessayer ?`,
         addMessage(errorMessage);
       }, 500);
     }
-  }, [isProcessing, product.id, product.name, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, optimizedService, store]);
+  }, [isProcessing, product.id, product.name, currentStep, orderData, sessionId, storeId, addMessage, updateOrderData, optimizedService, store, analyzeMessage, isProfileReady, personalizeMessage, updateTypingStatus]);
 
   // ✅ Gestion des choix avec protection
   const handleChoiceSelect = useCallback(async (choice: string) => {
@@ -673,14 +738,12 @@ Voulez-vous réessayer ?`,
 
     console.log('🔘 Mobile choice selected:', choice);
     setIsProcessing(true);
-    setShowTyping(true);
     
     try {
       await sendMessage(choice);
     } catch (error) {
       console.error('❌ Error sending choice:', error);
     } finally {
-      setShowTyping(false);
       setIsProcessing(false);
     }
   }, [isProcessing, sendMessage]);
@@ -692,14 +755,12 @@ Voulez-vous réessayer ?`,
     const message = inputMessage.trim();
     setInputMessage('');
     setIsProcessing(true);
-    setShowTyping(true);
     
     try {
       await sendMessage(message);
     } catch (error) {
       console.error('❌ Error sending message:', error);
     } finally {
-      setShowTyping(false);
       setIsProcessing(false);
     }
   }, [inputMessage, isProcessing, sendMessage]);
@@ -786,9 +847,16 @@ Voulez-vous réessayer ?`,
                 </span>
               </div>
             </div>
+
+            {/* ✅ PROFIL UTILISATEUR DEBUG MOBILE (à enlever en production) */}
+            {process.env.NODE_ENV === 'development' && isProfileReady && (
+              <div className="text-xs text-gray-400 bg-gray-100 p-1 rounded">
+                🎯 {getUserProfile()?.relationshipStatus}
+              </div>
+            )}
           </div>
 
-          {/* ✅ CORRECTION MAJEURE: BARRE DE COMMANDE MOBILE HARMONISÉE - Maintenant fonctionnelle */}
+          {/* ✅ BARRE PANIER MOBILE SIMPLIFIÉE - AFFICHAGE UNIQUEMENT */}
           {cartInfo.hasItems && cartInfo.itemsCount > 0 && cartInfo.totalAmount > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -829,7 +897,7 @@ Voulez-vous réessayer ?`,
         {/* ✅ ZONE DES MESSAGES */}
         <div
           ref={chatRef}
-          className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain"
+          className="flex-1 overflow-y-auto bg-[#F0F2F5] p-4 space-y-4 overscroll-y-contain relative"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {messages && messages.length > 0 ? (
@@ -873,14 +941,14 @@ Voulez-vous réessayer ?`,
                 </motion.div>
               ))}
 
-              {showTyping && (
+              {(showTyping || isTyping) && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   key="typing-indicator"
                 >
-                  <TypingIndicator />
+                  <TypingIndicator assistantName="Rose" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -944,11 +1012,12 @@ Voulez-vous réessayer ?`,
 ✅ **Votre commande est maintenant confirmée**
 
 **Détails de livraison :**
+
 📍 ${orderData?.address || 'Adresse confirmée'}, ${orderData?.city || 'Ville confirmée'}
 ⏰ Livraison sous 24-48h ouvrables
 📞 Nous vous tiendrons informé(e) via WhatsApp
 
-🙏 **Merci pour votre confiance en VIENS ON S'CONNAÎT !**`,
+🙏 Merci pour votre confiance !`,
               choices: [
                 '⭐ Parfait, merci !',
                 '🛍️ Commander un autre jeu',
@@ -975,7 +1044,6 @@ Voulez-vous réessayer ?`,
           }}
           onError={(error) => {
             console.error('❌ Mobile Stripe payment error:', error);
-            // ✅ Le modal gère déjà l'affichage de l'erreur
           }}
         />
 

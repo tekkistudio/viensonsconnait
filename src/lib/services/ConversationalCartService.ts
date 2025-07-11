@@ -122,9 +122,9 @@ export class ConversationalCartService {
 
       return {
         type: 'assistant',
-        content: `✅ **${product.name} ajouté à la commande !**
+        content: `✅ Le jeu **${product.name} a été ajouté à la commande !**
 
-🛒 **Votre commande (${cart.items.length} article${cart.items.length > 1 ? 's' : ''}) :**
+🛒 **Votre commande (${cart.items.length} jeu${cart.items.length > 1 ? 'x' : ''}) :**
 ${cart.items.map(item => `• ${item.name} x${item.quantity} = ${item.totalPrice.toLocaleString()} FCFA`).join('\n')}
 
 💰 **Total actuel :** ${cart.totalAmount.toLocaleString()} FCFA
@@ -187,7 +187,7 @@ Que souhaitez-vous faire maintenant ?`,
           type: 'assistant',
           content: `👋 **Heureuse de vous revoir sur la page du jeu ${product.name} !**
 
-🛒 **Votre commande actuel :**
+🛒 **Votre commande actuelle :**
 ${cartSummary}
 
 💰 **Total : ${cart.totalAmount.toLocaleString()} FCFA**

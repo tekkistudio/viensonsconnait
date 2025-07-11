@@ -77,20 +77,24 @@ export class AddressStepHandler {
 
     // ✅ Gestion des changements d'adresse
     const addressChanges = [
-      'changer d\'adresse',
-      'changer adresse',
-      'nouvelle adresse',
-      'autre adresse',
-      'modifier l\'adresse',
-      'modifier adresse',
-      'différente adresse',
-      'changer',
-      'modifier',
-      'nouvelle',
-      'autre',
-      'différente',
-      'non'
-    ];
+    'changer d\'adresse',
+    'changer adresse', 
+    'nouvelle adresse',
+    'autre adresse',
+    'modifier l\'adresse',
+    'modifier adresse',
+    'différente adresse',
+    'essayer une autre adresse',
+    'essayer une autre',
+    'une autre adresse',
+    'changer',
+    'modifier',
+    'nouvelle',
+    'autre',
+    'différente',
+    'non',
+    'essayer'
+  ];
     
     const isAddressChange = addressChanges.some(phrase => 
       messageNormalized.includes(phrase.toLowerCase())
@@ -129,25 +133,26 @@ export class AddressStepHandler {
 
       return {
         type: 'assistant',
-        content: `✅ **Parfait ! Adresse confirmée**
+        content: `✅ **Parfait ! Votre adresse est enregistrée**
 
-📍 **Livraison à :** ${orderState.data.address}, ${orderState.data.city}
+📍 Nous vous livrerons à :** ${orderState.data.address}, ${orderState.data.city}**
 
-💰 **Récapitulatif :**
-• ${orderState.data.quantity}x ${orderState.data.productName}
-• **Total : ${totalAmount.toLocaleString()} FCFA**
+💰 **Voici le Récapitulatif de votre commande :**
 
-🎯 **Dernière étape : Choisissez votre mode de paiement**`,
+• Commande : **${orderState.data.quantity}x ${orderState.data.productName}
+• Total : **${totalAmount.toLocaleString()} FCFA**
+
+Dernière étape : Choisissez votre mode de paiement`,
         choices: [
-          '📱 Wave (recommandé)',
-          '💳 Carte bancaire', 
-          '💵 Paiement à la livraison'
+          'Wave (recommandé)',
+          'Carte bancaire', 
+          'Paiement à la livraison'
         ],
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'express_payment' as ConversationStep,
-          orderData: orderDataForMetadata, // ✅ Type compatible
-          actions: messageActions, // ✅ CORRECTION: MessageActions au lieu d'objet inline
+          orderData: orderDataForMetadata, 
+          actions: messageActions, 
           flags: { 
             addressConfirmed: true,
             proceedToPayment: true 
@@ -157,19 +162,19 @@ export class AddressStepHandler {
       };
     }
 
-    // ✅ CAS 2: Demande de changement d'adresse
-    if (isAddressChange && !isAddressConfirmation) {
+    if (isAddressChange || messageNormalized.includes('essayer une autre adresse') || messageNormalized.includes('nouvelle adresse')) {
+  console.log('🔄 User requested address change');
       return {
         type: 'assistant',
-        content: `📍 **Nouvelle adresse de livraison**
+        content: `Pas de soucis 😊
 
 Veuillez indiquer votre nouvelle adresse complète :
 
 **Format attendu :** Quartier/Rue, Ville
-**Exemple :** Mermoz, Dakar
+**Ex :** Mermoz, Dakar
 
-Tapez votre nouvelle adresse ci-dessous :`,
-        choices: [], // Pas de choix, on attend la saisie libre
+Ecrivez votre nouvelle adresse ci-dessous :`,
+        choices: [], 
         assistant: { name: 'Rose', title: 'Assistante d\'achat' },
         metadata: {
           nextStep: 'express_address' as ConversationStep,
@@ -246,25 +251,26 @@ Tapez votre nouvelle adresse ci-dessous :`,
 
     return {
       type: 'assistant',
-      content: `✅ **Nouvelle adresse enregistrée !**
+      content: `✅ **Votre nouvelle adresse est enregistrée !**
 
-📍 **Livraison à :** ${orderState.data.address}, ${orderState.data.city}
+📍 Nous vous livrerons à :** ${orderState.data.address}, ${orderState.data.city}**
 
-💰 **Récapitulatif :**
-• ${orderState.data.quantity}x ${orderState.data.productName}
-• **Total : ${totalAmount.toLocaleString()} FCFA**
+**Voici le Récapitulatif de votre commande :**
 
-🎯 **Choisissez votre mode de paiement**`,
+• Commande : ${orderState.data.quantity}x ${orderState.data.productName}
+• Total : **${totalAmount.toLocaleString()} FCFA**
+
+Comment souhaitez-vous payer ?`,
       choices: [
-        '📱 Wave (recommandé)',
-        '💳 Carte bancaire', 
-        '💵 Paiement à la livraison'
+        'Wave (recommandé)',
+        'Carte bancaire', 
+        'Paiement à la livraison'
       ],
       assistant: { name: 'Rose', title: 'Assistante d\'achat' },
       metadata: {
         nextStep: 'express_payment' as ConversationStep,
-        orderData: orderDataForMetadata, // ✅ Type compatible
-        actions: messageActions, // ✅ CORRECTION: MessageActions au lieu d'objet inline
+        orderData: orderDataForMetadata, 
+        actions: messageActions, 
         flags: { 
           addressUpdated: true,
           newAddressSet: true,
@@ -287,9 +293,9 @@ Tapez votre nouvelle adresse ci-dessous :`,
 
 Voulez-vous :
 • **Garder cette adresse** pour la livraison
-• **Ou saisir une nouvelle adresse** ?
+• Ou saisir une **nouvelle adresse** ?
 
-Vous pouvez aussi taper directement votre nouvelle adresse (format: Quartier, Ville)`,
+Vous pouvez aussi écrire directement votre nouvelle adresse (format: Quartier, Ville)`,
       choices: [
         'Oui, même adresse',
         'Changer d\'adresse'

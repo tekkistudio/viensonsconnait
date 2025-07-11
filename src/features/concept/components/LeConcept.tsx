@@ -226,7 +226,7 @@ export default function LeConcept() {
                 Impact positif
               </h2>
               <p className="text-lg text-gray-600">
-                Plus de 7000 personnes ont déjà choisi nos jeux pour renforcer leurs relations. 
+                Plus de 5000 personnes ont déjà choisi nos jeux pour renforcer leurs relations. 
                 Nos utilisateurs rapportent des conversations plus profondes, une meilleure 
                 compréhension mutuelle et des liens plus forts avec leurs proches.
               </p>

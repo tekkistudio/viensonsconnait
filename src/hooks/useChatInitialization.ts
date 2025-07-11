@@ -94,9 +94,9 @@ export function useChatInitialization({
         type: 'assistant' as const,
         content: `😅 **Oups ! Une petite erreur s'est produite.**
 
-Bonjour ! Je suis Rose, votre assistante pour **${product.name || 'nos jeux'}**.
+Bonjour ! Je suis Rose, votre Assistante d'achat.
 
-Comment puis-je vous aider ?`,
+Comment puis-je vous aider avec **${product.name || 'nos jeux'}** ?`,
         choices: [
           'Je veux l\'acheter maintenant',
           'J\'ai des questions à poser',

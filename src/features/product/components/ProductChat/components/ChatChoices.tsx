@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/components/ChatChoices.tsx - VERSION OPTIMISÉE
+// src/features/product/components/ProductChat/components/ChatChoices.tsx
 
 'use client';
 
@@ -306,7 +306,7 @@ const ChatChoices: React.FC<ChatChoicesProps> = ({
   };
 
   return (
-    <div className={`space-y-2 ${className}`}>
+  <div className={`flex flex-wrap gap-2 ${className}`}>
       {validChoices.map((analysedChoice) => renderChoiceButton(analysedChoice))}
       
       {/* ✅ Lien externe supplémentaire si défini */}
@@ -437,20 +437,20 @@ const SecondaryButton: React.FC<ChoiceButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     className={`
-      w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200 min-h-[48px]
+      inline-block px-4 py-2 mx-1 mb-2 rounded-lg border transition-all duration-200 text-sm
       ${isSelected 
         ? 'border-pink-500 bg-pink-50 text-pink-700' 
         : disabled 
           ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-pink-300 hover:bg-pink-50 cursor-pointer'
+          : 'border-gray-300 bg-white text-gray-700 hover:border-pink-300 hover:bg-pink-50 cursor-pointer shadow-sm hover:shadow-md'
       }
       ${isProcessed ? 'opacity-50' : ''}
     `}
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.1 }}
-    whileHover={!disabled ? { scale: 1.01 } : undefined}
-    whileTap={!disabled ? { scale: 0.99 } : undefined}
+    whileHover={!disabled ? { scale: 1.02 } : undefined}
+    whileTap={!disabled ? { scale: 0.98 } : undefined}
     title={disabled ? 'Choix déjà sélectionné' : choice}
   >
     <span className="text-sm font-medium leading-relaxed">
@@ -458,7 +458,7 @@ const SecondaryButton: React.FC<ChoiceButtonProps> = ({
     </span>
     {isSelected && (
       <span className="ml-2 text-xs text-pink-500">
-        ✓ Sélectionné
+        ✓
       </span>
     )}
   </motion.button>

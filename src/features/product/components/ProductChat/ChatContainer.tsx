@@ -1,4 +1,4 @@
-// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION DESKTOP CORRIGÉE SANS DOUBLONS
+// src/features/product/components/ProductChat/ChatContainer.tsx - VERSION CORRIGÉE ANTI-DOUBLONS
 
 'use client';
 
@@ -97,8 +97,9 @@ const ChatContainer = ({
   const [welcomeService] = useState(() => WelcomeMessageService.getInstance());
   const [sessionManager] = useState(() => SessionManager.getInstance());
   
-  // États pour éviter les doublons
-  const [initializationLock, setInitializationLock] = useState(false);
+  // ✅ CORRECTION MAJEURE: États pour éviter les doublons avec clés uniques
+  const [initializationKey, setInitializationKey] = useState<string>('');
+  const [lastMessageCount, setLastMessageCount] = useState(0);
 
   // CONVERSION: Product vers ProductData
   const productData = convertProductToProductData(product);
@@ -207,23 +208,31 @@ const ChatContainer = ({
     }
   }, [isVoiceSupported, recognition, isListening, isProcessing]);
 
-  // ✅ INITIALISATION CORRIGÉE - HARMONISÉE AVEC MOBILE
+  // ✅ CORRECTION MAJEURE: Initialisation avec prévention de doublons renforcée
   useEffect(() => {
-    if (!product?.id || initializationLock) {
+    if (!product?.id) {
+      return;
+    }
+
+    const uniqueKey = `${product.id}-${storeId}-${Date.now()}`;
+    
+    // Éviter les réinitialisations multiples
+    if (initializationKey === uniqueKey) {
       return;
     }
 
     const initializeChat = async () => {
       try {
-        console.log('🖥️ [DESKTOP] Starting chat initialization:', { 
+        console.log('🖥️ [DESKTOP] Starting UNIQUE chat initialization:', { 
           productId: product.id, 
           storeId, 
-          messagesCount: messages.length
+          messagesCount: messages.length,
+          uniqueKey
         });
         
-        setInitializationLock(true);
+        setInitializationKey(uniqueKey);
         
-        // ✅ CORRECTION: Vérifier les messages existants AVANT d'ajouter
+        // ✅ VÉRIFICATION STRICTE: Ne pas initialiser si des messages existent déjà
         if (messages.length > 0) {
           console.log('📝 [DESKTOP] Messages already exist, skipping initialization');
           setIsInitialized(true);
@@ -231,9 +240,9 @@ const ChatContainer = ({
           return;
         }
 
-        // ✅ Créer la session
-        const newSessionId = `desktop_${product.id}_${Date.now()}`;
-        console.log('🆕 [DESKTOP] Creating session:', newSessionId);
+        // ✅ Créer la session avec ID unique
+        const newSessionId = `desktop_${product.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('🆕 [DESKTOP] Creating UNIQUE session:', newSessionId);
 
         // ✅ Initialiser le store
         if (initializeSession) {
@@ -241,22 +250,54 @@ const ChatContainer = ({
           console.log('✅ [DESKTOP] Store initialized');
         }
 
-        // ✅ AJOUTER LE MESSAGE D'ACCUEIL (desktop version SANS boutons)
-        console.log('➕ [DESKTOP] Adding welcome message...');
+        // ✅ Attendre un court délai pour s'assurer que l'initialisation est complète
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // ✅ VÉRIFICATION FINALE avant d'ajouter le message
+        const currentState = useChatStore.getState();
+        if (currentState.messages.length > 0) {
+          console.log('⚠️ [DESKTOP] Messages were added during initialization, stopping');
+          setIsInitialized(true);
+          setWelcomeMessageAdded(true);
+          return;
+        }
+
+        // ✅ AJOUTER LE MESSAGE D'ACCUEIL DESKTOP 
+        console.log('➕ [DESKTOP] Adding welcome message (standard version)...');
         
-        const welcomeMessage = welcomeService.generateDesktopWelcomeMessage(
-          product.name,
-          newSessionId,
-          product.id,
-          product.price,
-          productData.reviewCount
-        );
+        const welcomeMessage = {
+          type: 'assistant' as const,
+          content: `👋 Bonjour ! Je suis **Rose**, votre Assistante d'achat.
+
+Je vois que vous vous intéressez à notre jeu **${product.name}**. C'est un excellent choix ✨
+
+Comment puis-je vous aider ?`,
+          choices: [
+            'Je veux l\'acheter maintenant',
+            'J\'ai des questions à poser',
+            'Je veux en savoir plus'
+          ],
+          assistant: {
+            name: 'Rose',
+            title: 'Assistante d\'achat'
+          },
+          metadata: {
+            nextStep: 'initial_engagement' as ConversationStep,
+            productId: product.id,
+            flags: { 
+              isWelcome: true,
+              desktopMode: true,
+              standardChoices: true 
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
         
         addMessage(welcomeMessage);
         setWelcomeMessageAdded(true);
         setIsInitialized(true);
         
-        console.log('✅ [DESKTOP] Welcome message added successfully');
+        console.log('✅ [DESKTOP] Welcome message added successfully (NO interface buttons)');
         
         if (store.updateFlags) {
           store.updateFlags({ isInitialized: true });
@@ -266,12 +307,24 @@ const ChatContainer = ({
         console.error('❌ [DESKTOP] Error initializing chat:', err);
         setIsInitialized(true);
         setWelcomeMessageAdded(true);
-        setInitializationLock(false);
+        setInitializationKey('');
       }
     };
 
     initializeChat();
-  }, [product.id, storeId, initializationLock, messages.length, welcomeService, addMessage, initializeSession, store]);
+  }, [product.id, storeId, addMessage, initializeSession, store]);
+
+  // ✅ PROTECTION CONTRE LES DOUBLONS: Surveiller les changements de messages
+  useEffect(() => {
+    if (messages.length !== lastMessageCount) {
+      console.log('📊 [DESKTOP] Messages count changed:', {
+        from: lastMessageCount,
+        to: messages.length,
+        messages: messages.map(m => ({ type: m.type, content: String(m.content).substring(0, 50) }))
+      });
+      setLastMessageCount(messages.length);
+    }
+  }, [messages.length, lastMessageCount]);
 
   // Auto-scroll optimisé
   useEffect(() => {
@@ -287,7 +340,7 @@ const ChatContainer = ({
     }
   }, [messages, showTyping]);
 
-  // ✅ GESTION DES MESSAGES - CORRIGÉE POUR DESKTOP
+  // ✅ GESTION DES MESSAGES - SIMPLIFIÉE ET SÉCURISÉE
   const sendMessage = useCallback(async (content: string) => {
     try {
       console.log('📤 [DESKTOP] Starting sendMessage:', {
@@ -328,7 +381,7 @@ const ChatContainer = ({
 
       console.log('⚙️ [DESKTOP] Calling OptimizedChatService.processMessage');
       
-      // ✅ UTILISER LE SERVICE CORRIGÉ avec "le jeu"
+      // ✅ UTILISER LE SERVICE avec "le jeu"
       const response = await optimizedService.processMessage(
         sessionId,
         content,
@@ -440,53 +493,8 @@ Voulez-vous réessayer ?`,
     });
   }, [setPaymentModal]);
 
-  // ✅ CORRECTION MAJEURE: Fonction pour détecter les boutons d'interface ENTIÈREMENT RÉVISÉE
-  const shouldShowInterfaceButtons = useCallback((message: ChatMessageType, index: number): boolean => {
-    // ✅ CONDITION 1: JAMAIS sur mobile
-    if (isMobile) {
-      console.log('🚫 [DESKTOP] Mobile mode, never show interface buttons');
-      return false;
-    }
-    
-    // ✅ CONDITION 2: SEULEMENT pour le dernier message
-    if (index !== messages.length - 1) {
-      console.log('🚫 [DESKTOP] Not last message, no interface buttons');
-      return false;
-    }
-    
-    // ✅ CONDITION 3: SEULEMENT pour les messages assistant
-    if (message.type !== 'assistant') {
-      console.log('🚫 [DESKTOP] Not assistant message, no interface buttons');
-      return false;
-    }
-    
-    // ✅ CONDITION 4: NE JAMAIS afficher si le message a déjà des choix
-    if (message.choices && message.choices.length > 0) {
-      console.log('🚫 [DESKTOP] Message has choices, NOT showing interface buttons');
-      return false;
-    }
-    
-    // ✅ CONDITION 5: SEULEMENT pour les messages d'accueil spécifiques avec le flag
-    const isDesktopWelcomeWithButtons = Boolean(
-      message.metadata?.flags?.isWelcome && 
-      message.metadata?.flags?.desktopMode &&
-      message.metadata?.flags?.useInterfaceButtons &&
-      (!message.choices || message.choices.length === 0)
-    );
-    
-    console.log('🔍 [DESKTOP] Interface buttons check:', {
-      isWelcome: Boolean(message.metadata?.flags?.isWelcome),
-      isDesktop: Boolean(message.metadata?.flags?.desktopMode),
-      useInterfaceButtons: Boolean(message.metadata?.flags?.useInterfaceButtons),
-      hasChoices: !!(message.choices && message.choices.length > 0),
-      shouldShow: isDesktopWelcomeWithButtons
-    });
-    
-    return isDesktopWelcomeWithButtons;
-  }, [isMobile, messages.length]);
-
   // ✅ RENDU CONDITIONNEL pour éviter l'affichage prématuré
-  if (!isInitialized && !initializationLock) {
+  if (!isInitialized) {
     return (
       <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
         <div className="flex-shrink-0">
@@ -508,7 +516,7 @@ Voulez-vous réessayer ?`,
     );
   }
 
-  // ✅ RENDU PRINCIPAL AVEC BOUTONS D'INTERFACE DESKTOP CORRIGÉS (ANTI-DOUBLONS)
+  // ✅ RENDU PRINCIPAL SIMPLIFIÉ - PLUS DE BOUTONS D'INTERFACE DOUBLONS
   const chatContent = (
     <div className={`flex flex-col h-full bg-white ${isMobile ? '' : 'rounded-lg border border-gray-200 shadow-lg'}`}>
       {/* HEADER */}
@@ -529,86 +537,35 @@ Voulez-vous réessayer ?`,
         style={{ maxHeight: isFullscreen ? 'calc(100vh - 120px)' : '500px' }}
       >
         <AnimatePresence mode="popLayout">
-          {messages.map((message, index) => {
-            // ✅ CORRECTION MAJEURE: Logique d'affichage des boutons ENTIÈREMENT RÉVISÉE
-            const showInterfaceButtons = shouldShowInterfaceButtons(message, index);
-            
-            return (
-              <motion.div
-                key={`${message.timestamp}-${index}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChatMessage 
-                  message={message} 
-                  onChoiceSelect={handleChoiceSelect}
-                />
-                
-                {/* ✅ CORRECTION: Afficher les choix SEULEMENT si pas de boutons d'interface */}
-                {message.choices && message.choices.length > 0 && !showInterfaceButtons && (
-                  <div className="mt-3">
-                    <ChatChoices
-                      choices={message.choices}
-                      onChoiceSelect={handleChoiceSelect}
-                      disabled={isProcessing}
-                    />
-                  </div>
-                )}
-                
-                {/* Sélecteur de quantité */}
-                {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
-                  <div className="mt-3">
-                    <QuantitySelector
-                      onQuantitySelect={async (qty) => {
-                        if (message.metadata) {
-                          message.metadata.quantityHandled = true;
-                        }
-                        handleChoiceSelect(qty.toString());
-                      }}
-                      maxQuantity={message.metadata?.maxQuantity || 10}
-                    />
-                  </div>
-                )}
-
-                {/* ✅ CORRECTION MAJEURE: BOUTONS D'INTERFACE DESKTOP - AFFICHAGE UNIQUE ET CONDITIONNEL */}
-                {showInterfaceButtons && (
-                  <div className="mt-4 space-y-3">
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="grid grid-cols-1 gap-3"
-                    >
-                      <button
-                        onClick={() => handleChoiceSelect('Je veux l\'acheter maintenant')}
-                        disabled={isProcessing}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-[#FF7E93] to-[#FF6B9D] text-white font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Je veux l'acheter maintenant
-                      </button>
-                      
-                      <button
-                        onClick={() => handleChoiceSelect('J\'ai des questions à poser')}
-                        disabled={isProcessing}
-                        className="w-full px-4 py-3 border-2 border-[#FF7E93] text-[#FF7E93] font-medium rounded-lg hover:bg-[#FF7E93] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        J'ai des questions à poser
-                      </button>
-                      
-                      <button
-                        onClick={() => handleChoiceSelect('Je veux en savoir plus')}
-                        disabled={isProcessing}
-                        className="w-full px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Je veux en savoir plus
-                      </button>
-                    </motion.div>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
+          {messages.map((message, index) => (
+            <motion.div
+              key={`${message.timestamp}-${index}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChatMessage 
+                message={message} 
+                onChoiceSelect={handleChoiceSelect}
+              />
+              
+              {/* Sélecteur de quantité */}
+              {message.metadata?.showQuantitySelector && !message.metadata?.quantityHandled && (
+                <div className="mt-3">
+                  <QuantitySelector
+                    onQuantitySelect={async (qty) => {
+                      if (message.metadata) {
+                        message.metadata.quantityHandled = true;
+                      }
+                      handleChoiceSelect(qty.toString());
+                    }}
+                    maxQuantity={message.metadata?.maxQuantity || 10}
+                  />
+                </div>
+              )}
+            </motion.div>
+          ))}
 
           {(showTyping || isTyping) && (
             <motion.div

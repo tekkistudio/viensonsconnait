@@ -1,4 +1,4 @@
-// src/components/payment/StripePaymentModal.tsx - VERSION INTÉGRÉE DANS LE CHAT
+// src/components/payment/StripePaymentModal.tsx - VERSION CORRIGÉE ANTI-ERREURS
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -47,6 +47,7 @@ export function StripePaymentModal({
   const [key, setKey] = useState(0);
   const [internalClientSecret, setInternalClientSecret] = useState<string | null>(null);
   const [isLoadingIntent, setIsLoadingIntent] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // ✅ NOUVEAU: Créer automatiquement un PaymentIntent si pas de clientSecret
   useEffect(() => {
@@ -57,15 +58,22 @@ export function StripePaymentModal({
     }
   }, [isOpen, clientSecret, amount, orderId]);
 
-  // ✅ FONCTION: Créer un PaymentIntent Stripe
+  // ✅ FONCTION CORRIGÉE: Créer un PaymentIntent Stripe avec gestion d'erreurs renforcée
   const createPaymentIntent = async () => {
     if (!amount || !orderId) return;
 
     setIsLoadingIntent(true);
+    setInitError(null);
     
     try {
       // Convertir FCFA en EUR (approximation: 1 EUR = 656 FCFA)
       const amountInEur = Math.max(1, Math.round(amount / 656));
+      
+      console.log('💳 Creating Stripe PaymentIntent:', {
+        originalAmount: amount,
+        convertedEur: amountInEur,
+        orderId
+      });
       
       const response = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
@@ -78,17 +86,37 @@ export function StripePaymentModal({
         }),
       });
 
+      const responseText = await response.text();
+      console.log('📝 Raw Stripe API response:', responseText);
+
       if (response.ok) {
-        const data = await response.json();
-        setInternalClientSecret(data.clientSecret);
-        setKey(prev => prev + 1); // Force re-render des Elements
+        const data = JSON.parse(responseText);
+        console.log('✅ PaymentIntent created successfully:', data);
+        
+        if (data.clientSecret) {
+          setInternalClientSecret(data.clientSecret);
+          setKey(prev => prev + 1); // Force re-render des Elements
+        } else {
+          throw new Error('Client secret manquant dans la réponse');
+        }
       } else {
-        const errorData = await response.json();
-        onError?.(errorData.message || 'Erreur lors de la création du paiement');
+        let errorMessage = 'Erreur lors de la création du paiement';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Erreur HTTP ${response.status}: ${responseText}`;
+        }
+        
+        console.error('❌ Stripe API Error:', { status: response.status, responseText });
+        setInitError(errorMessage);
+        onError?.(errorMessage);
       }
     } catch (error) {
       console.error('❌ Error creating PaymentIntent:', error);
-      onError?.('Impossible de créer le paiement. Veuillez réessayer.');
+      const errorMessage = error instanceof Error ? error.message : 'Impossible de créer le paiement. Veuillez réessayer.';
+      setInitError(errorMessage);
+      onError?.(errorMessage);
     } finally {
       setIsLoadingIntent(false);
     }
@@ -103,36 +131,86 @@ export function StripePaymentModal({
 
   const finalClientSecret = clientSecret || internalClientSecret;
 
+  // ✅ AFFICHAGE si aucun clientSecret et erreur d'initialisation
+  if (!finalClientSecret && !isLoadingIntent && initError) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[500px] p-0 gap-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-semibold text-gray-900">
+                Erreur de paiement
+              </DialogTitle>
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+          </DialogHeader>
+          
+          <div className="p-6">
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Impossible d'initialiser le paiement
+              </h3>
+              <p className="text-gray-600 mb-4">{initError}</p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={createPaymentIntent}
+                  className="flex-1 bg-[#FF7E93] hover:bg-[#FF7E93]/90"
+                >
+                  Réessayer
+                </Button>
+                <Button
+                  onClick={onClose}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (!finalClientSecret && !isLoadingIntent) {
     return null;
   }
 
-  const options = {
-    clientSecret: finalClientSecret,
-    appearance: {
-      theme: 'stripe' as const,
-      variables: {
-        colorPrimary: '#FF7E93',
-        colorBackground: '#ffffff',
-        colorText: '#30313d',
-        colorDanger: '#df1b41',
-        fontFamily: 'system-ui, sans-serif',
-        spacingUnit: '4px',
-        borderRadius: '8px'
-      },
-      rules: {
-        '.Input': {
-          border: '1px solid #e6e6e6',
-          boxShadow: 'none'
+  const options = finalClientSecret
+    ? {
+        clientSecret: finalClientSecret,
+        appearance: {
+          theme: 'stripe' as const,
+          variables: {
+            colorPrimary: '#FF7E93',
+            colorBackground: '#ffffff',
+            colorText: '#30313d',
+            colorDanger: '#df1b41',
+            fontFamily: 'system-ui, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '8px'
+          },
+          rules: {
+            '.Input': {
+              border: '1px solid #e6e6e6',
+              boxShadow: 'none'
+            },
+            '.Input:focus': {
+              border: '1px solid #FF7E93',
+              boxShadow: '0 0 0 1px #FF7E93'
+            }
+          }
         },
-        '.Input:focus': {
-          border: '1px solid #FF7E93',
-          boxShadow: '0 0 0 1px #FF7E93'
-        }
+        locale: 'fr' as const
       }
-    },
-    locale: 'fr' as const
-  };
+    : undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -241,36 +319,50 @@ function PaymentForm({
   const [paymentSucceeded, setPaymentSucceeded] = useState(false);
   const { addMessage } = useChatStore();
 
-  // ✅ VALIDATION: Vérifier que Stripe est chargé
+  // ✅ VALIDATION RENFORCÉE: Vérifier que Stripe est chargé
   const validateForm = useCallback((): boolean => {
-    if (!stripe || !elements) {
-      setError('Stripe n\'est pas encore chargé. Veuillez patienter.');
+    if (!stripe) {
+      setError('Stripe n\'est pas encore chargé. Veuillez patienter quelques secondes.');
+      return false;
+    }
+
+    if (!elements) {
+      setError('Les éléments de paiement ne sont pas encore chargés.');
       return false;
     }
 
     const paymentElement = elements.getElement('payment');
     if (!paymentElement) {
-      setError('Impossible de localiser le formulaire de paiement.');
+      setError('Impossible de localiser le formulaire de paiement. Rechargez la page.');
       return false;
     }
 
     return true;
   }, [stripe, elements]);
 
-  // ✅ GESTION: Soumission du paiement
+  // ✅ GESTION CORRIGÉE: Soumission du paiement avec logs détaillés
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
-    if (processing) return;
+    console.log('💳 Starting payment submission process...');
+    
+    if (!validateForm()) {
+      console.error('❌ Form validation failed');
+      return;
+    }
+    
+    if (processing) {
+      console.warn('⚠️ Payment already in progress, ignoring submission');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
 
     try {
-      console.log('💳 Starting Stripe payment process...');
+      console.log('🔄 Confirming payment with Stripe...');
 
-      // ✅ Confirmer le paiement sans redirection
+      // ✅ Confirmer le paiement avec gestion d'erreurs améliorée
       const { error: submitError, paymentIntent } = await stripe!.confirmPayment({
         elements: elements!,
         redirect: 'if_required',
@@ -284,12 +376,15 @@ function PaymentForm({
         const errorMessage = getErrorMessage(submitError.code, submitError.message);
         setError(errorMessage);
         onError?.(errorMessage);
-        setProcessing(false);
         return;
       }
 
       if (paymentIntent) {
-        console.log('✅ Payment Intent result:', paymentIntent.status);
+        console.log('✅ Payment Intent result:', {
+          id: paymentIntent.id,
+          status: paymentIntent.status,
+          amount: paymentIntent.amount
+        });
         
         switch (paymentIntent.status) {
           case 'succeeded':
@@ -346,41 +441,46 @@ Merci pour votre confiance ! 🙏`,
             break;
             
           case 'requires_action':
-            console.log('🔐 Payment requires additional action');
-            // Stripe gère automatiquement (3D Secure, etc.)
+            console.log('🔐 Payment requires additional action (3D Secure, etc.)');
+            // Stripe gère automatiquement les actions supplémentaires
+            setError('Votre banque demande une vérification supplémentaire. Suivez les instructions.');
             break;
             
           default:
-            console.log('❓ Unexpected payment status:', paymentIntent.status);
-            setError('Statut de paiement inattendu. Veuillez contacter le support.');
-            setProcessing(false);
+            console.warn('❓ Unexpected payment status:', paymentIntent.status);
+            setError(`Statut de paiement inattendu: ${paymentIntent.status}. Contactez le support si le problème persiste.`);
         }
       }
 
     } catch (err) {
-      console.error('❌ Payment error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Une erreur inattendue s\'est produite';
+      console.error('❌ Critical payment error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Une erreur critique s\'est produite lors du paiement';
       setError(errorMessage);
-      onError?.(errorMessage);
+      if (onError) {
+        onError(errorMessage);
+      }
+    } finally {
       setProcessing(false);
     }
   };
 
-  // ✅ FONCTION: Messages d'erreur personnalisés
+  // ✅ FONCTION CORRIGÉE: Messages d'erreur personnalisés en français
   const getErrorMessage = (code?: string, defaultMessage?: string): string => {
     const errorMessages: Record<string, string> = {
-      'card_declined': 'Votre carte a été refusée. Veuillez essayer avec une autre carte.',
-      'insufficient_funds': 'Fonds insuffisants. Veuillez vérifier votre solde.',
+      'card_declined': 'Votre carte a été refusée par votre banque. Veuillez essayer avec une autre carte ou contacter votre banque.',
+      'insufficient_funds': 'Fonds insuffisants sur votre compte. Veuillez vérifier votre solde.',
       'expired_card': 'Votre carte a expiré. Veuillez utiliser une carte valide.',
-      'incorrect_cvc': 'Le code de sécurité (CVC) est incorrect.',
-      'incorrect_number': 'Le numéro de carte est incorrect.',
-      'invalid_expiry_month': 'Le mois d\'expiration est invalide.',
-      'invalid_expiry_year': 'L\'année d\'expiration est invalide.',
-      'processing_error': 'Une erreur de traitement s\'est produite. Veuillez réessayer.',
-      'generic_decline': 'Votre carte a été refusée. Contactez votre banque pour plus d\'informations.'
+      'incorrect_cvc': 'Le code de sécurité (CVC) saisi est incorrect.',
+      'incorrect_number': 'Le numéro de carte saisi est incorrect.',
+      'invalid_expiry_month': 'Le mois d\'expiration saisi est invalide.',
+      'invalid_expiry_year': 'L\'année d\'expiration saisie est invalide.',
+      'processing_error': 'Une erreur de traitement s\'est produite. Veuillez réessayer dans quelques minutes.',
+      'generic_decline': 'Votre carte a été refusée. Contactez votre banque pour plus d\'informations.',
+      'authentication_required': 'Votre banque exige une authentification supplémentaire.',
+      'currency_not_supported': 'Cette devise n\'est pas supportée par votre carte.'
     };
 
-    return errorMessages[code || ''] || defaultMessage || 'Une erreur est survenue lors du paiement.';
+    return errorMessages[code || ''] || defaultMessage || 'Une erreur est survenue lors du paiement. Veuillez réessayer.';
   };
 
   // ✅ AFFICHAGE: État de succès
@@ -448,12 +548,22 @@ Merci pour votre confiance ! 🙏`,
         />
       </div>
 
-      {/* ✅ Affichage des erreurs */}
+      {/* ✅ Affichage des erreurs amélioré */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="text-sm">{error}</AlertDescription>
         </Alert>
+      )}
+
+      {/* ✅ NOUVEAU: Informations sur les cartes de test */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800">
+          <p className="font-medium mb-1">💳 Mode test - Utilisez ces cartes :</p>
+          <p>• Visa: 4242 4242 4242 4242</p>
+          <p>• Date: Toute date future</p>
+          <p>• CVC: Tout code à 3 chiffres</p>
+        </div>
       )}
 
       {/* ✅ Boutons d'action */}
